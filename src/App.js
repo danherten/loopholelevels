@@ -337,6 +337,8 @@ export default function App(){
   const [profile,setProfile]=useState(null);
   const [rewards,setRewards]=useState([]);
   const [leaderboard,setLeaderboard]=useState([]);
+  const [weeklyLeaderboard,setWeeklyLeaderboard]=useState([]);
+  const [lbTab,setLbTab]=useState('alltime');
   const [milestones,setMilestones]=useState(DEFAULT_MILESTONES);
   const [page,setPage]=useState('home');
   const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('ll-admin')==='true');
@@ -413,6 +415,18 @@ export default function App(){
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
   async function loadRewards(){const {data}=await supabase.from('rewards').select('*').order('level');if(data)setRewards(data);}
   async function loadLeaderboard(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}
+  async function loadWeeklyLeaderboard(){
+    const now=new Date();const day=now.getDay();const diff=day===0?6:day-1;
+    const monday=new Date(now);monday.setDate(now.getDate()-diff);monday.setHours(0,0,0,0);
+    const {data:events}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission').gte('created_at',monday.toISOString());
+    if(!events)return;
+    const byProfile={};
+    events.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,commission:0};byProfile[e.profile_id].xp+=(e.amount||0);byProfile[e.profile_id].gmv+=(e.gmv||0);byProfile[e.profile_id].commission+=(e.commission||0);});
+    const {data:profiles}=await supabase.from('profiles').select('id,username,avatar_url,tiktok_handles');
+    if(!profiles)return;
+    const weekly=Object.entries(byProfile).map(([pid,vals])=>{const p=profiles.find(x=>x.id===pid);if(!p)return null;return{...p,xp:vals.xp,total_gmv:vals.gmv,total_commission:vals.commission};}).filter(Boolean).sort((a,b)=>b.xp-a.xp).slice(0,50);
+    setWeeklyLeaderboard(weekly);
+  }
   async function loadAllProfiles(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false});if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}}
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
   async function loadProducts(){const {data}=await supabase.from('products').select('*').order('sort_order',{ascending:true});if(data)setProducts(data);}
@@ -498,7 +512,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();}if(pg==='home'||pg==='lb')loadLeaderboard();if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadWeeklyLeaderboard();}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -874,66 +888,118 @@ body,html{margin:0;padding:0;background:#070710;}
 
       {/* LEADERBOARD */}
       {page==='lb'&&(<div className="pg">
-        {/* TOP 3 PODIUM */}
-        {leaderboard.length>=3&&(()=>{
-          const [first,second,third]=leaderboard;
-          const PodCard=({u,rank,height,labelPos})=>{
-            const ulv=getLv(u.xp);
-            const col=avc(u.username);
-            const isMe=u.id===profile?.id;
-            const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
-            const glow=rank===1?'rgba(245,158,11,.25)':rank===2?'rgba(187,187,187,.2)':'rgba(205,127,50,.2)';
-            const border=rank===1?'rgba(245,158,11,.4)':rank===2?'rgba(187,187,187,.3)':'rgba(205,127,50,.3)';
-            return(
-              <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end'}}>
-                <div style={{fontSize:11,fontWeight:700,color:'var(--tx3)',marginBottom:4,textAlign:'center',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{u.username}{isMe&&<span style={{color:'var(--pu2)',marginLeft:3}}>(you)</span>}</div>
-                <div style={{width:44,height:44,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:15,color:'#fff',border:`2px solid ${border}`,boxShadow:`0 0 14px ${glow}`,marginBottom:6,overflow:'hidden',flexShrink:0}}>
-                  {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
-                </div>
-                <div style={{fontSize:18}}>{medal}</div>
-                <div style={{width:'100%',background:`linear-gradient(180deg,${glow.replace('.25',',.15').replace('.2',',.12')},var(--card))`,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'10px 6px 12px',textAlign:'center',marginTop:4,height}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--tx)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()}</div>
-                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>XP</div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBP(u.total_gmv||0)}</div>
-                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7}}>GMV</div>
-                </div>
-              </div>
-            );
-          };
-          return(
-            <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:16,margin:'0 -13px 16px',padding:'0 0'}}>
-              <PodCard u={second} rank={2} height={90} labelPos="bottom"/>
-              <PodCard u={first} rank={1} height={120} labelPos="bottom"/>
-              <PodCard u={third} rank={3} height={75} labelPos="bottom"/>
-            </div>
-          );
-        })()}
-        {/* REST OF LEADERBOARD */}
-        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
-          {leaderboard.slice(leaderboard.length>=3?3:0).map((u,i)=>{
-            const rank=(leaderboard.length>=3?3:0)+i+1;
-            const ulv=getLv(u.xp);
-            const isMe=u.id===profile?.id;
-            const col=avc(u.username);
-            return(
-              <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<leaderboard.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'rgba(139,92,246,.06)':'transparent'}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:'var(--tx3)',flexShrink:0}}>{rank}</div>
-                <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden'}}>
-                  {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div>
-                  <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
-                </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()} XP</div>
-                  <div style={{fontSize:10,color:'var(--gr)',marginTop:1}}>{fmtGBP(u.total_gmv||0)}</div>
-                </div>
-              </div>
-            );
-          })}
-          {leaderboard.length===0&&<div style={{padding:'24px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>No affiliates yet.</div>}
+        <div className="sh" style={{marginBottom:10}}>RANKINGS</div>
+        {/* Tabs */}
+        <div style={{display:'flex',gap:0,marginBottom:14,background:'var(--card)',borderRadius:'var(--rsm)',border:'1px solid var(--bo)',overflow:'hidden'}}>
+          {[['alltime','🏆 All Time'],['weekly','⚡ This Week']].map(([key,label])=>(
+            <button key={key} onClick={()=>setLbTab(key)} style={{flex:1,padding:'10px 0',background:lbTab===key?'rgba(139,92,246,.18)':'transparent',border:'none',borderRight:key==='alltime'?'1px solid var(--bo)':'none',color:lbTab===key?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{label}</button>
+          ))}
         </div>
+        {/* Weekly reset note */}
+        {lbTab==='weekly'&&<div style={{textAlign:'center',fontSize:11,color:'var(--tx3)',marginBottom:12,padding:'6px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)'}}>Resets every Monday at midnight</div>}
+        {(()=>{
+          const lb=lbTab==='weekly'?weeklyLeaderboard:leaderboard;
+          const isWeekly=lbTab==='weekly';
+          return(<>
+            {/* TOP 3 PODIUM */}
+            {lb.length>=3&&(()=>{
+              const [first,second,third]=lb;
+              const PodCard=({u,rank,height})=>{
+                const col=avc(u.username);
+                const isMe=u.id===profile?.id;
+                const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
+                const glow=rank===1?'rgba(245,158,11,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)';
+                const border=rank===1?'rgba(245,158,11,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)';
+                const bg=rank===1?'rgba(245,158,11,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)';
+                return(
+                  <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end'}}>
+                    <div style={{fontSize:11,fontWeight:700,color:isMe?'var(--pu2)':'var(--tx2)',marginBottom:5,textAlign:'center',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 2px'}}>{u.username}</div>
+                    <div style={{position:'relative'}}>
+                      <div style={{width:rank===1?52:44,height:rank===1?52:44,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?17:14,color:'#fff',border:`2px solid ${border}`,boxShadow:`0 0 18px ${glow}`,overflow:'hidden',flexShrink:0}}>
+                        {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
+                      </div>
+                      <div style={{position:'absolute',bottom:-6,left:'50%',transform:'translateX(-50%)',fontSize:16}}>{medal}</div>
+                    </div>
+                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'14px 6px 12px',textAlign:'center',marginTop:12,height}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--tx)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()}</div>
+                      <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:6}}>{isWeekly?'XP this week':'XP'}</div>
+                      <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--gr)'}}>{fmtGBP(u.total_gmv||0)}</div>
+                      <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7}}>{isWeekly?'GMV this week':'GMV'}</div>
+                    </div>
+                  </div>
+                );
+              };
+              return(
+                <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:16,padding:'10px 0 0'}}>
+                  <PodCard u={second} rank={2} height={95}/>
+                  <PodCard u={first} rank={1} height={125}/>
+                  <PodCard u={third} rank={3} height={80}/>
+                </div>
+              );
+            })()}
+            {/* If less than 3, show simple list for all */}
+            {lb.length>0&&lb.length<3&&(
+              <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
+                {lb.map((u,i)=>{
+                  const isMe=u.id===profile?.id;const col=avc(u.username);const medal=i===0?'🥇':i===1?'🥈':'🥉';
+                  return(
+                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',background:isMe?'rgba(139,92,246,.06)':'transparent'}}>
+                      <div style={{fontSize:16,width:24,textAlign:'center'}}>{medal}</div>
+                      <div style={{width:36,height:36,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:600}}>{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
+                      </div>
+                      <div style={{textAlign:'right',flexShrink:0}}>
+                        <div style={{fontFamily:'var(--fh)',fontSize:15,color:'var(--pu2)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()} XP</div>
+                        <div style={{fontSize:10,color:'var(--gr)',marginTop:1}}>{fmtGBP(u.total_gmv||0)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* REST OF LEADERBOARD (4th+) */}
+            {lb.length>=3&&(<div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
+              {lb.slice(3).map((u,i)=>{
+                const rank=i+4;
+                const isMe=u.id===profile?.id;
+                const col=avc(u.username);
+                return(
+                  <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<lb.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'rgba(139,92,246,.06)':'transparent'}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:'var(--tx3)',flexShrink:0}}>{rank}</div>
+                    <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden'}}>
+                      {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()} XP</div>
+                      <div style={{fontSize:10,color:'var(--gr)',marginTop:1}}>{fmtGBP(u.total_gmv||0)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>)}
+            {lb.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>{isWeekly?'No activity this week yet — get selling!':'No affiliates yet.'}</div>}
+            {/* Your position callout */}
+            {profile&&lb.length>0&&(()=>{
+              const myIdx=lb.findIndex(u=>u.id===profile.id);
+              if(myIdx<0)return <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'12px 14px',marginTop:11,textAlign:'center',fontSize:12,color:'var(--tx3)'}}>{isWeekly?'You haven\'t earned any XP this week yet':'You\'re not on the leaderboard yet'}</div>;
+              return(
+                <div style={{background:'rgba(139,92,246,.08)',border:'1px solid rgba(139,92,246,.2)',borderRadius:'var(--rsm)',padding:'12px 14px',marginTop:11,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--pu2)'}}>#{myIdx+1}</div>
+                    <div style={{fontSize:12,color:'var(--tx2)'}}>Your position</div>
+                  </div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)'}}>{(lb[myIdx].xp||0).toLocaleString()} XP</div>
+                </div>
+              );
+            })()}
+          </>);
+        })()}
       </div>)}
 
       {/* REFERRALS */}
