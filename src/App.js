@@ -125,7 +125,7 @@ const CSS=`
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}#root{min-height:100%;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
-.app{display:flex;flex-direction:column;position:fixed;inset:0;width:100%;overflow:hidden;max-width:100%}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
 .topbar.no-st{padding-top:9px}
