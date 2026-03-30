@@ -570,6 +570,7 @@ export default function App(){
   const filteredUnits=importEvts.reduce((s,e)=>s+(e.sales||0),0);
   const filteredLiveStreams=importEvts.reduce((s,e)=>s+(e.live_streams||0),0);
   const filteredCancelled=importEvts.reduce((s,e)=>s+(e.cancelled||0),0);
+  const filteredAOV=filteredOrders>0?filteredGMV/filteredOrders:0;
   const filteredCancelledGMV=importEvts.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
   const filteredProducts=React.useMemo(()=>{
     const byProd={};
@@ -691,7 +692,7 @@ body,html{margin:0;padding:0;background:#070710;}
           {[
             {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:(profile.total_commission||0))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
             {label:'Cancelled / Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} · ${fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0))}`,icon:'↩️'},
-            {label:'Avg Order Value',val:profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00',icon:'🛒'},
+            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):(profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00'),icon:'🛒'},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'10px 10px'}}>
               <div style={{fontSize:14,marginBottom:4}}>{s.icon}</div>
@@ -1229,3 +1230,4 @@ body,html{margin:0;padding:0;background:#070710;}
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
   </div></>);
 }
+  
