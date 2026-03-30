@@ -3,7 +3,7 @@ import { supabase } from './lib/supabase';
 import * as XLSX from 'xlsx';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'LoopholeLads123';
-const XP_PER_SALE = 100;
+const XP_PER_10_GMV = 100;
 const DEFAULT_MILESTONES = [
   { id:1, days:3,   xp_bonus:50,   label:'3 Day Streak' },
   { id:2, days:7,   xp_bonus:100,  label:'1 Week Streak' },
@@ -84,8 +84,8 @@ function MiniChart({xpEvents}){
 function HowToEarnDropdown({milestones}){
   const [open,setOpen]=React.useState(false);
   const items=[
-    {icon:'🛒',label:'Generate a Sale',sub:'Each TikTok Shop sale',val:'+100 XP'},
-    {icon:'🔥',label:'Daily Streak',sub:'Make a sale every day to keep your streak',val:'Milestone XP'},
+    {icon:'🛒',label:'Generate Sales',sub:'Every £10 in net GMV you generate',val:'+100 XP'},
+    {icon:'🔥',label:'Daily Streak',sub:'Make sales every day to keep your streak',val:'Milestone XP'},
     {icon:'👥',label:'Refer a Creator',sub:'They earn, you earn 1% GMV',val:'+100 XP & 1% GMV'},
   ];
   return(
@@ -457,8 +457,14 @@ export default function App(){
     if(authErr2||!authData.user){setAuthErr(authErr2?.message||'Sign up failed.');setAuthLoading(false);return;}
     const normH=hs.map(h=>{const t=h.trim().toLowerCase();return t.startsWith('@')?t:'@'+t;});
     const refCode=Math.random().toString(36).slice(2,10).toUpperCase();
-    const {error:pErr}=await supabase.from('profiles').insert({id:authData.user.id,username:clean,tiktok_handles:normH,referral_code:refCode,referred_by:referredBy});
+    const {error:pErr}=await supabase.from('profiles').insert({id:authData.user.id,username:clean,tiktok_handles:normH,referral_code:refCode,referred_by:referredBy,xp:referredBy?100:0});
     if(pErr){setAuthErr(pErr.message);setAuthLoading(false);return;}
+    if(referredBy){
+      await supabase.from('xp_events').insert({profile_id:authData.user.id,amount:100,reason:'referral_bonus',note:'Signed up with a referral code'});
+      const {data:refProf}=await supabase.from('profiles').select('xp').eq('id',referredBy).single();
+      if(refProf){await supabase.from('profiles').update({xp:(refProf.xp||0)+100}).eq('id',referredBy);}
+      await supabase.from('xp_events').insert({profile_id:referredBy,amount:100,reason:'referral_bonus',note:`Referred ${clean}`});
+    }
     const {error:signInErr}=await supabase.auth.signInWithPassword({email,password:signupPass});
     if(signInErr){setAuthErr('Account created! Please sign in.');setAuthLoading(false);return;}
     setAuthLoading(false);setAuthErr('');
@@ -538,8 +544,9 @@ export default function App(){
       const rawCanG=canGCol?parseFloat((row[canGCol]||'0').toString().replace(/[^0-9.]/g,''))||0:0;
       const sales=rawS||(rawG>0?Math.max(1,Math.round(rawG/10)):0);
       if(!p){logs.push(`⚠ No match: ${handle}`);unmatched++;continue;}
-      if(sales===0){skipped++;continue;}
-      const prevLv=getLv(p.xp).level;const xpGain=sales*XP_PER_SALE;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
+      if(sales===0&&rawG===0){skipped++;continue;}
+      const netGMVForXP=Math.max(0,rawG-rawCanG);
+      const prevLv=getLv(p.xp).level;const xpGain=Math.floor(netGMVForXP/10)*XP_PER_10_GMV;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
       const newOrders=(p.total_orders||0)+(rawO||sales);const newGMV=(p.total_gmv||0)+rawG;const aov=rawAOV||( rawO>0?parseFloat((rawG/rawO).toFixed(2)):0);const newAOV=rawAOV||( newOrders>0?parseFloat((newGMV/newOrders).toFixed(2)):0);
       // Streak calculation (must be before profileUpdate)
       const lastClaim=p.last_claim;
@@ -563,7 +570,7 @@ export default function App(){
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
       const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
       if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
-      const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${sales} sales${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
+      const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
       await supabase.from('xp_events').insert(xpInsert);
       if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
       // Credit referrer 1% of GMV minus cancellations
@@ -573,7 +580,7 @@ export default function App(){
         const refP=(profiles||[]).find(x=>x.id===p.referred_by);
         if(refP)await supabase.from('profiles').update({referral_earnings:(refP.referral_earnings||0)+refBonus}).eq('id',p.referred_by);
       }
-      logs.push(`✓ ${p.username}: ${sales} sales → +${xpGain} XP${rawG>0?` | GMV: ${fmtGBP(rawG)}`:''}${newLv>prevLv?` 🎉 Level ${newLv}!`:''}`);
+      logs.push(`✓ ${p.username}: ${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${rawG>0?` | GMV: ${fmtGBP(rawG)}`:''}${rawCanG>0?` | Returns: -${fmtGBP(rawCanG)}`:''}${newLv>prevLv?` 🎉 Level ${newLv}!`:''}`);
       matched++;
     }
     logs.push('─────────────',`Done: ${matched} updated · ${unmatched} unmatched · ${skipped} skipped`);
@@ -603,14 +610,16 @@ export default function App(){
   },[xpEvents,dateRange,customStart,customEnd,selectedMonth]);
 
   const importEvts=filteredEvents.filter(e=>e.reason==='import');
-  const filteredGMV=importEvts.reduce((s,e)=>s+(e.gmv||0),0);
-  const filteredComm=importEvts.reduce((s,e)=>s+(e.commission||0),0);
+  const filteredGMVGross=importEvts.reduce((s,e)=>s+(e.gmv||0),0);
+  const filteredCommGross=importEvts.reduce((s,e)=>s+(e.commission||0),0);
   const filteredOrders=importEvts.reduce((s,e)=>s+(e.orders||0),0);
   const filteredUnits=importEvts.reduce((s,e)=>s+(e.sales||0),0);
   const filteredLiveStreams=importEvts.reduce((s,e)=>s+(e.live_streams||0),0);
   const filteredCancelled=importEvts.reduce((s,e)=>s+(e.cancelled||0),0);
-  const filteredAOV=filteredOrders>0?filteredGMV/filteredOrders:0;
   const filteredCancelledGMV=importEvts.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
+  const filteredGMV=Math.max(0,filteredGMVGross-filteredCancelledGMV);
+  const filteredComm=filteredGMVGross>0?Math.max(0,filteredCommGross-(filteredCommGross*(filteredCancelledGMV/filteredGMVGross))):0;
+  const filteredAOV=(filteredOrders-filteredCancelled)>0?filteredGMV/(filteredOrders-filteredCancelled):0;
   const filteredProducts=React.useMemo(()=>{
     const byProd={};
     importEvts.forEach(e=>{
@@ -715,13 +724,13 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--r)',padding:'18px 16px',marginBottom:11}}>
           {/* GMV - hero number */}
           <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Total GMV</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:40,letterSpacing:1,color:'var(--gr)',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:(profile.total_gmv||0))}</div>
+            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Net GMV</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:40,letterSpacing:1,color:'var(--gr)',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
           </div>
           {/* 3 stats row */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderTop:'1px solid var(--bo)',paddingTop:13}}>
             {[
-              {label:'Commission',val:fmtGBP(isFiltered?filteredComm:(profile.total_commission||0)),color:'var(--go)'},
+              {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'var(--go)'},
               {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'var(--tx)'},
               {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'var(--tx)'},
             ].map((s,i)=>(
@@ -738,9 +747,9 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* EXTRA STATS ROW */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
           {[
-            {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:(profile.total_commission||0))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
+            {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
             {label:'Returns (units)',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)}`,icon:'↩️'},{label:'Returns (GMV)',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸'},
-            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):(profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00'),icon:'🛒'},
+            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒'},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'10px 10px'}}>
               <div style={{fontSize:14,marginBottom:4}}>{s.icon}</div>
@@ -974,7 +983,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div className="sh">HOW TO EARN XP</div>
         <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
           {[
-            {icon:'🛒',label:'Generate a Sale',sub:'Each TikTok Shop sale',val:'+100 XP'},
+            {icon:'🛒',label:'Generate Sales',sub:'Every £10 in net GMV (after returns)',val:'+100 XP'},
             {icon:'🔥',label:'Daily Streak',sub:'Go live for Loophole every day — hit milestones for bonus XP',val:'Bonus XP'},
             {icon:'👥',label:'Refer a Creator',sub:'They earn, you earn 1% of their GMV forever',val:'+100 XP & 1% GMV'},
           ].map((item,i,arr)=>(
@@ -1299,7 +1308,7 @@ body,html{margin:0;padding:0;background:#070710;}
             <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:16}}>
               <div style={{padding:'12px 14px',borderBottom:'1px solid var(--bo)',fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1}}>How to Earn XP</div>
               {[
-                {icon:'🛒',label:'Make a Sale',desc:'Every TikTok Shop sale you generate',val:'+100 XP'},
+                {icon:'🛒',label:'Generate Sales',desc:'Every £10 in net GMV you generate (after returns)',val:'+100 XP'},
                 {icon:'🔥',label:'Daily Streak',desc:'Make at least one sale every day — your streak is updated automatically when data is imported',val:'Bonus XP'},
                 {icon:'👥',label:'Refer a Creator',desc:'When someone signs up with your link and makes sales',val:'+100 XP & 1% GMV'},
               ].map((item,i,arr)=>(
