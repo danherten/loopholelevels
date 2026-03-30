@@ -121,7 +121,7 @@ function parseCSV(text){const lines=text.split(/\r?\n/).filter(l=>l.trim());if(!
 function splitLine(l,dl){const r=[];let cur='';let inQ=false;for(const c of l){if(c==='"'){inQ=!inQ;}else if(c===dl&&!inQ){r.push(cur);cur='';}else{cur+=c;}}r.push(cur);return r.map(s=>s.replace(/^"|"$/g,'').trim())}
 
 const CSS=`
-:root{--bg:#070710;--bg2:#0e0e1c;--card:#12121f;--card2:#1a1a2e;--card3:#22223d;--bo:rgba(255,255,255,.07);--bo2:rgba(255,255,255,.13);--tx:#eeeef8;--tx2:rgba(238,238,248,.55);--tx3:rgba(238,238,248,.3);--pu:#8b5cf6;--pu2:#a78bfa;--pu3:#c4b5fd;--go:#f59e0b;--gr:#10b981;--re:#f43f5e;--cy:#06b6d4;--r:14px;--rsm:10px;--rxs:7px;--nav:68px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Bebas Neue',sans-serif;--fb:'Space Grotesk',sans-serif;}
+:root{--bg:#070710;--bg2:#0e0e1c;--card:#12121f;--card2:#1a1a2e;--card3:#22223d;--bo:rgba(255,255,255,.07);--bo2:rgba(255,255,255,.13);--tx:#eeeef8;--tx2:rgba(238,238,248,.55);--tx3:rgba(238,238,248,.3);--pu:#8b5cf6;--pu2:#a78bfa;--pu3:#c4b5fd;--go:#f59e0b;--gr:#10b981;--re:#f43f5e;--cy:#06b6d4;--r:14px;--rsm:10px;--rxs:7px;--nav:52px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Bebas Neue',sans-serif;--fb:'Space Grotesk',sans-serif;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}#root{min-height:100%;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
@@ -136,10 +136,10 @@ input,button{font-family:var(--fb)}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav) + var(--sb) + 12px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{width:100%;height:calc(var(--nav) + var(--sb));background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding-top:6px;z-index:50;flex-shrink:0;padding-left:2px;padding-right:2px;}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 2px;cursor:pointer;border:none;background:none;min-width:0;}
+.bnav{width:100%;height:calc(var(--nav) + var(--sb));background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding-top:4px;z-index:50;flex-shrink:0;padding-left:2px;padding-right:2px;}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
-.nicon{font-size:17px;line-height:1;transition:transform .18s}
+.nicon{font-size:15px;line-height:1;transition:transform .18s}
 .nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;}
 .ni.on .nlbl{color:var(--pu2)}
 .hero{background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:15px;margin-bottom:11px;position:relative;overflow:hidden}
@@ -677,11 +677,11 @@ body,html{margin:0;padding:0;background:#070710;}
       </div>
     </div>)}
     {/* MOBILE TOPBAR */}
-    {!isDesktop&&lastUpdated&&(<div style={{background:'rgba(139,92,246,.1)',borderBottom:'1px solid rgba(139,92,246,.2)',padding:'5px 14px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,flexShrink:0}}>
+    {!isDesktop&&lastUpdated&&(<div style={{background:'rgba(139,92,246,.1)',borderBottom:'1px solid rgba(139,92,246,.2)',padding:'5px 14px',paddingTop:'calc(5px + var(--st))',display:'flex',alignItems:'center',justifyContent:'center',gap:6,flexShrink:0}}>
       <span style={{fontSize:10,color:'var(--pu2)'}}>●</span>
       <span style={{fontSize:10,color:'var(--tx3)'}}>Data last updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong> on {new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
     </div>)}
-    {!isDesktop&&<div className="topbar">
+    {!isDesktop&&<div className="topbar" style={lastUpdated?{paddingTop:'9px'}:{}}>
       <img src="/logo.png" alt="Loophole Levels" style={{height:24}}/>
       <div className="tr">
         <div className="streak-pill" onClick={()=>setShowDaily(true)}>🔥 {profile.streak||0}</div>
