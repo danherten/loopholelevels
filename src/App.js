@@ -447,13 +447,13 @@ export default function App(){
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
   function navTo(pg){setPage(pg);if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();}if(pg==='home'||pg==='lb')loadLeaderboard();}
 
-  async function admAwardXP(profileId){
+  async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
-    const prevLv=getLv(p.xp).level;const newXP=p.xp+amount;
+    const prevLv=getLv(p.xp).level;const newXP=subtract?Math.max(0,p.xp-amount):p.xp+amount;
     await supabase.from('profiles').update({xp:newXP}).eq('id',profileId);
-    await supabase.from('xp_events').insert({profile_id:profileId,amount,reason:'manual'});
-    toast(`✅ +${amount} XP → ${p.username}`,'ok');
-    const newLv=getLv(newXP).level;if(newLv>prevLv)setTimeout(()=>toast(`🎉 ${p.username} hit Level ${newLv}!`,'ok'),400);
+    await supabase.from('xp_events').insert({profile_id:profileId,amount:subtract?-amount:amount,reason:'manual'});
+    toast(subtract?`✅ -${amount} XP → ${p.username}`:`✅ +${amount} XP → ${p.username}`,'ok');
+    const newLv=getLv(newXP).level;if(!subtract&&newLv>prevLv)setTimeout(()=>toast(`🎉 ${p.username} hit Level ${newLv}!`,'ok'),400);
     if(profile?.id===profileId)setProfile({...profile,xp:newXP});loadAllProfiles();
   }
   async function saveReward(r){const {error}=await supabase.from('rewards').update({name:r.name,description:r.description,xp_required:r.xp_required,image_url:r.image_url}).eq('level',r.level);if(!error){toast(`Reward ${r.level} saved ✓`,'ok');loadRewards();}else toast('Save failed','wn');}
@@ -931,7 +931,7 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
         <div className="asec">
           <div className="asect">Manually Award XP</div>
-          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{const plv=getLv(p.xp);return(<div key={p.id} className="afrow"><div className="afin"><div className="afnm">{p.username}</div><div className="afmt">Lvl {plv.level} · {(p.xp||0).toLocaleString()} XP · {(p.tiktok_handles||[]).join(', ')}</div></div><div className="afac"><input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})}/><button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button></div></div>);})}
+          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{const plv=getLv(p.xp);return(<div key={p.id} className="afrow"><div className="afin"><div className="afnm">{p.username}</div><div className="afmt">Lvl {plv.level} · {(p.xp||0).toLocaleString()} XP · {(p.tiktok_handles||[]).join(', ')}</div></div><div className="afac"><input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})}/><button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button><button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button></div></div>);})}
         </div>
         <div className="asec">
           <div className="asect">Actions</div>
@@ -957,8 +957,6 @@ body,html{margin:0;padding:0;background:#070710;}
           ))}
         </div>
 
-        <div className="asec">
-        </div>
         {showME&&(<div className="asec"><div className="asect">Edit Streak Milestones</div>{editMilestones.map((m,i)=>(<div key={m.id||i} className="rerow"><div style={{display:'flex',gap:5,alignItems:'flex-end'}}><div style={{width:55}}><div className="lbl">Days</div><input className="ins" type="number" value={m.days} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],days:parseInt(e.target.value)||m.days};setEditMilestones(n);}}/></div><div style={{flex:1}}><div className="lbl">Label</div><input className="ins" value={m.label} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],label:e.target.value};setEditMilestones(n);}}/></div><div style={{width:60}}><div className="lbl">XP</div><input className="ins" type="number" value={m.xp_bonus} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],xp_bonus:parseInt(e.target.value)||m.xp_bonus};setEditMilestones(n);}}/></div><button className="svbtn" onClick={async()=>{const {error}=await supabase.from('streak_milestones').update({days:m.days,label:m.label,xp_bonus:m.xp_bonus}).eq('id',m.id);if(!error){toast('Saved ✓','ok');loadMilestones();}else toast('Failed','wn');}}>Save</button></div></div>))}</div>)}
         {showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
       </div>)}
