@@ -350,6 +350,8 @@ export default function App(){
   const [signupPass,setSignupPass]=useState('');
   const [handles,setHandles]=useState(['']);
   const [authErr,setAuthErr]=useState('');
+  const [signupRef,setSignupRef]=useState(()=>new URLSearchParams(window.location.search).get('ref')||'');
+  const [referralStats,setReferralStats]=useState([]);
   const [authLoading,setAuthLoading]=useState(false);
   const [adminPass,setAdminPass]=useState('');
   const [adminErr,setAdminErr]=useState('');
@@ -411,6 +413,11 @@ export default function App(){
   async function loadAllProfiles(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false});if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}}
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
   async function loadProducts(){const {data}=await supabase.from('products').select('*').order('sort_order',{ascending:true});if(data)setProducts(data);}
+  async function loadReferralStats(){
+    if(!profile)return;
+    const {data}=await supabase.from('profiles').select('username,xp,total_gmv,total_commission,tiktok_handles').eq('referred_by',profile.id);
+    if(data)setReferralStats(data);
+  }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
   async function deleteImportByDate(date){const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');if(!evts)return;const byProfile={};evts.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0};byProfile[e.profile_id].xp+=e.amount||0;byProfile[e.profile_id].gmv+=e.gmv||0;byProfile[e.profile_id].comm+=e.commission||0;});for(const [pid,vals] of Object.entries(byProfile)){const {data:p}=await supabase.from('profiles').select('xp,total_gmv,total_commission').eq('id',pid).single();if(p){await supabase.from('profiles').update({xp:Math.max(0,(p.xp||0)-vals.xp),total_gmv:Math.max(0,(p.total_gmv||0)-vals.gmv),total_commission:Math.max(0,(p.total_commission||0)-vals.comm)}).eq('id',pid);}}await supabase.from('xp_events').delete().in('id',evts.map(e=>e.id));await supabase.from('affiliate_product_stats').delete().in('profile_id',evts.map(e=>e.profile_id));toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);}
@@ -425,10 +432,9 @@ export default function App(){
     if(!hs.length){setAuthErr('Add at least one TikTok @.');setAuthLoading(false);return;}
     const {data:ex}=await supabase.from('profiles').select('id').eq('username',clean).maybeSingle();
     if(ex){setAuthErr('Username taken.');setAuthLoading(false);return;}
-    // Check for referral code in URL
-    const urlRef=new URLSearchParams(window.location.search).get('ref');
+    const urlRef=signupRef.trim().toUpperCase()||new URLSearchParams(window.location.search).get('ref');
     let referredBy=null;
-    if(urlRef){const {data:refP}=await supabase.from('profiles').select('id').eq('referral_code',urlRef).maybeSingle();if(refP)referredBy=refP.id;}
+    if(urlRef){const {data:refP}=await supabase.from('profiles').select('id,username').eq('referral_code',urlRef).maybeSingle();if(refP){referredBy=refP.id;}else if(signupRef.trim()){setAuthErr('Invalid referral code.');setAuthLoading(false);return;}}
     const {data:authData,error:authErr2}=await supabase.auth.signUp({email,password:signupPass});
     if(authErr2||!authData.user){setAuthErr(authErr2?.message||'Sign up failed.');setAuthLoading(false);return;}
     const normH=hs.map(h=>{const t=h.trim().toLowerCase();return t.startsWith('@')?t:'@'+t;});
@@ -468,7 +474,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();}if(pg==='home'||pg==='lb')loadLeaderboard();}
+  function navTo(pg){setPage(pg);if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();}if(pg==='home'||pg==='lb')loadLeaderboard();if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -621,7 +627,7 @@ body,html{margin:0;padding:0;background:#070710;}
 @keyframes sp{to{transform:rotate(360deg)}}
 `}</style><div style={{background:"#070710",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><img src="/logo.png" alt="Loophole" style={{width:180,opacity:.9}}/><div className="spin-el"/></div></>);
 
-  if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/logo.png" alt="Loophole Levels" style={{width:230,marginBottom:5}}/><div className="asub">Affiliate Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div></div></>);
+  if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/logo.png" alt="Loophole Levels" style={{width:230,marginBottom:5}}/><div className="asub">Affiliate Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><div><label className="lbl">Referral code (optional)</label><input className="inp" value={signupRef} onChange={e=>setSignupRef(e.target.value.toUpperCase())} placeholder="e.g. ABC12345"/></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div></div></>);
 
   return(<><style>{CSS}</style><div className="app" style={isDesktop?{flexDirection:'row'}:{}}>
     {/* DESKTOP SIDEBAR */}
@@ -961,24 +967,62 @@ body,html{margin:0;padding:0;background:#070710;}
 
       {page==='referrals'&&(<div className="pg">
         <div className="sh" style={{marginBottom:9}}>REFERRALS</div>
-        <div className="ref-card">
+        {/* Referral link card */}
+        <div className="ref-card" style={{marginBottom:11}}>
           <div style={{fontSize:13,fontWeight:600,marginBottom:3}}>Your Referral Link</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:7}}>Share this link — when someone signs up and makes sales, you earn 1% of their GMV forever.</div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:7}}>Share this — when they sign up and make sales, you earn 1% of their GMV forever.</div>
           <div className="ref-code" onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}}>{profile.referral_code||'...'}</div>
           <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{width:'100%',padding:'9px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1,cursor:'pointer'}}>COPY REFERRAL LINK</button>
         </div>
-        <div className="asec" style={{marginBottom:9}}>
-          <div className="asect">Your Earnings</div>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:13,color:'var(--tx2)'}}>Total referral earnings</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--gr)'}}>{fmtGBP(profile.referral_earnings||0)}</div>
+        {/* Stats grid */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Referral Earnings</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--gr)'}}>{fmtGBP(profile.referral_earnings||0)}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>1% of their GMV</div>
           </div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginTop:5}}>Paid manually by Loophole — contact the team to claim.</div>
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Affiliates Referred</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--pu2)'}}>{referralStats.length}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>signed up with your link</div>
+          </div>
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their Total GMV</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--go)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_gmv||0),0))}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>combined GMV generated</div>
+          </div>
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their Commission</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--cy)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_commission||0),0))}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>earned by your referrals</div>
+          </div>
         </div>
+        {/* Referred affiliates list */}
+        {referralStats.length>0&&(<div className="asec" style={{marginBottom:11}}>
+          <div className="asect">Your Referred Affiliates</div>
+          {referralStats.map((r,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:i<referralStats.length-1?'1px solid var(--bo)':'none'}}>
+              <div style={{width:32,height:32,borderRadius:'50%',background:avc(r.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0}}>{ini(r.username)}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:500}}>{r.username}</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>{(r.tiktok_handles||[]).slice(0,1).join('')}</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontSize:12,color:'var(--gr)',fontWeight:600}}>{fmtGBP(r.total_gmv||0)}</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>GMV</div>
+              </div>
+            </div>
+          ))}
+        </div>)}
+        {/* Earnings note */}
+        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 13px',marginBottom:11}}>
+          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.5}}>Referral earnings are paid manually by Loophole — contact the team to claim your {fmtGBP(profile.referral_earnings||0)}.</div>
+        </div>
+        {/* How it works */}
         <div className="asec">
           <div className="asect">How It Works</div>
           <div className="howto-item"><span className="howto-icon">1️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>Share your link with another creator</div></div>
-          <div className="howto-item"><span className="howto-icon">2️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>They sign up and start selling Loophole products</div></div>
+          <div className="howto-item"><span className="howto-icon">2️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>They sign up using your referral code</div></div>
           <div className="howto-item"><span className="howto-icon">3️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>You earn 1% of all their GMV — forever</div></div>
         </div>
       </div>)}
