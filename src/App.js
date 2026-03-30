@@ -1344,6 +1344,363 @@ body,html{margin:0;padding:0;background:#070710;}
             <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--go)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_gmv||0),0))}</div>
             <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>combined GMV generated</div>
           </div>
+        </div>
+        {/* Referred affiliates list */}
+        {referralStats.length>0&&(<div className="asec" style={{marginBottom:11}}>
+          <div className="asect">Your Referred Affiliates</div>
+          {referralStats.map((r,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:i<referralStats.length-1?'1px solid var(--bo)':'none'}}>
+              <div style={{width:32,height:32,borderRadius:'50%',background:avc(r.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0}}>{ini(r.username)}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:500}}>{r.username}</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>{(r.tiktok_handles||[]).slice(0,1).join('')}</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontSize:12,color:'var(--gr)',fontWeight:600}}>{fmtGBP(r.total_gmv||0)}</div>
+                <div style={{fontSize:10,color:'var(--tx3)'}}>GMV</div>
+                {(r.total_cancelled_gmv||0)>0&&<div style={{fontSize:10,color:'var(--re)',marginTop:1}}>-{fmtGBP(r.total_cancelled_gmv||0)} returned</div>}
+              </div>
+            </div>
+          ))}
+        </div>)}
+        {/* Earnings note */}
+        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'13px',marginBottom:11}}>
+          <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>💰 Payment Terms</div>
+          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>All referral earnings are paid <strong style={{color:'var(--tx2)'}}>30 days after the end of the month</strong> they were generated in — this allows time for returns and cancellations to be processed.</div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginTop:7,padding:'8px 10px',background:'var(--card2)',borderRadius:'var(--rxs)',lineHeight:1.5}}>Example: referral commission you earn in <strong style={{color:'var(--tx2)'}}>April</strong> will be paid out by the <strong style={{color:'var(--tx2)'}}>end of May</strong>.</div>
+        </div>
+        {/* How it works */}
+        <div className="asec">
+          <div className="asect">How It Works</div>
+          <div className="howto-item"><span className="howto-icon">1️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>Share your link with another creator</div></div>
+          <div className="howto-item"><span className="howto-icon">2️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>They sign up using your referral code</div></div>
+          <div className="howto-item"><span className="howto-icon">3️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>You earn 1% of all their GMV — forever</div></div>
+        </div>
+      </div>)}
+
+      {/* PRODUCTS */}
+      {page==='products'&&(<div className="pg">
+        <div className="sh" style={{marginBottom:11}}>PRODUCTS</div>
+        {products.length===0&&(<div style={{textAlign:'center',padding:'40px 0',color:'var(--tx3)',fontSize:13}}>No products yet — check back soon!</div>)}
+        <div style={{display:'flex',flexDirection:'column',gap:9}}>
+          {products.map(prod=>(
+            <div key={prod.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
+              {prod.image_url&&<div style={{width:'100%',height:160,overflow:'hidden'}}><img src={prod.image_url} alt={prod.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/></div>}
+              <div style={{padding:'12px 13px'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1,flex:1,marginRight:8}}>{prod.name}</div>
+                  {prod.price&&<div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--gr)',flexShrink:0}}>£{Number(prod.price).toFixed(2)}</div>}
+                </div>
+                {prod.description&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5,marginBottom:10}}>{prod.description}</div>}
+                <div style={{display:'flex',gap:7}}>
+                  {prod.commission_rate&&<div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.2)',borderRadius:99,padding:'3px 9px',fontSize:11,color:'var(--go)',fontWeight:600}}>{prod.commission_rate}% commission</div>}
+                  {prod.tiktok_url&&<button onClick={()=>{navigator.clipboard.writeText(prod.tiktok_url);toast('Link copied! 📋','ok');}} style={{background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.25)',borderRadius:99,padding:'3px 10px',fontSize:11,color:'var(--pu2)',fontWeight:600,cursor:'pointer'}}>📋 Copy Link</button>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>)}
+
+      {/* PROFILE */}
+      {page==='profile'&&(<div className="pg">
+        <div className="phead">
+          <label style={{cursor:'pointer',position:'relative',display:'inline-block',marginBottom:7}}>
+            <div className="p-av" style={{background:profile.avatar_url?'transparent':avc(profile.username),borderColor:avc(profile.username)}}>
+              {profile.avatar_url?<img src={profile.avatar_url} alt=""/>:ini(profile.username)}
+            </div>
+            <div style={{position:'absolute',bottom:0,right:0,width:18,height:18,background:'var(--pu)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:9}}>📷</div>
+            <input type="file" accept="image/*" style={{display:'none'}} onChange={async e=>{const file=e.target.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=async ev=>{const {error}=await supabase.from('profiles').update({avatar_url:ev.target.result}).eq('id',profile.id);if(!error){setProfile({...profile,avatar_url:ev.target.result});toast('Photo updated ✓','ok');}};reader.readAsDataURL(file);}}/>
+          </label>
+          <div className="pnm">{profile.username.toUpperCase()}</div>
+          <div className="ttchips">{(profile.tiktok_handles||[]).map((t,i)=><span key={i} className="ttchip">{t}</span>)}</div>
+        </div>
+        <div className="pstats">
+          <div className="pst"><div className="pstv">{(profile.xp||0).toLocaleString()}</div><div className="pstl">XP</div></div>
+          <div className="pst"><div className="pstv">{lv.level}</div><div className="pstl">Level</div></div>
+          <div className="pst"><div className="pstv">{profile.streak||0}</div><div className="pstl">Streak</div></div>
+        </div>
+
+        <div className="asec" style={{marginBottom:9}}><div className="asect">TikTok Handles</div><ProfileHandles profile={profile} setProfile={setProfile} toast={toast}/></div>
+        <div className="mcard">
+          <div className="mi" onClick={openAdminGate}><div className="mil"><span className="mii">🔐</span>Admin Panel</div><span className="mich">›</span></div>
+
+        </div>
+        <button className="btn btnre" onClick={doLogout}>Sign Out</button>
+      </div>)}
+
+      {/* ADMIN */}
+      {page==='admin'&&adminUnlocked&&(<div className="pg">
+        <div className="admb"><span style={{fontSize:22}}>👑</span><div><div style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:'1.5px'}}>ADMIN PANEL</div><div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>Loophole Levels Control Centre</div></div></div>
+        <div className="admstats">
+          <div className="admstat"><div className="admsv">{allProfiles.length}</div><div className="admsl">Affiliates</div></div>
+          <div className="admstat"><div className="admsv">{allProfiles.reduce((s,p)=>s+(p.xp||0),0).toLocaleString()}</div><div className="admsl">XP Awarded</div></div>
+        </div>
+        <div className="admstats">
+          <div className="admstat"><div className="admsv" style={{fontSize:15,color:'var(--gr)'}}>{fmtGBP(allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0))}</div><div className="admsl">Total GMV</div></div>
+          <div className="admstat"><div className="admsv" style={{fontSize:15}}>{allProfiles.reduce((s,p)=>s+(p.total_orders||0),0)}</div><div className="admsl">Total Orders</div></div>
+        </div>
+        <div className="asec">
+          <div className="asect">Import TikTok Shop Data</div>
+          <div className={`dz${dragOver?' drag':''}`} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}}>
+            <input type="file" accept=".csv,.xlsx,.xls" onChange={e=>{if(e.target.files?.[0])handleFile(e.target.files[0]);}}/>
+            <div style={{fontSize:24,marginBottom:5}}>📂</div>
+            <div style={{fontSize:12,fontWeight:500,marginBottom:2}}>Drop file or tap to browse</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>TikTok Shop Affiliate Center · .csv or .xlsx</div>
+          </div>
+          {importLog.length>0&&<div className="ilog">{importLog.map((l,i)=><div key={i} className={l.startsWith('✓')?'logo':l.startsWith('⚠')?'logw':l.startsWith('ERROR')?'loge':''}>{l}</div>)}</div>}
+        </div>
+        <div className="asec">
+          <div className="asect">Manually Award XP</div>
+          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{const plv=getLv(p.xp);return(<div key={p.id} className="afrow"><div className="afin"><div className="afnm">{p.username}</div><div className="afmt">Lvl {plv.level} · {(p.xp||0).toLocaleString()} XP · {(p.tiktok_handles||[]).join(', ')}</div></div><div className="afac"><input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})}/><button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button><button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button></div></div>);})}
+        </div>
+        <div className="asec">
+          <div className="asect">Actions</div>
+          <button className="aact" onClick={()=>{if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(!showRE);}}>🎁 Edit Reward Tiers & Images</button>
+          <button className="aact" onClick={()=>{if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(!showME);}}>🔥 Edit Streak Milestones & XP</button>
+          <button className="aact" onClick={exportCSV}>📊 Export Affiliate Data (.csv)</button>
+          <button className="aact" onClick={()=>{if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(!showPE);}}>📦 Edit Products</button>
+          <button className="aact" onClick={()=>setShowPM(!showPM)}>🔗 Map Import Names to Products</button>
+        </div>
+        {/* IMPORT HISTORY */}
+        <div className="asec">
+          <div className="asect">Import History — Delete by Date</div>
+          {importHistory.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No imports yet.</div>:importHistory.map(ih=>(
+            <div key={ih.date} style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0',borderBottom:'1px solid var(--bo)'}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600}}>{ih.date}</div>
+                <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{ih.profileCount||0} affiliate{(ih.profileCount||0)!==1?'s':''} · GMV {fmtGBP(ih.totalGmv)} · Comm {fmtGBP(ih.totalComm)}</div>
+              </div>
+              {deleteConfirm===`date-${ih.date}`?(<div style={{display:'flex',gap:5}}>
+                <button onClick={()=>{deleteImportByDate(ih.date);setDeleteConfirm(null);}} style={{background:'rgba(244,63,94,.15)',border:'1px solid rgba(244,63,94,.3)',borderRadius:'var(--rxs)',padding:'4px 8px',color:'var(--re)',fontSize:11,fontWeight:700,cursor:'pointer'}}>Confirm</button>
+                <button onClick={()=>setDeleteConfirm(null)} style={{background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:'var(--rxs)',padding:'4px 8px',color:'var(--tx3)',fontSize:11,cursor:'pointer'}}>Cancel</button>
+              </div>):(<button onClick={()=>setDeleteConfirm(`date-${ih.date}`)} style={{background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.2)',borderRadius:'var(--rxs)',padding:'4px 9px',color:'var(--re)',fontSize:11,fontWeight:600,cursor:'pointer'}}>Delete</button>)}
+            </div>
+          ))}
+        </div>
+
+        {showME&&(<div className="asec"><div className="asect">Edit Streak Milestones</div>{editMilestones.map((m,i)=>(<div key={m.id||i} className="rerow"><div style={{display:'flex',gap:5,alignItems:'flex-end'}}><div style={{width:55}}><div className="lbl">Days</div><input className="ins" type="number" value={m.days} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],days:parseInt(e.target.value)||m.days};setEditMilestones(n);}}/></div><div style={{flex:1}}><div className="lbl">Label</div><input className="ins" value={m.label} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],label:e.target.value};setEditMilestones(n);}}/></div><div style={{width:60}}><div className="lbl">XP</div><input className="ins" type="number" value={m.xp_bonus} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],xp_bonus:parseInt(e.target.value)||m.xp_bonus};setEditMilestones(n);}}/></div><button className="svbtn" onClick={async()=>{const {error}=await supabase.from('streak_milestones').update({days:m.days,label:m.label,xp_bonus:m.xp_bonus}).eq('id',m.id);if(!error){toast('Saved ✓','ok');loadMilestones();}else toast('Failed','wn');}}>Save</button></div></div>))}</div>)}
+        {showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
+      </div>)}
+      {showPE&&adminUnlocked&&(<div className="asec" style={{margin:'0 13px 9px'}}>
+        <div className="asect">Edit Products</div>
+        {editProducts.map((prod,i)=>(
+          <div key={prod.id||i} className="rerow">
+            <div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Product {i+1}</div>
+            <div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={prod.name||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],name:e.target.value};setEditProducts(n);}}/></div><div style={{width:70}}><div className="lbl">Price £</div><input className="ins" type="number" value={prod.price||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],price:e.target.value};setEditProducts(n);}}/></div></div>
+            <div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={prod.description||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],description:e.target.value};setEditProducts(n);}}/></div>
+            <div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">TikTok Shop URL</div><input className="ins" value={prod.tiktok_url||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],tiktok_url:e.target.value};setEditProducts(n);}}/></div><div style={{width:70}}><div className="lbl">Comm %</div><input className="ins" type="number" value={prod.commission_rate||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],commission_rate:e.target.value};setEditProducts(n);}}/></div></div>
+            <div style={{marginBottom:5}}><div className="lbl">Image URL</div><div style={{display:'flex',gap:4}}><input className="ins" value={prod.image_url&&prod.image_url.startsWith('data:')?'[uploaded]':(prod.image_url||'')} onChange={e=>{const n=[...editProducts];n[i]={...n[i],image_url:e.target.value||null};setEditProducts(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0]){const r=new FileReader();r.onload=ev=>{const n=[...editProducts];n[i]={...n[i],image_url:ev.target.result};setEditProducts(n);toast('Image ready — click Save','info');};r.readAsDataURL(e.target.files[0]);}}}/></label></div>{prod.image_url&&<img src={prod.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div>
+            <div style={{display:'flex',gap:5,marginTop:5}}><button className="svbtn" onClick={async()=>{const p=editProducts[i];if(p.id){const {error}=await supabase.from('products').update({name:p.name,description:p.description,price:p.price,tiktok_url:p.tiktok_url,commission_rate:p.commission_rate,image_url:p.image_url,sort_order:p.sort_order||i}).eq('id',p.id);if(!error){toast('Saved ✓','ok');loadProducts();}else toast('Failed','wn');}else{const {error}=await supabase.from('products').insert({name:p.name,description:p.description,price:p.price,tiktok_url:p.tiktok_url,commission_rate:p.commission_rate,image_url:p.image_url,sort_order:i});if(!error){toast('Added ✓','ok');loadProducts();}else toast('Failed','wn');}}}>Save</button><button onClick={async()=>{if(prod.id){await supabase.from('products').delete().eq('id',prod.id);toast('Deleted','ok');loadProducts();}setEditProducts(editProducts.filter((_,j)=>j!==i));}} style={{background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.2)',borderRadius:'var(--rxs)',padding:'5px 9px',color:'var(--re)',fontSize:11,fontWeight:600,cursor:'pointer'}}>Delete</button></div>
+          </div>
+        ))}
+        <button onClick={()=>setEditProducts([...editProducts,{name:'',description:'',price:'',tiktok_url:'',commission_rate:'',image_url:null,sort_order:editProducts.length}])} style={{width:'100%',marginTop:9,padding:'8px',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.2)',borderRadius:'var(--rsm)',color:'var(--pu2)',fontSize:12,cursor:'pointer',fontWeight:600}}>+ Add Product</button>
+      </div>)}
+      {showPM&&adminUnlocked&&(<div className="asec" style={{margin:'0 13px 9px'}}>
+        <div className="asect">Map Import Names to Products</div>
+        <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>When TikTok data uses a different name, map it to the right product here. Import a file first to see unrecognised names.</div>
+        {unmappedProducts.length===0&&Object.keys(productMappings).length===0&&<div style={{fontSize:12,color:'var(--tx3)'}}>No unrecognised product names yet.</div>}
+        {unmappedProducts.map((name,i)=>(
+          <div key={i} style={{display:'flex',gap:7,alignItems:'center',padding:'7px 0',borderBottom:'1px solid var(--bo)'}}>
+            <div style={{flex:1,fontSize:12,color:'var(--go)',fontWeight:500}}>{name}</div>
+            <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
+            <select style={{flex:1,padding:'5px 7px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:12,outline:'none'}}
+              value={productMappings[name.toLowerCase()]||''}
+              onChange={async e=>{const v=e.target.value;if(v){await supabase.from('product_mappings').upsert({import_name:name.toLowerCase(),product_name:v},{onConflict:'import_name'});setProductMappings(prev=>({...prev,[name.toLowerCase()]:v}));setUnmappedProducts(prev=>prev.filter(x=>x!==name));}}}>
+              <option value=''>-- select product --</option>
+              {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+        ))}
+        {Object.keys(productMappings).filter(k=>productMappings[k]).length>0&&(<div style={{marginTop:9}}>
+          <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Active Mappings</div>
+          {Object.entries(productMappings).map(([k,v],i)=>v&&(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px solid var(--bo)',fontSize:11}}>
+              <span style={{color:'var(--go)'}}>{k}</span><span style={{color:'var(--tx3)',margin:'0 6px'}}>→</span><span style={{color:'var(--gr)',flex:1}}>{v}</span>
+              <button onClick={async()=>{await supabase.from('product_mappings').delete().eq('import_name',k);setProductMappings(prev=>{const n={...prev};delete n[k];return n;});}} style={{background:'none',border:'none',color:'var(--re)',cursor:'pointer',fontSize:13,padding:'0 4px'}}>✕</button>
+            </div>
+          ))}
+        </div>)}
+      </div>)}
+    </div>
+
+    {/* BOTTOM NAV - mobile only */}
+    {!isDesktop&&<div className="bnav">
+      {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
+        <button key={pg} className={`ni${page===pg?' on':''}`} onClick={()=>navTo(pg)}>
+          <div className="nicon">{icon}</div><div className="nlbl">{label}</div>
+        </button>
+      ))}
+      {adminUnlocked&&(<button className={`ni${page==='admin'?' on':''}`} onClick={()=>navTo('admin')}><div className="nicon">👑</div><div className="nlbl">Admin</div></button>)}
+    </div>}
+
+    {/* DAILY STREAK FULL PAGE */}
+    {showDaily&&(()=>{
+      const streak=profile.streak||0;const nextStreak=streak+1;const todayClaimed=profile.last_claim===tdy();
+      const todayMilestone=milestones.find(m=>m.days===nextStreak);const nm=milestones.find(m=>m.days>streak);
+      return(
+        <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:200,display:'flex',flexDirection:'column',overflowY:'auto'}}>
+          {/* Header */}
+          <div style={{padding:'calc(14px + var(--st)) 16px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--bo)',flexShrink:0}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:2}}>🔥 DAILY STREAK</div>
+            <button onClick={()=>setShowDaily(false)} style={{background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:99,width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:16}}>✕</button>
+          </div>
+
+          <div style={{flex:1,padding:'20px 16px',overflowY:'auto'}}>
+            {/* Big streak number */}
+            <div style={{textAlign:'center',marginBottom:24,padding:'28px 0',background:'var(--card)',borderRadius:'var(--r)',border:'1px solid var(--bo2)',position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 50% 60%,rgba(245,158,11,.12) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              <div style={{fontSize:72,lineHeight:1,marginBottom:6}}>🔥</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:80,letterSpacing:2,color:'var(--go)',lineHeight:1}}>{todayClaimed?streak:nextStreak}</div>
+              <div style={{fontSize:13,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:3,marginTop:6}}>Day Streak</div>
+              {todayClaimed&&<div style={{marginTop:10,display:'inline-block',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.25)',borderRadius:99,padding:'4px 14px',fontSize:12,color:'var(--gr)',fontWeight:600}}>✓ Claimed today</div>}
+            </div>
+
+            {/* Next milestone pill - tappable to open carousel */}
+            {nm&&(()=>{
+              const currentDay=todayClaimed?streak:nextStreak;
+              const allStages=milestones.map(m=>({...m,type:'streak'}));
+              const flameStages=['🔥','🔥','🔥','🔥','🔥','🔥'];
+              const flameSizes=[42,42,42,42,42,42];
+              const flameFilters=[
+                'brightness(0.85) saturate(0.8)',
+                'brightness(1.1) saturate(1.2) drop-shadow(0 0 3px rgba(251,146,60,.5))',
+                'brightness(1.25) saturate(1.5) drop-shadow(0 0 6px rgba(251,146,60,.7)) drop-shadow(0 0 12px rgba(251,146,60,.4))',
+                'brightness(1.4) saturate(2) hue-rotate(-10deg) drop-shadow(0 0 8px rgba(239,68,68,.8)) drop-shadow(0 0 20px rgba(239,68,68,.4))',
+                'brightness(1.6) saturate(2.5) hue-rotate(-20deg) drop-shadow(0 0 10px rgba(220,38,38,.9)) drop-shadow(0 0 25px rgba(220,38,38,.5)) drop-shadow(0 0 40px rgba(220,38,38,.3))',
+                'brightness(1.9) saturate(3) hue-rotate(-30deg) contrast(1.2) drop-shadow(0 0 12px rgba(185,28,28,1)) drop-shadow(0 0 30px rgba(185,28,28,.7)) drop-shadow(0 0 50px rgba(185,28,28,.4))',
+              ];
+              const glowColors=['rgba(245,158,11,.3)','rgba(245,158,11,.4)','rgba(249,115,22,.45)','rgba(239,68,68,.45)','rgba(239,68,68,.55)','rgba(239,68,68,.6)'];
+              const borderColors=['rgba(245,158,11,.4)','rgba(245,158,11,.5)','rgba(249,115,22,.5)','rgba(239,68,68,.5)','rgba(239,68,68,.6)','rgba(239,68,68,.7)'];
+              const bgColors=['rgba(245,158,11,.08)','rgba(245,158,11,.1)','rgba(249,115,22,.1)','rgba(239,68,68,.1)','rgba(239,68,68,.12)','rgba(239,68,68,.14)'];
+              return(<div style={{marginBottom:11}}>
+                {/* Pill */}
+                <button onClick={()=>setShowMilestoneCarousel(!showMilestoneCarousel)} style={{width:'100%',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',padding:'14px',cursor:'pointer',textAlign:'left'}}>
+                  <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span>Next Milestone</span>
+                    <span style={{fontSize:11,color:'var(--pu2)'}}>{showMilestoneCarousel?'▲ hide':'▼ see all stages'}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:1,color:'var(--tx)'}}>{nm.label}</div>
+                    <div style={{background:'rgba(245,158,11,.14)',border:'1px solid rgba(245,158,11,.28)',borderRadius:99,padding:'3px 10px',fontFamily:'var(--fh)',fontSize:14,color:'var(--go)'}}>+{nm.xp_bonus} XP</div>
+                  </div>
+                  <div style={{height:8,background:'var(--card3)',borderRadius:99,overflow:'hidden',marginBottom:6}}><div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--go),#f97316)',width:`${Math.min(100,Math.round((currentDay/nm.days)*100))}%`,transition:'width .8s ease'}}/></div>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)'}}>
+                    <span>{currentDay} days</span>
+                    <span>{nm.days-currentDay} more day{nm.days-currentDay!==1?'s':''} to go</span>
+                    <span>{nm.days} days</span>
+                  </div>
+                </button>
+                {/* Carousel - shown when pill tapped */}
+                {showMilestoneCarousel&&(<div style={{marginTop:8}}>
+                  <div style={{display:'flex',gap:10,overflowX:'auto',paddingBottom:8,margin:'0 -16px',paddingLeft:16,paddingRight:16,scrollSnapType:'x mandatory'}}>
+                    {allStages.map((s,i)=>{
+                      const done=currentDay>s.days;
+                      const isCur=currentDay===s.days;
+                      const isNext=!done&&!isCur&&i===allStages.findIndex(x=>currentDay<x.days);
+                      const fi=Math.min(i,flameStages.length-1);
+                      return(
+                        <div key={i} style={{minWidth:170,maxWidth:170,height:200,flexShrink:0,scrollSnapAlign:'start',background:done?'rgba(16,185,129,.07)':isCur?bgColors[fi]:'var(--card)',border:`1px solid ${done?'rgba(16,185,129,.3)':isCur?borderColors[fi]:'var(--bo)'}`,borderRadius:'var(--r)',padding:'16px 12px',textAlign:'center',position:'relative',overflow:'hidden',boxShadow:isCur?`0 0 18px ${glowColors[fi]}`:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+                          {done&&<div style={{position:'absolute',top:8,right:8,background:'rgba(16,185,129,.2)',border:'1px solid rgba(16,185,129,.4)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--gr)',fontWeight:700}}>DONE ✓</div>}
+                          {isCur&&<div style={{position:'absolute',top:8,right:8,background:bgColors[fi],border:`1px solid ${borderColors[fi]}`,borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--go)',fontWeight:700}}>NOW</div>}
+                          {isNext&&<div style={{position:'absolute',top:8,right:8,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--tx3)',fontWeight:700}}>NEXT</div>}
+                          {(isCur||done)&&<div style={{position:'absolute',inset:0,background:`radial-gradient(circle at 50% 25%,${glowColors[fi]} 0%,transparent 70%)`,pointerEvents:'none'}}/>}
+                          <div style={{fontSize:flameSizes[fi],lineHeight:1,marginBottom:8,filter:(!done&&!isCur)?'grayscale(.6) brightness(.5)':flameFilters[fi]}}>{flameStages[fi]}</div>
+                          <div style={{fontFamily:'var(--fh)',fontSize:13,letterSpacing:1.5,marginBottom:3,color:done?'var(--gr)':isCur?'var(--go)':'var(--tx2)'}}>{s.label.toUpperCase()}</div>
+                          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10}}>{s.days} days straight</div>
+                          <div style={{fontFamily:'var(--fh)',fontSize:30,color:done?'var(--gr)':isCur?'var(--go)':'var(--pu2)',letterSpacing:1}}>+{s.xp_bonus}</div>
+                          <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1,marginBottom:6}}>XP BONUS</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{textAlign:'center',fontSize:10,color:'var(--tx3)',marginTop:2}}>← swipe through milestones →</div>
+                </div>)}
+              </div>);
+            })()}
+
+            {/* Today milestone banner */}
+            {todayMilestone&&!todayClaimed&&(<div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.3)',borderRadius:'var(--r)',padding:'12px 14px',marginBottom:11,textAlign:'center'}}>
+              <div style={{fontSize:22,marginBottom:4}}>🎉</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--go)',letterSpacing:1}}>MILESTONE REACHED!</div>
+              <div style={{fontSize:13,color:'var(--tx2)',marginTop:3}}>{todayMilestone.label} — claim your <strong style={{color:'var(--go)'}}>+{todayMilestone.xp_bonus} XP</strong> bonus</div>
+            </div>)}
+
+            {/* How to earn - simple explanation */}
+            <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:16}}>
+              <div style={{padding:'12px 14px',borderBottom:'1px solid var(--bo)',fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1}}>How to Earn XP</div>
+              {[
+                {icon:'🛒',label:'Make a Sale',desc:'Every TikTok Shop sale you generate',val:'+100 XP'},
+                {icon:'🔥',label:'Daily Streak',desc:'Make at least one sale every day — your streak is updated automatically when data is imported',val:'Bonus XP'},
+                {icon:'👥',label:'Refer a Creator',desc:'When someone signs up with your link and makes sales',val:'+100 XP & 1% GMV'},
+              ].map((item,i,arr)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',borderBottom:i<arr.length-1?'1px solid var(--bo)':'none'}}>
+                  <div style={{fontSize:20,width:32,textAlign:'center',flexShrink:0}}>{item.icon}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:600,marginBottom:2}}>{item.label}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.4}}>{item.desc}</div>
+                  </div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:12,color:'var(--pu2)',flexShrink:0,textAlign:'right',letterSpacing:.5,maxWidth:80}}>{item.val}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'12px 14px',textAlign:'center',marginBottom:10}}>
+              <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.5}}>Your streak updates automatically each time your admin imports sales data. Make at least one sale per day to keep it going!</div>
+            </div>
+            <button className="shcan" onClick={()=>setShowDaily(false)} style={{width:'100%',padding:11,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',color:'var(--tx2)',fontSize:13,cursor:'pointer'}}>Close</button>
+          </div>
+        </div>
+      );
+    })()}
+
+    {/* REWARD MODAL */}
+    {showReward&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowReward(null)}>
+      <div className="sheet">
+        <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>{showReward.name}</div>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12,lineHeight:1.5}}>{showReward.description||'Complete this level to unlock.'}</div>
+        {showReward.image_url?<img src={showReward.image_url} alt={showReward.name} style={{width:'100%',height:148,objectFit:'cover',borderRadius:10,marginBottom:11}}/>:<div style={{width:'100%',height:100,background:'var(--card2)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:11,fontSize:38,opacity:.3}}>🎁</div>}
+        {(()=>{const un=profile.xp>=showReward.xp_required;const prog=Math.min(100,Math.round((profile.xp/showReward.xp_required)*100));const need=Math.max(0,showReward.xp_required-profile.xp);return(<div style={{background:'var(--card2)',borderRadius:8,padding:11,marginBottom:11}}><div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)',marginBottom:5}}><span>Progress</span><span>{un?'✅ Unlocked!':`${need.toLocaleString()} XP needed`}</span></div><div className="pw"><div className="pf" style={{width:`${prog}%`}}/></div><div style={{display:'flex',justifyContent:'space-between',marginTop:3,fontSize:10,color:'var(--tx3)'}}><span>{profile.xp.toLocaleString()}</span><span>{showReward.xp_required.toLocaleString()} XP</span></div>{un&&<div style={{marginTop:8,background:'rgba(16,185,129,.09)',border:'1px solid rgba(16,185,129,.2)',borderRadius:7,padding:9,textAlign:'center',fontSize:12,color:'var(--gr)'}}>🎉 Unlocked! Contact Loophole to claim.</div>}</div>);})()} 
+        <button onClick={()=>setShowReward(null)} style={{width:'100%',padding:9,background:'var(--card2)',border:'1px solid var(--bo2)',borderRadius:8,color:'var(--tx2)',fontSize:13,cursor:'pointer'}}>Close</button>
+      </div>
+    </div>)}
+
+    {/* ADMIN GATE */}
+    {showAdminGate&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdminGate(false)}>
+      <div className="sheet">
+        <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>🔐 ADMIN</div>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:13}}>Enter the admin password.</div>
+        <input className="inp" type="password" value={adminPass} onChange={e=>setAdminPass(e.target.value)} placeholder="Admin password" onKeyDown={e=>e.key==='Enter'&&checkAdminPass()} style={{marginBottom:10}}/>
+        <button className="clmbtn" onClick={checkAdminPass}>ENTER</button>
+        <div style={{color:'var(--re)',fontSize:12,textAlign:'center',marginTop:5,minHeight:15}}>{adminErr}</div>
+        <button className="shcan" onClick={()=>setShowAdminGate(false)}>Cancel</button>
+      </div>
+    </div>)}
+
+    {/* LEVEL UP */}
+    {levelUpAnim&&(<div className="lvlup-ov" onClick={()=>setLevelUpAnim(null)}>
+      <div className="lvlup-box">
+        <div className="lvlup-rays"/>
+        <span className="lvlup-shield">🏆</span>
+        <div className="lvlup-txt">LEVEL {levelUpAnim}</div>
+        <div className="lvlup-sub">You've reached Level {levelUpAnim}!</div>
+        <button onClick={()=>setLevelUpAnim(null)} style={{marginTop:20,padding:'9px 26px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:17,letterSpacing:2,cursor:'pointer'}}>KEEP GOING</button>
+      </div>
+    </div>)}
+
+    <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
+  </div></>);
+}        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Your Earnings</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--gr)'}}>{fmtGBP(profile.referral_earnings||0)}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>{referralStats.length} affiliate{referralStats.length!==1?'s':''} referred · 1% of their GMV</div>
+          </div>
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their GMV</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--go)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_gmv||0),0))}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>combined GMV generated</div>
+          </div>
         </div> { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import * as XLSX from 'xlsx';
