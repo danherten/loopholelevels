@@ -138,10 +138,10 @@ input,button{font-family:var(--fb)}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(48px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:7px 2px;padding-bottom:max(7px,var(--sb));z-index:50;flex:0 0 auto;max-height:80px;}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
+.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:9px 2px;padding-bottom:max(9px,var(--sb));z-index:50;flex:0 0 auto;max-height:80px;}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
-.nicon{font-size:15px;line-height:1;transition:transform .18s}
+.nicon{font-size:17px;line-height:1;transition:transform .18s}
 .nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;}
 .ni.on .nlbl{color:var(--pu2)}
 .hero{background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:15px;margin-bottom:11px;position:relative;overflow:hidden}
