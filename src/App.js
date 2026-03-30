@@ -128,6 +128,8 @@ input,button{font-family:var(--fb)}
 .app{display:flex;flex-direction:column;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
+.topbar.no-st{padding-top:9px}
+.upd-banner{background:rgba(139,92,246,.1);border-bottom:1px solid rgba(139,92,246,.2);padding:5px 14px;padding-top:calc(5px + var(--st));display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
 .tr{display:flex;align-items:center;gap:7px}
 .streak-pill{display:flex;align-items:center;gap:4px;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.28);border-radius:99px;padding:3px 9px;font-size:13px;font-weight:700;color:var(--go);cursor:pointer;letter-spacing:.3px}
 .xpchip{background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.28);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--pu3)}
@@ -136,7 +138,7 @@ input,button{font-family:var(--fb)}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(48px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding:4px 2px;padding-bottom:calc(4px + var(--sb));z-index:50;flex-shrink:0;}
+.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:5px 2px;padding-bottom:max(5px,var(--sb));z-index:50;flex-shrink:0;}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
 .nicon{font-size:15px;line-height:1;transition:transform .18s}
@@ -677,11 +679,11 @@ body,html{margin:0;padding:0;background:#070710;}
       </div>
     </div>)}
     {/* MOBILE TOPBAR */}
-    {!isDesktop&&lastUpdated&&(<div style={{background:'rgba(139,92,246,.1)',borderBottom:'1px solid rgba(139,92,246,.2)',padding:'5px 14px',paddingTop:'calc(5px + var(--st))',display:'flex',alignItems:'center',justifyContent:'center',gap:6,flexShrink:0}}>
+    {!isDesktop&&lastUpdated&&(<div className="upd-banner">
       <span style={{fontSize:10,color:'var(--pu2)'}}>●</span>
       <span style={{fontSize:10,color:'var(--tx3)'}}>Data last updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong> on {new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
     </div>)}
-    {!isDesktop&&<div className="topbar" style={lastUpdated?{paddingTop:'9px'}:{}}>
+    {!isDesktop&&<div className={`topbar${lastUpdated?' no-st':''}`}>
       <img src="/logo.png" alt="Loophole Levels" style={{height:24}}/>
       <div className="tr">
         <div className="streak-pill" onClick={()=>setShowDaily(true)}>🔥 {profile.streak||0}</div>
