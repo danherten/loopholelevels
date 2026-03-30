@@ -239,23 +239,24 @@ input,button{font-family:var(--fb)}
 .ins{padding:7px 9px;background:var(--bg2);border:1px solid var(--bo2);border-radius:var(--rxs);color:var(--tx);font-size:12px;outline:none;width:100%}
 .ins:focus{border-color:var(--pu2)}
 .svbtn{background:rgba(16,185,129,.11);border:1px solid rgba(16,185,129,.23);border-radius:var(--rxs);padding:5px 9px;color:var(--gr);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
-.bp-hscroll{display:flex;gap:11px;overflow-x:auto;padding:4px 13px 16px;scrollbar-width:none;scroll-snap-type:x mandatory;}
+.bp-hscroll{display:flex;gap:12px;overflow-x:auto;padding:4px 13px 16px;scrollbar-width:none;scroll-snap-type:x mandatory;}
 .bp-hscroll::-webkit-scrollbar{display:none;}
-.bp-hcard{min-width:148px;max-width:148px;border-radius:var(--r);border:1px solid var(--bo);background:var(--card);padding:13px 11px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;flex-shrink:0;cursor:pointer;scroll-snap-align:start;transition:transform .15s;}
+.bp-hcard{min-width:170px;max-width:170px;height:230px;border-radius:var(--r);border:1px solid var(--bo);background:var(--card);padding:16px 13px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;flex-shrink:0;cursor:pointer;scroll-snap-align:start;transition:transform .15s;}
 .bp-hcard.un{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.06);}
-.bp-hcard.cur{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.09);transform:scale(1.04);}
-.bp-hcard.lk{opacity:.5;}
-.bp-hbadge{position:absolute;top:8px;right:8px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;letter-spacing:.3px;}
+.bp-hcard.cur{border-color:rgba(139,92,246,.55);background:rgba(139,92,246,.1);transform:scale(1.04);box-shadow:0 0 20px rgba(139,92,246,.2);}
+.bp-hcard.lk{opacity:.45;filter:grayscale(.3);}
+.bp-hbadge{position:absolute;top:9px;right:9px;font-size:9px;font-weight:700;padding:3px 7px;border-radius:99px;letter-spacing:.3px;}
 .bp-hbadge.un{background:rgba(16,185,129,.15);color:var(--gr);}
 .bp-hbadge.cur{background:rgba(139,92,246,.2);color:var(--pu2);}
 .bp-hbadge.lk{background:var(--card2);color:var(--tx3);}
-.bp-himg{width:56px;height:56px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;margin-bottom:9px;overflow:hidden;border:1px solid var(--bo);}
+.bp-himg{width:72px;height:72px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;margin-bottom:11px;overflow:hidden;border:1px solid var(--bo);}
 .bp-himg img{width:100%;height:100%;object-fit:cover;}
-.bp-hlv{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;}
-.bp-hnm{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:7px;line-height:1.3;}
-.bp-hbar{width:100%;height:4px;background:var(--card3);border-radius:99px;overflow:hidden;}
+.bp-hlv{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
+.bp-hnm{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:9px;line-height:1.3;flex:1;}
+.bp-hbar{width:100%;height:5px;background:var(--card3);border-radius:99px;overflow:hidden;}
 .bp-hfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pu),var(--cy));}
-.bp-hneed{font-size:9px;color:var(--tx3);margin-top:4px;letter-spacing:.3px;}
+.bp-hneed{font-size:10px;color:var(--tx3);margin-top:5px;letter-spacing:.3px;}
+.bp-next{background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(245,158,11,.04) 100%);border:1px solid rgba(245,158,11,.3);border-radius:var(--r);padding:16px;margin:0 13px 13px;display:flex;align-items:center;gap:14px;cursor:pointer;}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:11px}
 .stat-card{background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:11px}
 .stat-v{font-family:var(--fh);font-size:18px;letter-spacing:1px;margin-bottom:2px}
@@ -823,6 +824,31 @@ body,html{margin:0;padding:0;background:#070710;}
           })}
         </div>
         <div style={{textAlign:'center',fontSize:10,color:'var(--tx3)',marginTop:2}}>← swipe through rewards →</div>
+        {(()=>{
+          const nextRw=rewards.find(r=>profile.xp<r.xp_required);
+          if(!nextRw)return null;
+          const prevRw=rewards[rewards.indexOf(nextRw)-1];
+          const startXP=prevRw?prevRw.xp_required:0;
+          const prog=Math.min(100,Math.round(((profile.xp-startXP)/(nextRw.xp_required-startXP))*100));
+          const need=Math.max(0,nextRw.xp_required-profile.xp);
+          return(
+            <div className="bp-next" onClick={()=>setShowReward(nextRw)} style={{marginTop:14}}>
+              <div style={{width:60,height:60,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid rgba(245,158,11,.2)'}}>
+                {nextRw.image_url?<img src={nextRw.image_url} alt={nextRw.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:26,opacity:.5}}>🎁</span>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+                  <div style={{fontSize:10,color:'var(--go)',textTransform:'uppercase',letterSpacing:1,fontWeight:700}}>Next Reward</div>
+                  <div style={{fontSize:10,color:'var(--go)',fontWeight:600}}>{need.toLocaleString()} XP away</div>
+                </div>
+                <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1,marginBottom:7,color:'var(--tx)'}}>{nextRw.name&&nextRw.name!==`Level ${nextRw.level} Reward`?nextRw.name:`Level ${nextRw.level} Reward`}</div>
+                <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
+                  <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--go),#f97316)',width:`${prog}%`,transition:'width 1s ease'}}/>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>)}
 
       {/* LEADERBOARD */}
