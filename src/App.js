@@ -352,7 +352,7 @@ export default function App(){
   const [dateRange,setDateRange]=useState('all');
   const [customStart,setCustomStart]=useState('');
   const [customEnd,setCustomEnd]=useState('');
-  const [selectedMonth,setSelectedMonth]=useState(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;});
+  const [selectedMonth,setSelectedMonth]=useState(()=>{const n=new Date();const y=n.getFullYear();const m=String(n.getMonth()+1).padStart(2,'0');return y+'-'+m;});
   const [isDesktop,setIsDesktop]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [products,setProducts]=useState([]);
   const [showPE,setShowPE]=useState(false);
@@ -1231,4 +1231,4 @@ body,html{margin:0;padding:0;background:#070710;}
 
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
   </div></>);
-}\
+}
