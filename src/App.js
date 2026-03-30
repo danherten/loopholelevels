@@ -412,6 +412,8 @@ export default function App(){
     const refCode=Math.random().toString(36).slice(2,10).toUpperCase();
     const {error:pErr}=await supabase.from('profiles').insert({id:authData.user.id,username:clean,tiktok_handles:normH,referral_code:refCode,referred_by:referredBy});
     if(pErr){setAuthErr(pErr.message);setAuthLoading(false);return;}
+    const {error:signInErr}=await supabase.auth.signInWithPassword({email,password:signupPass});
+    if(signInErr){setAuthErr('Account created! Please sign in.');setAuthLoading(false);return;}
     setAuthLoading(false);setAuthErr('');
   }
   async function doLogin(){
