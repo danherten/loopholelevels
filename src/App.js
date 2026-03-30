@@ -975,26 +975,21 @@ body,html{margin:0;padding:0;background:#070710;}
           <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{width:'100%',padding:'9px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1,cursor:'pointer'}}>COPY REFERRAL LINK</button>
         </div>
         {/* Stats grid */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
           <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
-            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Referral Earnings</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--gr)'}}>{fmtGBP(profile.referral_earnings||0)}</div>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Your Earnings</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--gr)'}}>{fmtGBP(profile.referral_earnings||0)}</div>
             <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>1% of their GMV</div>
           </div>
           <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
-            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Affiliates Referred</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--pu2)'}}>{referralStats.length}</div>
-            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>signed up with your link</div>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Referred</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--pu2)'}}>{referralStats.length}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>affiliates</div>
           </div>
           <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
-            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their Total GMV</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--go)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_gmv||0),0))}</div>
-            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>combined GMV generated</div>
-          </div>
-          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
-            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their Commission</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--cy)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_commission||0),0))}</div>
-            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>earned by your referrals</div>
+            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their GMV</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--go)'}}>{fmtGBP(referralStats.reduce((s,r)=>s+(r.total_gmv||0),0))}</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>combined</div>
           </div>
         </div>
         {/* Referred affiliates list */}
@@ -1015,8 +1010,10 @@ body,html{margin:0;padding:0;background:#070710;}
           ))}
         </div>)}
         {/* Earnings note */}
-        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 13px',marginBottom:11}}>
-          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.5}}>Referral earnings are paid manually by Loophole — contact the team to claim your {fmtGBP(profile.referral_earnings||0)}.</div>
+        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'13px',marginBottom:11}}>
+          <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>💰 Payment Terms</div>
+          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>All referral earnings are paid <strong style={{color:'var(--tx2)'}}>30 days after the end of the month</strong> they were generated in — this allows time for returns and cancellations to be processed.</div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginTop:7,padding:'8px 10px',background:'var(--card2)',borderRadius:'var(--rxs)',lineHeight:1.5}}>Example: sales your referrals make in <strong style={{color:'var(--tx2)'}}>April</strong> will be paid by the <strong style={{color:'var(--tx2)'}}>end of May</strong>.</div>
         </div>
         {/* How it works */}
         <div className="asec">
