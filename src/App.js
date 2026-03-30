@@ -431,8 +431,9 @@ export default function App(){
   async function deleteImportByDate(date){const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');if(!evts)return;const byProfile={};evts.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0};byProfile[e.profile_id].xp+=e.amount||0;byProfile[e.profile_id].gmv+=e.gmv||0;byProfile[e.profile_id].comm+=e.commission||0;});for(const [pid,vals] of Object.entries(byProfile)){const {data:p}=await supabase.from('profiles').select('xp,total_gmv,total_commission').eq('id',pid).single();if(p){await supabase.from('profiles').update({xp:Math.max(0,(p.xp||0)-vals.xp),total_gmv:Math.max(0,(p.total_gmv||0)-vals.gmv),total_commission:Math.max(0,(p.total_commission||0)-vals.comm)}).eq('id',pid);}}await supabase.from('xp_events').delete().in('id',evts.map(e=>e.id));
     await supabase.from('affiliate_product_stats').delete().in('profile_id',[...new Set(evts.map(e=>e.profile_id))]);
     for(const [pid,vals] of Object.entries(byProfile)){
+      const {data:prof}=await supabase.from('profiles').select('xp').eq('id',pid).single();
       await supabase.from('profiles').update({
-        total_live_streams:0,total_cancelled:0,total_cancelled_gmv:0,total_aov:0,total_orders:0,total_sales:0,total_gmv:0,total_commission:0,xp:Math.max(0,(p.xp||0)-vals.xp),streak:0,last_claim:null
+        total_live_streams:0,total_cancelled:0,total_cancelled_gmv:0,total_aov:0,total_orders:0,total_sales:0,total_gmv:0,total_commission:0,xp:Math.max(0,(prof?.xp||0)-vals.xp),streak:0,last_claim:null
       }).eq('id',pid);
     }
     toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);}
