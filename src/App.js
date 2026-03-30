@@ -831,7 +831,68 @@ body,html{margin:0;padding:0;background:#070710;}
       </div>)}
 
       {/* LEADERBOARD */}
-      {page==='lb'&&(<div className="pg"><div className="sh" style={{marginBottom:9}}>RANKINGS</div>{leaderboard.map((u,i)=><LbRow key={u.id} u={u} rank={i+1}/>)}</div>)}
+      {page==='lb'&&(<div className="pg">
+        {/* TOP 3 PODIUM */}
+        {leaderboard.length>=3&&(()=>{
+          const [first,second,third]=leaderboard;
+          const PodCard=({u,rank,height,labelPos})=>{
+            const ulv=getLv(u.xp);
+            const col=avc(u.username);
+            const isMe=u.id===profile?.id;
+            const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
+            const glow=rank===1?'rgba(245,158,11,.25)':rank===2?'rgba(187,187,187,.2)':'rgba(205,127,50,.2)';
+            const border=rank===1?'rgba(245,158,11,.4)':rank===2?'rgba(187,187,187,.3)':'rgba(205,127,50,.3)';
+            return(
+              <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end'}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--tx3)',marginBottom:4,textAlign:'center',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 4px'}}>{u.username}{isMe&&<span style={{color:'var(--pu2)',marginLeft:3}}>(you)</span>}</div>
+                <div style={{width:44,height:44,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:15,color:'#fff',border:`2px solid ${border}`,boxShadow:`0 0 14px ${glow}`,marginBottom:6,overflow:'hidden',flexShrink:0}}>
+                  {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
+                </div>
+                <div style={{fontSize:18}}>{medal}</div>
+                <div style={{width:'100%',background:`linear-gradient(180deg,${glow.replace('.25',',.15').replace('.2',',.12')},var(--card))`,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'10px 6px 12px',textAlign:'center',marginTop:4,height}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--tx)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()}</div>
+                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>XP</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBP(u.total_gmv||0)}</div>
+                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7}}>GMV</div>
+                </div>
+              </div>
+            );
+          };
+          return(
+            <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:16,margin:'0 -13px 16px',padding:'0 0'}}>
+              <PodCard u={second} rank={2} height={90} labelPos="bottom"/>
+              <PodCard u={first} rank={1} height={120} labelPos="bottom"/>
+              <PodCard u={third} rank={3} height={75} labelPos="bottom"/>
+            </div>
+          );
+        })()}
+        {/* REST OF LEADERBOARD */}
+        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
+          {leaderboard.slice(leaderboard.length>=3?3:0).map((u,i)=>{
+            const rank=(leaderboard.length>=3?3:0)+i+1;
+            const ulv=getLv(u.xp);
+            const isMe=u.id===profile?.id;
+            const col=avc(u.username);
+            return(
+              <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<leaderboard.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'rgba(139,92,246,.06)':'transparent'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:'var(--tx3)',flexShrink:0}}>{rank}</div>
+                <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden'}}>
+                  {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()} XP</div>
+                  <div style={{fontSize:10,color:'var(--gr)',marginTop:1}}>{fmtGBP(u.total_gmv||0)}</div>
+                </div>
+              </div>
+            );
+          })}
+          {leaderboard.length===0&&<div style={{padding:'24px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>No affiliates yet.</div>}
+        </div>
+      </div>)}
 
       {/* REFERRALS */}
       {/* LEVEL PAGE */}
