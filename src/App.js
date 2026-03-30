@@ -523,7 +523,7 @@ export default function App(){
       const xpGainTotal=xpGain+streakXP;
       const streakNote=streakXP>0?` | Day ${newStreak} streak +${streakXP} XP`:(diffDays!==0&&diffDays!==null&&diffDays>1?` | Streak reset (${diffDays}d gap)`:` | Day ${newStreak} streak`);
       const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${sales} sales${streakNote}`,created_at:new Date(importDate+'T12:00:00').toISOString()};
-      try{Object.assign(xpInsert,{gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS});}catch(e){}
+      try{Object.assign(xpInsert,{gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null});}catch(e){}
       await supabase.from('xp_events').insert(xpInsert);
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
       const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
@@ -570,6 +570,19 @@ export default function App(){
   const filteredOrders=importEvts.reduce((s,e)=>s+(e.orders||0),0);
   const filteredUnits=importEvts.reduce((s,e)=>s+(e.sales||0),0);
   const filteredLiveStreams=importEvts.reduce((s,e)=>s+(e.live_streams||0),0);
+  const filteredCancelled=importEvts.reduce((s,e)=>s+(e.cancelled||0),0);
+  const filteredCancelledGMV=importEvts.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
+  const filteredProducts=React.useMemo(()=>{
+    const byProd={};
+    importEvts.forEach(e=>{
+      if(!e.product_name)return;
+      if(!byProd[e.product_name])byProd[e.product_name]={product_name:e.product_name,gmv:0,commission:0,sales:0};
+      byProd[e.product_name].gmv+=(e.gmv||0);
+      byProd[e.product_name].commission+=(e.commission||0);
+      byProd[e.product_name].sales+=(e.sales||0);
+    });
+    return Object.values(byProd).sort((a,b)=>b.commission-a.commission);
+  },[importEvts]);
   const isFiltered=dateRange!=='all';
 
     const lv=profile?getLv(profile.xp):LEVELS[0];
@@ -678,7 +691,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
           {[
             {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:(profile.total_commission||0))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
-            {label:'Cancelled / Returns',val:`${profile.total_cancelled||0} · ${fmtGBP(profile.total_cancelled_gmv||0)}`,icon:'↩️'},
+            {label:'Cancelled / Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} · ${fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0))}`,icon:'↩️'},
             {label:'Avg Order Value',val:profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00',icon:'🛒'},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'10px 10px'}}>
@@ -696,7 +709,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* TOP PRODUCTS CARD */}
         <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'12px 14px',marginBottom:11}}>
           <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>🏆 Top Products</div>
-          {topProducts.length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
+          {(isFiltered?filteredProducts:topProducts).length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
             <div style={{width:44,height:44,borderRadius:8,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0,opacity:.4}}>📦</div>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:3}}>No data yet</div>
