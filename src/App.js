@@ -674,7 +674,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* EXTRA STATS ROW */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
           {[
-            {label:'Comm per Live',val:(profile.total_live_streams||0)>0?fmtGBP((profile.total_commission||0)/(profile.total_live_streams||1)):'£0.00',icon:'📡'},
+            {label:'Avg Comm per Live',val:(profile.total_live_streams||0)>0?fmtGBP((profile.total_commission||0)/(profile.total_live_streams||1)):'£0.00',icon:'📡'},
             {label:'Cancelled / Returns',val:`${profile.total_cancelled||0} · ${fmtGBP(profile.total_cancelled_gmv||0)}`,icon:'↩️'},
             {label:'Avg Order Value',val:profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00',icon:'🛒'},
           ].map((s,i)=>(
