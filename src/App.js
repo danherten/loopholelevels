@@ -239,13 +239,23 @@ input,button{font-family:var(--fb)}
 .ins{padding:7px 9px;background:var(--bg2);border:1px solid var(--bo2);border-radius:var(--rxs);color:var(--tx);font-size:12px;outline:none;width:100%}
 .ins:focus{border-color:var(--pu2)}
 .svbtn{background:rgba(16,185,129,.11);border:1px solid rgba(16,185,129,.23);border-radius:var(--rxs);padding:5px 9px;color:var(--gr);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
-.bp-track{padding:0 13px}
-.bp-dot{width:34px;height:34px;border-radius:50%;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .2s;z-index:1}
-.bp-card{flex:1;margin-left:10px;border-radius:var(--r);overflow:hidden;cursor:pointer;transition:all .2s;margin-bottom:5px}
-.bp-card-inner{background:var(--card);border:1px solid var(--bo)}
-.bp-card-inner.un{border-color:rgba(16,185,129,.28);background:rgba(16,185,129,.04)}
-.bp-card-inner.cur{border-color:rgba(139,92,246,.45);background:rgba(139,92,246,.07);box-shadow:0 0 14px rgba(139,92,246,.16)}
-.bp-card-inner{border-radius:var(--r)}
+.bp-hscroll{display:flex;gap:11px;overflow-x:auto;padding:4px 13px 16px;scrollbar-width:none;scroll-snap-type:x mandatory;}
+.bp-hscroll::-webkit-scrollbar{display:none;}
+.bp-hcard{min-width:148px;max-width:148px;border-radius:var(--r);border:1px solid var(--bo);background:var(--card);padding:13px 11px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;flex-shrink:0;cursor:pointer;scroll-snap-align:start;transition:transform .15s;}
+.bp-hcard.un{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.06);}
+.bp-hcard.cur{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.09);transform:scale(1.04);}
+.bp-hcard.lk{opacity:.5;}
+.bp-hbadge{position:absolute;top:8px;right:8px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;letter-spacing:.3px;}
+.bp-hbadge.un{background:rgba(16,185,129,.15);color:var(--gr);}
+.bp-hbadge.cur{background:rgba(139,92,246,.2);color:var(--pu2);}
+.bp-hbadge.lk{background:var(--card2);color:var(--tx3);}
+.bp-himg{width:56px;height:56px;border-radius:10px;background:var(--card2);display:flex;align-items:center;justify-content:center;margin-bottom:9px;overflow:hidden;border:1px solid var(--bo);}
+.bp-himg img{width:100%;height:100%;object-fit:cover;}
+.bp-hlv{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;}
+.bp-hnm{font-size:12px;font-weight:600;color:var(--tx);margin-bottom:7px;line-height:1.3;}
+.bp-hbar{width:100%;height:4px;background:var(--card3);border-radius:99px;overflow:hidden;}
+.bp-hfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pu),var(--cy));}
+.bp-hneed{font-size:9px;color:var(--tx3);margin-top:4px;letter-spacing:.3px;}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:11px}
 .stat-card{background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:11px}
 .stat-v{font-family:var(--fh);font-size:18px;letter-spacing:1px;margin-bottom:2px}
@@ -784,47 +794,35 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:3}}>LEVEL REWARDS</div>
           <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)',letterSpacing:1}}>Level {lv.level}</div>
         </div>
-        <div style={{padding:'0 13px 13px'}}>
+        <div style={{padding:'0 13px 11px'}}>
           <div style={{background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--r)',padding:11}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx2)',marginBottom:6}}><span style={{fontWeight:600,color:'var(--pu2)'}}>Level {lv.level}</span><span>{(profile.xp||0).toLocaleString()} / {nx?nx.min.toLocaleString():'MAX'} XP</span></div>
             <div className="xpbar"><div className="xpfill" style={{width:`${pct}%`}}/></div>
             {nx&&<div style={{fontSize:10,color:'var(--tx3)',marginTop:3,textAlign:'right'}}>{(nx.min-profile.xp).toLocaleString()} XP to Level {nx.level}</div>}
           </div>
         </div>
-        <div className="bp-track">
+        <div className="bp-hscroll">
           {rewards.map((r,i)=>{
             const un=profile.xp>=r.xp_required;
             const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
-            const isLast=i===rewards.length-1;
             const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
-            return(<div key={r.id} style={{display:'flex',gap:0,alignItems:'stretch'}}>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:42,flexShrink:0}}>
-                <div style={{width:2,height:i===0?10:24,background:un?'var(--pu)':'var(--card3)',flexShrink:0}}/>
-                <div className="bp-dot" style={{background:un?'linear-gradient(135deg,var(--pu),var(--cy))':isCur?'rgba(139,92,246,.2)':'var(--card3)',border:isCur?'2px solid var(--pu)':un?'none':'2px solid var(--card3)',boxShadow:isCur?'0 0 12px rgba(139,92,246,.5)':'none',color:un?'#fff':isCur?'var(--pu2)':'var(--tx3)',}} onClick={()=>setShowReward(r)}>{un?'✓':isCur?'▶':'🔒'}</div>
-                {!isLast&&<div style={{width:2,flex:1,minHeight:12,background:un?'var(--pu)':'var(--card3)'}}/>}
-              </div>
-              <div className="bp-card" style={{marginTop:i===0?10:18}} onClick={()=>setShowReward(r)}>
-                <div className={`bp-card-inner${un?' un':isCur?' cur':''}`}>
-                  <div style={{display:'flex',gap:9,alignItems:'center',padding:10}}>
-                    <div style={{width:48,height:48,borderRadius:8,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                      {r.image_url?<img src={r.image_url} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:20,opacity:.35}}>🎁</span>}
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:2}}>
-                        <div style={{fontFamily:'var(--fh)',fontSize:13,letterSpacing:1}}>{r.name}</div>
-                        {un&&<span style={{fontSize:9,background:'rgba(16,185,129,.15)',color:'var(--gr)',padding:'1px 6px',borderRadius:99,fontWeight:600,flexShrink:0,marginLeft:5}}>UNLOCKED</span>}
-                        {isCur&&<span style={{fontSize:9,background:'rgba(139,92,246,.15)',color:'var(--pu2)',padding:'1px 6px',borderRadius:99,fontWeight:600,flexShrink:0,marginLeft:5}}>CURRENT</span>}
-                      </div>
-                      <div style={{fontSize:10,color:'var(--tx3)',marginBottom:4}}>Level {r.level} · {r.xp_required.toLocaleString()} XP</div>
-                      <div className="pw"><div className="pf" style={{width:`${prog}%`}}/></div>
-                    </div>
-                  </div>
-                  {r.description&&<div style={{padding:'0 10px 10px',fontSize:11,color:'var(--tx3)',lineHeight:1.5}}>{r.description}</div>}
+            const need=Math.max(0,r.xp_required-profile.xp);
+            return(
+              <div key={r.id} className={`bp-hcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
+                <div className={`bp-hbadge${un?' un':isCur?' cur':' lk'}`}>{un?'✓ DONE':isCur?'NOW':'🔒'}</div>
+                <div className="bp-himg">
+                  {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
                 </div>
+                <div className="bp-hlv">Level {r.level}</div>
+                <div className="bp-hnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
+                <div className="bp-hbar"><div className="bp-hfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
+                {isCur&&<div className="bp-hneed">{need.toLocaleString()} XP to go</div>}
+                {!isCur&&!un&&<div className="bp-hneed">{r.xp_required.toLocaleString()} XP</div>}
               </div>
-            </div>);
+            );
           })}
         </div>
+        <div style={{textAlign:'center',fontSize:10,color:'var(--tx3)',marginTop:2}}>← swipe through rewards →</div>
       </div>)}
 
       {/* LEADERBOARD */}
