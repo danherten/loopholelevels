@@ -1,0 +1,9 @@
+{
+  "short_name": "Loophole Levels",
+  "name": "Loophole Levels",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#070710",
+  "background_color": "#070710",
+  "orientation": "any"
+}
