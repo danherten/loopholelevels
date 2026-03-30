@@ -432,7 +432,7 @@ export default function App(){
     await supabase.from('affiliate_product_stats').delete().in('profile_id',[...new Set(evts.map(e=>e.profile_id))]);
     for(const [pid,vals] of Object.entries(byProfile)){
       await supabase.from('profiles').update({
-        total_live_streams:0,total_cancelled:0,total_cancelled_gmv:0,total_aov:0,streak:0,last_claim:null
+        total_live_streams:0,total_cancelled:0,total_cancelled_gmv:0,total_aov:0,total_orders:0,total_sales:0,total_gmv:0,total_commission:0,xp:Math.max(0,(p.xp||0)-vals.xp),streak:0,last_claim:null
       }).eq('id',pid);
     }
     toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);}
