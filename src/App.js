@@ -710,7 +710,7 @@ body,html{margin:0;padding:0;background:#070710;}
 
 
         {/* EXTRA STATS ROW */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
           {[
             {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:(profile.total_commission||0))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
             {label:'Returns (units)',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)}`,icon:'↩️'},{label:'Returns (GMV)',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸'},
@@ -976,7 +976,7 @@ body,html{margin:0;padding:0;background:#070710;}
           <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{width:'100%',padding:'9px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1,cursor:'pointer'}}>COPY REFERRAL LINK</button>
         </div>
         {/* Stats grid */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
           <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
             <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Your Earnings</div>
             <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--gr)'}}>{fmtGBP(profile.referral_earnings||0)}</div>
