@@ -548,9 +548,10 @@ export default function App(){
       const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${sales} sales${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
       await supabase.from('xp_events').insert(xpInsert);
       if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
-      // Credit referrer 1% of GMV
-      if(p.referred_by&&rawG>0){
-        const refBonus=parseFloat((rawG*0.01).toFixed(2));
+      // Credit referrer 1% of GMV minus cancellations
+      const netGMV=Math.max(0,rawG-rawCanG);
+      if(p.referred_by&&netGMV>0){
+        const refBonus=parseFloat((netGMV*0.01).toFixed(2));
         const refP=(profiles||[]).find(x=>x.id===p.referred_by);
         if(refP)await supabase.from('profiles').update({referral_earnings:(refP.referral_earnings||0)+refBonus}).eq('id',p.referred_by);
       }
@@ -712,7 +713,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
           {[
             {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:(profile.total_commission||0))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
-            {label:'Cancelled / Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} · ${fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0))}`,icon:'↩️'},
+            {label:'Returns (units)',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)}`,icon:'↩️'},{label:'Returns (GMV)',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸'},
             {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):(profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00'),icon:'🛒'},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'10px 10px'}}>
@@ -1005,6 +1006,7 @@ body,html{margin:0;padding:0;background:#070710;}
               <div style={{textAlign:'right',flexShrink:0}}>
                 <div style={{fontSize:12,color:'var(--gr)',fontWeight:600}}>{fmtGBP(r.total_gmv||0)}</div>
                 <div style={{fontSize:10,color:'var(--tx3)'}}>GMV</div>
+                {(r.total_cancelled_gmv||0)>0&&<div style={{fontSize:10,color:'var(--re)',marginTop:1}}>-{fmtGBP(r.total_cancelled_gmv||0)} returned</div>}
               </div>
             </div>
           ))}
