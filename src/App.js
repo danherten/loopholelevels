@@ -136,11 +136,11 @@ input,button{font-family:var(--fb)}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav) + var(--sb) + 12px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{width:100%;height:calc(var(--nav) + var(--sb));background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding-top:7px;z-index:50;flex-shrink:0}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;cursor:pointer;border:none;background:none}
+.bnav{width:100%;height:calc(var(--nav) + var(--sb));background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding-top:6px;z-index:50;flex-shrink:0;padding-left:2px;padding-right:2px;}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:3px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
-.nicon{font-size:18px;line-height:1;transition:transform .18s}
-.nlbl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);font-weight:500}
+.nicon{font-size:17px;line-height:1;transition:transform .18s}
+.nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;}
 .ni.on .nlbl{color:var(--pu2)}
 .hero{background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:15px;margin-bottom:11px;position:relative;overflow:hidden}
 .hero::after{content:'';position:absolute;top:-45px;right:-45px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%);pointer-events:none}
@@ -432,7 +432,14 @@ export default function App(){
   }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
-  async function deleteImportByDate(date){const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');if(!evts)return;const byProfile={};evts.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0};byProfile[e.profile_id].xp+=e.amount||0;byProfile[e.profile_id].gmv+=e.gmv||0;byProfile[e.profile_id].comm+=e.commission||0;});for(const [pid,vals] of Object.entries(byProfile)){const {data:p}=await supabase.from('profiles').select('xp,total_gmv,total_commission').eq('id',pid).single();if(p){await supabase.from('profiles').update({xp:Math.max(0,(p.xp||0)-vals.xp),total_gmv:Math.max(0,(p.total_gmv||0)-vals.gmv),total_commission:Math.max(0,(p.total_commission||0)-vals.comm)}).eq('id',pid);}}await supabase.from('xp_events').delete().in('id',evts.map(e=>e.id));await supabase.from('affiliate_product_stats').delete().in('profile_id',evts.map(e=>e.profile_id));toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);}
+  async function deleteImportByDate(date){const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');if(!evts)return;const byProfile={};evts.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0};byProfile[e.profile_id].xp+=e.amount||0;byProfile[e.profile_id].gmv+=e.gmv||0;byProfile[e.profile_id].comm+=e.commission||0;});for(const [pid,vals] of Object.entries(byProfile)){const {data:p}=await supabase.from('profiles').select('xp,total_gmv,total_commission').eq('id',pid).single();if(p){await supabase.from('profiles').update({xp:Math.max(0,(p.xp||0)-vals.xp),total_gmv:Math.max(0,(p.total_gmv||0)-vals.gmv),total_commission:Math.max(0,(p.total_commission||0)-vals.comm)}).eq('id',pid);}}await supabase.from('xp_events').delete().in('id',evts.map(e=>e.id));
+    await supabase.from('affiliate_product_stats').delete().in('profile_id',[...new Set(evts.map(e=>e.profile_id))]);
+    for(const [pid,vals] of Object.entries(byProfile)){
+      await supabase.from('profiles').update({
+        total_live_streams:0,total_cancelled:0,total_cancelled_gmv:0,total_aov:0,streak:0,last_claim:null
+      }).eq('id',pid);
+    }
+    toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);}
 
 
   async function doSignup(){
