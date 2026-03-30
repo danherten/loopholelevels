@@ -28,6 +28,7 @@ const TCOLS = {
   product:['product name','product','item name','product title','sku name','listing name','product id','item','listing'],
   cancelled:['items refunded','cancelled orders','cancellations','canceled orders','cancelled','canceled','refunded orders','returns','returned orders','cancel count'],
   cancelled_gmv:['refunds','cancelled gmv','canceled gmv','refunded gmv','returned gmv','cancellation value','refund value','return value','cancelled value'],
+  live_streams:['live streams','lives','live stream count','livestreams','live','streams'],
 };
 
 function MiniChart({xpEvents}){
@@ -475,6 +476,7 @@ export default function App(){
     else{setImportLog(['ERROR: Use .csv or .xlsx']);return;}
     const headers=Object.keys(rows[0]||{});
     const hCol=findCol(headers,'handle');const sCol=findCol(headers,'sales');const gCol=findCol(headers,'gmv');const oCol=findCol(headers,'orders');const cCol=findCol(headers,'commission');const aovCol=findCol(headers,'aov_col');const pCol=findCol(headers,'product');const canCol=findCol(headers,'cancelled');const canGCol=findCol(headers,'cancelled_gmv');
+    const lsCol=findCol(headers,'live_streams');
     // Parse product name and date from filename e.g. "Product_Detail_Analysis_Creator_List_20260319-20260319_teeth.xlsx"
     const fnBase=file.name.replace(/\.xlsx?|\.csv$/i,'');
     const dateMatch=fnBase.match(/(\d{8})/);
@@ -494,6 +496,7 @@ export default function App(){
       const rawC=cCol?parseFloat((row[cCol]||'0').toString().replace(/[^0-9.]/g,''))||0:0;
       const rawAOV=aovCol?parseFloat((row[aovCol]||'0').toString().replace(/[^0-9.]/g,''))||0:0;
       const rawCan=canCol?parseInt((row[canCol]||'0').toString().replace(/[^0-9]/g,''))||0:0;
+      const rawLS=lsCol?parseInt((row[lsCol]||'0').toString().replace(/[^0-9]/g,''))||0:0;
       const rawCanG=canGCol?parseFloat((row[canGCol]||'0').toString().replace(/[^0-9.]/g,''))||0:0;
       const sales=rawS||(rawG>0?Math.max(1,Math.round(rawG/10)):0);
       if(!p){logs.push(`⚠ No match: ${handle}`);unmatched++;continue;}
@@ -514,7 +517,7 @@ export default function App(){
       const hitMilestone=milestones.find(m=>m.days===newStreak);
       if(hitMilestone&&diffDays!==0){streakXP=hitMilestone.xp_bonus;}
       const finalXP=newXP+streakXP;
-      const profileUpdate={xp:finalXP,total_sales:(p.total_sales||0)+sales,total_gmv:newGMV,total_orders:newOrders,total_commission:(p.total_commission||0)+rawC,streak:newStreak,last_claim:importDate};
+      const profileUpdate={xp:finalXP,total_sales:(p.total_sales||0)+sales,total_gmv:newGMV,total_orders:newOrders,total_commission:(p.total_commission||0)+rawC,streak:newStreak,last_claim:importDate,total_live_streams:(p.total_live_streams||0)+rawLS};
       const {error:puErr}=await supabase.from('profiles').update(profileUpdate).eq('id',p.id);
       if(!puErr){await supabase.from('profiles').update({total_aov:newAOV,total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id).then(()=>{});}
       const xpGainTotal=xpGain+streakXP;
@@ -671,7 +674,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* EXTRA STATS ROW */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
           {[
-            {label:'Avg per Sale',val:profile.total_sales>0?fmtGBP((profile.total_gmv||0)/profile.total_sales):'£0.00',icon:'📈'},
+            {label:'Comm per Live',val:(profile.total_live_streams||0)>0?fmtGBP((profile.total_commission||0)/(profile.total_live_streams||1)):'£0.00',icon:'📡'},
             {label:'Cancelled / Returns',val:`${profile.total_cancelled||0} · ${fmtGBP(profile.total_cancelled_gmv||0)}`,icon:'↩️'},
             {label:'Avg Order Value',val:profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00',icon:'🛒'},
           ].map((s,i)=>(
