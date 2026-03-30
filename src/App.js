@@ -32,7 +32,7 @@ const TCOLS = {
 
 function MiniChart({xpEvents}){
   const importEvents=(xpEvents||[]).filter(e=>e.reason==='import'&&(e.gmv>0||e.commission>0));
-  if(importEvents.length<2) return(
+  if(importEvents.length<1) return(
     <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'14px 16px',marginBottom:11,textAlign:'center'}}>
       <div style={{fontSize:11,color:'var(--tx3)',marginBottom:4,textTransform:'uppercase',letterSpacing:1}}>GMV &amp; Commission</div>
       <div style={{fontSize:12,color:'var(--tx3)'}}>Import sales data to see your earnings trend</div>
@@ -42,7 +42,7 @@ function MiniChart({xpEvents}){
   const points=importEvents.map(e=>{cumG+=e.gmv||0;cumC+=e.commission||0;return{gmv:cumG,comm:cumC,date:new Date(e.created_at)};});
   const maxVal=Math.max(...points.map(p=>p.gmv),1);
   const W=320,H=90,PAD=8;
-  const xScale=(i)=>PAD+((i/(points.length-1))*(W-PAD*2));
+  const xScale=(i)=>points.length===1?W/2:PAD+((i/(points.length-1))*(W-PAD*2));
   const yScale=(v)=>H-PAD-((v/maxVal))*(H-PAD*2);
   const gmvPath=points.map((p,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(p.gmv).toFixed(1)}`).join(' ');
   const commPath=points.map((p,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(p.comm).toFixed(1)}`).join(' ');
@@ -660,10 +660,10 @@ body,html{margin:0;padding:0;background:#070710;}
             <div style={{width:28,fontFamily:'var(--fh)',fontSize:14,color:i===0?'var(--go)':i===1?'rgba(238,238,248,.35)':'#cd7f32',flexShrink:0,textAlign:'center'}}>{i+1}</div>
             {prod?.image_url?<img src={prod.image_url} alt="" style={{width:40,height:40,borderRadius:7,objectFit:'cover',flexShrink:0,border:'1px solid var(--bo)'}}/>:<div style={{width:40,height:40,borderRadius:7,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>}
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{tp.product_name}</div>
+              <div style={{fontSize:12,fontWeight:600,marginBottom:3,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{tp.product_name||'Unknown Product'}</div>
               <div style={{display:'flex',gap:10}}>
-                <div><div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>GMV</div></div>
                 <div><div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>Comm</div></div>
+                <div><div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>GMV</div></div>
                 <div><div style={{fontFamily:'var(--fh)',fontSize:13}}>{tp.sales||0}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>Units</div></div>
               </div>
             </div>
