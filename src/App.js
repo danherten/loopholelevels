@@ -352,6 +352,7 @@ export default function App(){
   const [dateRange,setDateRange]=useState('all');
   const [customStart,setCustomStart]=useState('');
   const [customEnd,setCustomEnd]=useState('');
+  const [selectedMonth,setSelectedMonth]=useState(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;});
   const [isDesktop,setIsDesktop]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [products,setProducts]=useState([]);
   const [showPE,setShowPE]=useState(false);
@@ -557,11 +558,11 @@ export default function App(){
     end.setHours(23,59,59,999);
     if(dateRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
     else if(dateRange==='30d'){start=new Date();start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
-    else if(dateRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);}
+    else if(dateRange==='month'){const[my,mm]=selectedMonth.split('-').map(Number);start=new Date(my,mm-1,1);end=new Date(my,mm,0,23,59,59,999);}
     else if(dateRange==='custom'&&customStart&&customEnd){start=new Date(customStart);start.setHours(0,0,0,0);end=new Date(customEnd);end.setHours(23,59,59,999);}
     else return xpEvents||[];
     return(xpEvents||[]).filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
-  },[xpEvents,dateRange,customStart,customEnd]);
+  },[xpEvents,dateRange,customStart,customEnd,selectedMonth]);
 
   const importEvts=filteredEvents.filter(e=>e.reason==='import');
   const filteredGMV=importEvts.reduce((s,e)=>s+(e.gmv||0),0);
@@ -655,6 +656,7 @@ body,html{margin:0;padding:0;background:#070710;}
           {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
             <button key={val} onClick={()=>setDateRange(val)} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'var(--bo)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'var(--card)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
           ))}
+          {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer'}}/>}
           <button onClick={()=>setDateRange('custom')} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'var(--bo)'}`,background:dateRange==='custom'?'rgba(139,92,246,.18)':'var(--card)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
           {dateRange==='custom'&&(<>
             <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
@@ -1229,5 +1231,4 @@ body,html{margin:0;padding:0;background:#070710;}
 
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
   </div></>);
-}
-  
+}\
