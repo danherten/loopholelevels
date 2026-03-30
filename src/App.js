@@ -378,6 +378,7 @@ export default function App(){
   const [topProducts,setTopProducts]=useState([]);
   const [showMilestoneCarousel,setShowMilestoneCarousel]=useState(false);
   const [importHistory,setImportHistory]=useState([]);
+  const [lastUpdated,setLastUpdated]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(null);
 
 
@@ -386,8 +387,8 @@ export default function App(){
     const init=async()=>{
       try{
         const {data:{session}}=await supabase.auth.getSession();
-        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();}
-        else{loadRewards();loadProducts();loadProductMappings();}
+        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();loadLastUpdated();}
+        else{loadRewards();loadProducts();loadProductMappings();loadLastUpdated();}
       }catch(e){console.error('init error:',e);}
       setLoading(false);
       try{
@@ -417,6 +418,10 @@ export default function App(){
     if(!profile)return;
     const {data}=await supabase.from('profiles').select('username,xp,total_gmv,total_commission,tiktok_handles').eq('referred_by',profile.id);
     if(data)setReferralStats(data);
+  }
+  async function loadLastUpdated(){
+    const {data}=await supabase.from('xp_events').select('created_at,profiles(username)').order('created_at',{ascending:false}).limit(1);
+    if(data&&data[0])setLastUpdated({time:data[0].created_at,user:data[0].profiles?.username||'admin'});
   }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
@@ -560,7 +565,7 @@ export default function App(){
     }
     logs.push('─────────────',`Done: ${matched} updated · ${unmatched} unmatched · ${skipped} skipped`);
     setImportLog(logs);toast(`Import done: ${matched} updated`,'ok');
-    loadAllProfiles();loadImportHistory();if(profile)loadProfile(profile.id);
+    loadAllProfiles();loadImportHistory();loadLastUpdated();if(profile)loadProfile(profile.id);
   }
 
   function exportCSV(){
@@ -633,6 +638,10 @@ body,html{margin:0;padding:0;background:#070710;}
   return(<><style>{CSS}</style><div className="app" style={isDesktop?{flexDirection:'row'}:{}}>
     {/* DESKTOP SIDEBAR */}
     {isDesktop&&(<div style={{width:220,minWidth:220,height:'100dvh',background:'var(--bg2)',borderRight:'1px solid var(--bo2)',display:'flex',flexDirection:'column',flexShrink:0,zIndex:10}}>
+      {lastUpdated&&<div style={{background:'rgba(139,92,246,.1)',borderBottom:'1px solid rgba(139,92,246,.2)',padding:'7px 16px',display:'flex',alignItems:'center',gap:6}}>
+        <span style={{fontSize:10,color:'var(--pu2)'}}>●</span>
+        <div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.4}}>Updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong><br/>{new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>}
       <div style={{padding:'20px 16px 16px',borderBottom:'1px solid var(--bo)'}}>
         <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:3}}>LOOPHOLE</div>
         <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginTop:2}}>Affiliate Levels</div>
@@ -657,6 +666,10 @@ body,html{margin:0;padding:0;background:#070710;}
       </div>
     </div>)}
     {/* MOBILE TOPBAR */}
+    {!isDesktop&&lastUpdated&&(<div style={{background:'rgba(139,92,246,.1)',borderBottom:'1px solid rgba(139,92,246,.2)',padding:'5px 14px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,flexShrink:0}}>
+      <span style={{fontSize:10,color:'var(--pu2)'}}>●</span>
+      <span style={{fontSize:10,color:'var(--tx3)'}}>Data last updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong> on {new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
+    </div>)}
     {!isDesktop&&<div className="topbar">
       <img src="/logo.png" alt="Loophole Levels" style={{height:24}}/>
       <div className="tr">
