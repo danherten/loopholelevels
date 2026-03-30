@@ -239,23 +239,25 @@ input,button{font-family:var(--fb)}
 .ins{padding:7px 9px;background:var(--bg2);border:1px solid var(--bo2);border-radius:var(--rxs);color:var(--tx);font-size:12px;outline:none;width:100%}
 .ins:focus{border-color:var(--pu2)}
 .svbtn{background:rgba(16,185,129,.11);border:1px solid rgba(16,185,129,.23);border-radius:var(--rxs);padding:5px 9px;color:var(--gr);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
-.bp-hscroll{display:flex;gap:12px;overflow-x:auto;padding:4px 13px 16px;scrollbar-width:none;scroll-snap-type:x mandatory;}
-.bp-hscroll::-webkit-scrollbar{display:none;}
-.bp-hcard{min-width:calc(50vw - 19px);max-width:calc(50vw - 19px);border-radius:var(--r);border:1px solid var(--bo);background:var(--card);padding:16px 13px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;flex-shrink:0;cursor:pointer;scroll-snap-align:start;transition:transform .15s;}
-.bp-hcard.un{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.06);}
-.bp-hcard.cur{border-color:rgba(139,92,246,.55);background:rgba(139,92,246,.1);transform:scale(1.04);box-shadow:0 0 20px rgba(139,92,246,.2);}
-.bp-hcard.lk{opacity:.45;filter:grayscale(.3);}
-.bp-hbadge{position:absolute;top:9px;right:9px;font-size:9px;font-weight:700;padding:3px 7px;border-radius:99px;letter-spacing:.3px;}
-.bp-hbadge.un{background:rgba(16,185,129,.15);color:var(--gr);}
-.bp-hbadge.cur{background:rgba(139,92,246,.2);color:var(--pu2);}
-.bp-hbadge.lk{background:var(--card2);color:var(--tx3);}
-.bp-himg{width:72px;height:72px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;margin-bottom:11px;overflow:hidden;border:1px solid var(--bo);}
-.bp-himg img{width:100%;height:100%;object-fit:cover;}
-.bp-hlv{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;}
-.bp-hnm{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:9px;line-height:1.3;flex:1;}
-.bp-hbar{width:100%;height:5px;background:var(--card3);border-radius:99px;overflow:hidden;}
-.bp-hfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pu),var(--cy));}
-.bp-hneed{font-size:10px;color:var(--tx3);margin-top:5px;letter-spacing:.3px;}
+.bp-vcard{border-radius:var(--r);border:1px solid var(--bo);background:var(--card);padding:16px;margin:0 13px 11px;display:flex;gap:14px;align-items:center;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s;}
+.bp-vcard.un{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.05);}
+.bp-vcard.cur{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.08);}
+.bp-vcard.lk{opacity:.5;}
+.bp-vcard.cur::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.18) 0%,transparent 70%);pointer-events:none;}
+.bp-vcard.un::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.12) 0%,transparent 70%);pointer-events:none;}
+.bp-vimg{width:72px;height:72px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--bo);flex-shrink:0;}
+.bp-vimg img{width:100%;height:100%;object-fit:cover;}
+.bp-vbody{flex:1;min-width:0;}
+.bp-vlv{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;}
+.bp-vnm{font-size:15px;font-weight:600;color:var(--tx);margin-bottom:2px;line-height:1.3;}
+.bp-vxp{font-size:11px;color:var(--tx3);margin-bottom:8px;}
+.bp-vbar{height:5px;background:var(--card3);border-radius:99px;overflow:hidden;}
+.bp-vfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pu),var(--cy));}
+.bp-vneed{font-size:10px;color:var(--tx3);margin-top:4px;}
+.bp-vbadge{position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;padding:3px 7px;border-radius:99px;letter-spacing:.3px;}
+.bp-vbadge.un{background:rgba(16,185,129,.15);color:var(--gr);}
+.bp-vbadge.cur{background:rgba(139,92,246,.2);color:var(--pu2);}
+.bp-vbadge.lk{background:var(--card2);color:var(--tx3);}
 .bp-next{background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(245,158,11,.04) 100%);border:1px solid rgba(245,158,11,.3);border-radius:var(--r);padding:16px;margin:0 13px 13px;display:flex;align-items:center;gap:14px;cursor:pointer;}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:11px}
 .stat-card{background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:11px}
@@ -802,28 +804,29 @@ body,html{margin:0;padding:0;background:#070710;}
             {nx&&<div style={{fontSize:10,color:'var(--tx3)',marginTop:3,textAlign:'right'}}>{(nx.min-profile.xp).toLocaleString()} XP to Level {nx.level}</div>}
           </div>
         </div>
-        <div className="bp-hscroll">
+        <div style={{paddingTop:4}}>
           {rewards.map((r,i)=>{
             const un=profile.xp>=r.xp_required;
             const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
             const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
             const need=Math.max(0,r.xp_required-profile.xp);
             return(
-              <div key={r.id} className={`bp-hcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
-                <div className={`bp-hbadge${un?' un':isCur?' cur':' lk'}`}>{un?'✓ DONE':isCur?'NOW':'🔒'}</div>
-                <div className="bp-himg">
-                  {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
+              <div key={r.id} className={`bp-vcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
+                <div className={`bp-vbadge${un?' un':isCur?' cur':' lk'}`}>{un?'✓ DONE':isCur?'IN PROGRESS':'🔒'}</div>
+                <div className="bp-vimg">
+                  {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:26,opacity:.35}}>🎁</span>}
                 </div>
-                <div className="bp-hlv">Level {r.level}</div>
-                <div className="bp-hnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
-                <div className="bp-hbar"><div className="bp-hfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
-                {isCur&&<div className="bp-hneed">{need.toLocaleString()} XP to go</div>}
-                {!isCur&&!un&&<div className="bp-hneed">{r.xp_required.toLocaleString()} XP</div>}
+                <div className="bp-vbody">
+                  <div className="bp-vlv">Level {r.level}</div>
+                  <div className="bp-vnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
+                  <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
+                  <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
+                  {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
+                </div>
               </div>
             );
           })}
         </div>
-        <div style={{textAlign:'center',fontSize:10,color:'var(--tx3)',marginTop:2}}>← swipe through rewards →</div>
         {(()=>{
           const nextRw=rewards.find(r=>profile.xp<r.xp_required);
           if(!nextRw)return null;
