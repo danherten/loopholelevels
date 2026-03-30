@@ -324,7 +324,7 @@ export default function App(){
   const [leaderboard,setLeaderboard]=useState([]);
   const [milestones,setMilestones]=useState(DEFAULT_MILESTONES);
   const [page,setPage]=useState('home');
-  const [adminUnlocked,setAdminUnlocked]=useState(false);
+  const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('ll-admin')==='true');
   const [levelUpAnim,setLevelUpAnim]=useState(null);
   const [showDaily,setShowDaily]=useState(false);
   const [showReward,setShowReward]=useState(null);
@@ -434,7 +434,7 @@ export default function App(){
     if(error){setAuthErr('Wrong email or password.');setAuthLoading(false);return;}
     setAuthLoading(false);
   }
-  async function doLogout(){await supabase.auth.signOut();setAdminUnlocked(false);setPage('home');}
+  async function doLogout(){await supabase.auth.signOut();setAdminUnlocked(false);localStorage.removeItem('ll-admin');setPage('home');}
 
   async function claimDaily(){
     if(!profile||profile.last_claim===tdy())return;
@@ -454,7 +454,7 @@ export default function App(){
   }
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
-  function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
+  function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
   function navTo(pg){setPage(pg);if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();}if(pg==='home'||pg==='lb')loadLeaderboard();}
 
   async function admAwardXP(profileId,subtract=false){
