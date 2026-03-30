@@ -523,7 +523,7 @@ export default function App(){
       const xpGainTotal=xpGain+streakXP;
       const streakNote=streakXP>0?` | Day ${newStreak} streak +${streakXP} XP`:(diffDays!==0&&diffDays!==null&&diffDays>1?` | Streak reset (${diffDays}d gap)`:` | Day ${newStreak} streak`);
       const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${sales} sales${streakNote}`,created_at:new Date(importDate+'T12:00:00').toISOString()};
-      try{Object.assign(xpInsert,{gmv:rawG,commission:rawC,aov});}catch(e){}
+      try{Object.assign(xpInsert,{gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS});}catch(e){}
       await supabase.from('xp_events').insert(xpInsert);
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
       const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
@@ -564,9 +564,12 @@ export default function App(){
     return(xpEvents||[]).filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
   },[xpEvents,dateRange,customStart,customEnd]);
 
-  const filteredGMV=filteredEvents.filter(e=>e.reason==='import').reduce((s,e)=>s+(e.gmv||0),0);
-  const filteredComm=filteredEvents.filter(e=>e.reason==='import').reduce((s,e)=>s+(e.commission||0),0);
-  const filteredSales=filteredEvents.filter(e=>e.reason==='import').reduce((s,e)=>s+(e.amount||0),0)/100;
+  const importEvts=filteredEvents.filter(e=>e.reason==='import');
+  const filteredGMV=importEvts.reduce((s,e)=>s+(e.gmv||0),0);
+  const filteredComm=importEvts.reduce((s,e)=>s+(e.commission||0),0);
+  const filteredOrders=importEvts.reduce((s,e)=>s+(e.orders||0),0);
+  const filteredUnits=importEvts.reduce((s,e)=>s+(e.sales||0),0);
+  const filteredLiveStreams=importEvts.reduce((s,e)=>s+(e.live_streams||0),0);
   const isFiltered=dateRange!=='all';
 
     const lv=profile?getLv(profile.xp):LEVELS[0];
@@ -658,8 +661,8 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderTop:'1px solid var(--bo)',paddingTop:13}}>
             {[
               {label:'Commission',val:fmtGBP(isFiltered?filteredComm:(profile.total_commission||0)),color:'var(--go)'},
-              {label:'Orders',val:(profile.total_orders||0).toLocaleString(),color:'var(--tx)'},
-              {label:'Units Sold',val:(profile.total_sales||0).toLocaleString(),color:'var(--tx)'},
+              {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'var(--tx)'},
+              {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'var(--tx)'},
             ].map((s,i)=>(
               <div key={i} style={{textAlign:i===1?'center':i===2?'right':'left',padding:'0 4px'}}>
                 <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:.5,color:s.color}}>{s.val}</div>
@@ -674,7 +677,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* EXTRA STATS ROW */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:7,marginBottom:11}}>
           {[
-            {label:'Avg Comm per Live',val:(profile.total_live_streams||0)>0?fmtGBP((profile.total_commission||0)/(profile.total_live_streams||1)):'£0.00',icon:'📡'},
+            {label:'Avg Comm per Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:(profile.total_commission||0))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
             {label:'Cancelled / Returns',val:`${profile.total_cancelled||0} · ${fmtGBP(profile.total_cancelled_gmv||0)}`,icon:'↩️'},
             {label:'Avg Order Value',val:profile.total_aov>0?fmtGBP(profile.total_aov):'£0.00',icon:'🛒'},
           ].map((s,i)=>(
