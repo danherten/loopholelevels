@@ -133,10 +133,10 @@ input,button{font-family:var(--fb)}
 .xpchip{background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.28);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--pu3)}
 .av{width:29px;height:29px;border-radius:50%;border:2px solid var(--pu);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:1px;overflow:hidden;flex-shrink:0}
 .av img{width:100%;height:100%;object-fit:cover}
-.pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--nav) + var(--sb) + 12px);min-height:0;-webkit-overflow-scrolling:touch}
+.pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(48px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{width:100%;height:calc(var(--nav) + var(--sb));background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding-top:4px;z-index:50;flex-shrink:0;padding-left:2px;padding-right:2px;}
+.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:flex-start;padding:4px 2px;padding-bottom:calc(4px + var(--sb));z-index:50;flex-shrink:0;}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
 .nicon{font-size:15px;line-height:1;transition:transform .18s}
