@@ -827,31 +827,7 @@ body,html{margin:0;padding:0;background:#070710;}
             );
           })}
         </div>
-        {(()=>{
-          const nextRw=rewards.find(r=>profile.xp<r.xp_required);
-          if(!nextRw)return null;
-          const prevRw=rewards[rewards.indexOf(nextRw)-1];
-          const startXP=prevRw?prevRw.xp_required:0;
-          const prog=Math.min(100,Math.round(((profile.xp-startXP)/(nextRw.xp_required-startXP))*100));
-          const need=Math.max(0,nextRw.xp_required-profile.xp);
-          return(
-            <div className="bp-next" onClick={()=>setShowReward(nextRw)} style={{marginTop:14}}>
-              <div style={{width:60,height:60,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid rgba(245,158,11,.2)'}}>
-                {nextRw.image_url?<img src={nextRw.image_url} alt={nextRw.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:26,opacity:.5}}>🎁</span>}
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-                  <div style={{fontSize:10,color:'var(--go)',textTransform:'uppercase',letterSpacing:1,fontWeight:700}}>Next Reward</div>
-                  <div style={{fontSize:10,color:'var(--go)',fontWeight:600}}>{need.toLocaleString()} XP away</div>
-                </div>
-                <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1,marginBottom:7,color:'var(--tx)'}}>{nextRw.name&&nextRw.name!==`Level ${nextRw.level} Reward`?nextRw.name:`Level ${nextRw.level} Reward`}</div>
-                <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
-                  <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--go),#f97316)',width:`${prog}%`,transition:'width 1s ease'}}/>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+
       </div>)}
 
       {/* LEADERBOARD */}
