@@ -355,6 +355,7 @@ export default function App(){
   const [topProducts,setTopProducts]=useState([]);
   const [showMilestoneCarousel,setShowMilestoneCarousel]=useState(false);
   const [importHistory,setImportHistory]=useState([]);
+  const [deleteConfirm,setDeleteConfirm]=useState(null);
 
 
   useEffect(()=>{
