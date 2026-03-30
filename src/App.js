@@ -348,6 +348,9 @@ export default function App(){
   const [editMilestones,setEditMilestones]=useState([]);
   const [dragOver,setDragOver]=useState(false);
   const [xpEvents,setXpEvents]=useState([]);
+  const [dateRange,setDateRange]=useState('all');
+  const [customStart,setCustomStart]=useState('');
+  const [customEnd,setCustomEnd]=useState('');
   const [isDesktop,setIsDesktop]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [products,setProducts]=useState([]);
   const [showPE,setShowPE]=useState(false);
@@ -545,7 +548,25 @@ export default function App(){
     toast('📊 Downloaded','ok');
   }
 
-  const lv=profile?getLv(profile.xp):LEVELS[0];
+  const filteredEvents=React.useMemo(()=>{
+    if(!xpEvents||dateRange==='all')return xpEvents||[];
+    const now=new Date();
+    let start,end=new Date();
+    end.setHours(23,59,59,999);
+    if(dateRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
+    else if(dateRange==='30d'){start=new Date();start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
+    else if(dateRange==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);}
+    else if(dateRange==='custom'&&customStart&&customEnd){start=new Date(customStart);start.setHours(0,0,0,0);end=new Date(customEnd);end.setHours(23,59,59,999);}
+    else return xpEvents||[];
+    return(xpEvents||[]).filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
+  },[xpEvents,dateRange,customStart,customEnd]);
+
+  const filteredGMV=filteredEvents.filter(e=>e.reason==='import').reduce((s,e)=>s+(e.gmv||0),0);
+  const filteredComm=filteredEvents.filter(e=>e.reason==='import').reduce((s,e)=>s+(e.commission||0),0);
+  const filteredSales=filteredEvents.filter(e=>e.reason==='import').reduce((s,e)=>s+(e.amount||0),0)/100;
+  const isFiltered=dateRange!=='all';
+
+    const lv=profile?getLv(profile.xp):LEVELS[0];
   const nx=profile?getNx(profile.xp):LEVELS[1];
   const pct=profile?xpPct(profile.xp):0;
   const nextMilestone=profile?milestones.find(m=>m.days>(profile.streak||0)):null;
@@ -610,18 +631,30 @@ body,html{margin:0;padding:0;background:#070710;}
     <div className="pages" style={isDesktop?{flex:1,overflowY:'auto',paddingBottom:0,minWidth:0}:{}}>
       {/* HOME */}
       {page==='home'&&(<div className="pg">
+        {/* DATE RANGE FILTER */}
+        <div style={{display:'flex',gap:5,marginBottom:11,flexWrap:'wrap',alignItems:'center'}}>
+          {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
+            <button key={val} onClick={()=>setDateRange(val)} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'var(--bo)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'var(--card)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
+          ))}
+          <button onClick={()=>setDateRange('custom')} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'var(--bo)'}`,background:dateRange==='custom'?'rgba(139,92,246,.18)':'var(--card)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
+          {dateRange==='custom'&&(<>
+            <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
+            <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
+            <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
+          </>)}
+        </div>
 
         {/* MAIN DASHBOARD CARD - Trading 212 / Apple style */}
         <div style={{background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--r)',padding:'18px 16px',marginBottom:11}}>
           {/* GMV - hero number */}
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1,textTransform:'uppercase',marginBottom:4}}>Total GMV</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:40,letterSpacing:1,color:'var(--gr)',lineHeight:1}}>{fmtGBP(profile.total_gmv||0)}</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:40,letterSpacing:1,color:'var(--gr)',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:(profile.total_gmv||0))}</div>
           </div>
           {/* 3 stats row */}
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderTop:'1px solid var(--bo)',paddingTop:13}}>
             {[
-              {label:'Commission',val:fmtGBP(profile.total_commission||0),color:'var(--go)'},
+              {label:'Commission',val:fmtGBP(isFiltered?filteredComm:(profile.total_commission||0)),color:'var(--go)'},
               {label:'Orders',val:(profile.total_orders||0).toLocaleString(),color:'var(--tx)'},
               {label:'Units Sold',val:(profile.total_sales||0).toLocaleString(),color:'var(--tx)'},
             ].map((s,i)=>(
@@ -651,7 +684,7 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
 
         {/* MINI GMV CHART */}
-        <MiniChart xpEvents={xpEvents} />
+        <MiniChart xpEvents={filteredEvents} />
 
         {/* TOP PRODUCT CARD */}
         {/* TOP PRODUCTS CARD */}
@@ -671,7 +704,7 @@ body,html{margin:0;padding:0;background:#070710;}
               <div style={{display:'flex',gap:10}}>
                 <div><div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>Comm</div></div>
                 <div><div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>GMV</div></div>
-                <div><div style={{fontFamily:'var(--fh)',fontSize:13}}>{tp.sales||0}</div><div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.5}}>Units</div></div>
+
               </div>
             </div>
           </div>);}))}
