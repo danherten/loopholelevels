@@ -125,7 +125,7 @@ const CSS=`
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}#root{min-height:100%;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
-.app{display:flex;flex-direction:column;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
 .topbar.no-st{padding-top:9px}
@@ -138,7 +138,7 @@ input,button{font-family:var(--fb)}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(48px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:5px 2px;padding-bottom:max(5px,var(--sb));z-index:50;flex-shrink:0;}
+.bnav{width:100%;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:7px 2px;padding-bottom:max(7px,var(--sb));z-index:50;flex:0 0 auto;max-height:80px;}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
 .nicon{font-size:15px;line-height:1;transition:transform .18s}
