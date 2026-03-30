@@ -656,7 +656,7 @@ body,html{margin:0;padding:0;background:#070710;}
           {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
             <button key={val} onClick={()=>setDateRange(val)} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'var(--bo)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'var(--card)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
           ))}
-          {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer'}}/>}
+          {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
           <button onClick={()=>setDateRange('custom')} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'var(--bo)'}`,background:dateRange==='custom'?'rgba(139,92,246,.18)':'var(--card)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
           {dateRange==='custom'&&(<>
             <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
