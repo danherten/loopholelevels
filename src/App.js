@@ -420,8 +420,15 @@ export default function App(){
     if(data)setReferralStats(data);
   }
   async function loadLastUpdated(){
-    const {data}=await supabase.from('xp_events').select('created_at,profiles(username)').order('created_at',{ascending:false}).limit(1);
-    if(data&&data[0])setLastUpdated({time:data[0].created_at,user:data[0].profiles?.username||'admin'});
+    const {data}=await supabase.from('xp_events').select('uploaded_at,profiles(username)').not('uploaded_at','is',null).order('uploaded_at',{ascending:false}).limit(1);
+    if(data&&data[0])setLastUpdated({time:data[0].uploaded_at,user:data[0].profiles?.username||'admin'});
+  }
+  async function loadLastUpdated(){
+    try{const {data}=await supabase.from('app_meta').select('*').eq('key','last_import').maybeSingle();if(data)setLastUpdated({time:data.updated_at,user:data.value});}catch(e){}
+  }
+  async function saveLastUpdated(){
+    const now=new Date().toISOString();
+    try{await supabase.from('app_meta').upsert({key:'last_import',value:profile?.username||'admin',updated_at:now},{onConflict:'key'});setLastUpdated({time:now,user:profile?.username||'admin'});}catch(e){}
   }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
@@ -550,7 +557,7 @@ export default function App(){
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
       const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
       if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
-      const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${sales} sales${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
+      const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${sales} sales${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString(),uploaded_at:new Date().toISOString()};
       await supabase.from('xp_events').insert(xpInsert);
       if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
       // Credit referrer 1% of GMV minus cancellations
@@ -565,7 +572,7 @@ export default function App(){
     }
     logs.push('─────────────',`Done: ${matched} updated · ${unmatched} unmatched · ${skipped} skipped`);
     setImportLog(logs);toast(`Import done: ${matched} updated`,'ok');
-    loadAllProfiles();loadImportHistory();loadLastUpdated();if(profile)loadProfile(profile.id);
+    loadAllProfiles();loadImportHistory();saveLastUpdated();if(profile)loadProfile(profile.id);
   }
 
   function exportCSV(){
