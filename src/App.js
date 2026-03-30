@@ -366,8 +366,8 @@ export default function App(){
     const init=async()=>{
       try{
         const {data:{session}}=await supabase.auth.getSession();
-        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();}
-        else{loadRewards();loadProducts();}
+        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();}
+        else{loadRewards();loadProducts();loadProductMappings();}
       }catch(e){console.error('init error:',e);}
       setLoading(false);
       try{
@@ -393,6 +393,7 @@ export default function App(){
   async function loadAllProfiles(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false});if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}}
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
   async function loadProducts(){const {data}=await supabase.from('products').select('*').order('sort_order',{ascending:true});if(data)setProducts(data);}
+  async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
   async function deleteImportByDate(date){const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');if(!evts)return;const byProfile={};evts.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0};byProfile[e.profile_id].xp+=e.amount||0;byProfile[e.profile_id].gmv+=e.gmv||0;byProfile[e.profile_id].comm+=e.commission||0;});for(const [pid,vals] of Object.entries(byProfile)){const {data:p}=await supabase.from('profiles').select('xp,total_gmv,total_commission').eq('id',pid).single();if(p){await supabase.from('profiles').update({xp:Math.max(0,(p.xp||0)-vals.xp),total_gmv:Math.max(0,(p.total_gmv||0)-vals.gmv),total_commission:Math.max(0,(p.total_commission||0)-vals.comm)}).eq('id',pid);}}await supabase.from('xp_events').delete().in('id',evts.map(e=>e.id));toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);}
 
@@ -992,7 +993,7 @@ body,html{margin:0;padding:0;background:#070710;}
             <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
             <select style={{flex:1,padding:'5px 7px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:12,outline:'none'}}
               value={productMappings[name.toLowerCase()]||''}
-              onChange={e=>{const v=e.target.value;setProductMappings(prev=>({...prev,[name.toLowerCase()]:v||undefined}));}}>
+              onChange={async e=>{const v=e.target.value;if(v){await supabase.from('product_mappings').upsert({import_name:name.toLowerCase(),product_name:v},{onConflict:'import_name'});setProductMappings(prev=>({...prev,[name.toLowerCase()]:v}));setUnmappedProducts(prev=>prev.filter(x=>x!==name));}}}>
               <option value=''>-- select product --</option>
               {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
@@ -1003,7 +1004,7 @@ body,html{margin:0;padding:0;background:#070710;}
           {Object.entries(productMappings).map(([k,v],i)=>v&&(
             <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px solid var(--bo)',fontSize:11}}>
               <span style={{color:'var(--go)'}}>{k}</span><span style={{color:'var(--tx3)',margin:'0 6px'}}>→</span><span style={{color:'var(--gr)',flex:1}}>{v}</span>
-              <button onClick={()=>setProductMappings(prev=>{const n={...prev};delete n[k];return n;})} style={{background:'none',border:'none',color:'var(--re)',cursor:'pointer',fontSize:13,padding:'0 4px'}}>✕</button>
+              <button onClick={async()=>{await supabase.from('product_mappings').delete().eq('import_name',k);setProductMappings(prev=>{const n={...prev};delete n[k];return n;});}} style={{background:'none',border:'none',color:'var(--re)',cursor:'pointer',fontSize:13,padding:'0 4px'}}>✕</button>
             </div>
           ))}
         </div>)}
