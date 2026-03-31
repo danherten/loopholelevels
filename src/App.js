@@ -639,7 +639,16 @@ export default function App(){
     const newLv=getLv(newXP).level;if(!subtract&&newLv>prevLv)setTimeout(()=>toast(`🎉 ${p.username} hit Level ${newLv}!`,'ok'),400);
     if(profile?.id===profileId)setProfile({...profile,xp:newXP});loadAllProfiles();
   }
-  async function saveReward(r){const {error}=await supabase.from('rewards').update({name:r.name,description:r.description,xp_required:r.xp_required,image_url:r.image_url}).eq('level',r.level);if(!error){toast(`Reward ${r.level} saved ✓`,'ok');loadRewards();}else toast('Save failed','wn');}
+  async function saveReward(r){
+    const {error,count}=await supabase.from('rewards').update({name:r.name,description:r.description,xp_required:Number(r.xp_required),image_url:r.image_url}).eq('level',r.level);
+    if(!error){
+      // Verify it actually saved
+      const {data:check}=await supabase.from('rewards').select('xp_required').eq('level',r.level).single();
+      if(check&&check.xp_required===Number(r.xp_required)){toast(`Reward ${r.level} saved ✓`,'ok');}
+      else{toast(`Save appeared to work but didn't persist — check RLS policies on rewards table`,'wn');}
+      loadRewards();
+    }else toast('Save failed: '+error.message,'wn');
+  }
   async function handleImageUpload(idx,file){const reader=new FileReader();reader.onload=e=>{const u=[...editRewards];u[idx]={...u[idx],image_url:e.target.result};setEditRewards(u);toast('Image ready — click Save','info');};reader.readAsDataURL(file);}
 
   async function handleFile(file){
