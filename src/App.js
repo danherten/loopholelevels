@@ -820,13 +820,38 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
         </div>
 
+        {/* QUICK STATS STRIP */}
+        <div style={{display:'flex',gap:6,marginBottom:10}}>
+          <div onClick={()=>setShowDaily(true)} style={{flex:1,background:'rgba(245,158,11,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+            <span style={{fontSize:16}}>🔥</span>
+            <div>
+              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--go)',lineHeight:1}}>{profile.streak||0}</div>
+              <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>Day Streak</div>
+            </div>
+          </div>
+          <div onClick={()=>navTo('level')} style={{flex:1,background:'rgba(139,92,246,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+            <span style={{fontSize:16}}>⚡</span>
+            <div>
+              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--pu2)',lineHeight:1}}>{(profile.xp||0).toLocaleString()}</div>
+              <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>XP · Level {lv.level}</div>
+            </div>
+          </div>
+          <div onClick={()=>navTo('lb')} style={{flex:1,background:'rgba(6,182,212,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+            <span style={{fontSize:16}}>🏆</span>
+            <div>
+              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#06b6d4',lineHeight:1}}>#{leaderboard.findIndex(u=>u.id===profile?.id)+1||'—'}</div>
+              <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>Rank</div>
+            </div>
+          </div>
+        </div>
+
         {/* METRICS GRID */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           {[
-            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#06b6d4'},
+            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#10b981'},
+            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#10b981'},
             {label:'Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} units`,icon:'↩️',accent:'#f43f5e'},
             {label:'Returns GMV',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸',accent:'#f43f5e'},
-            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#8b5cf6'},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
               <div style={{width:3,background:s.accent,flexShrink:0}}/>
