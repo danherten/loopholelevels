@@ -12,11 +12,11 @@ const DEFAULT_MILESTONES = [
   { id:5, days:60,  xp_bonus:1000, label:'2 Month Streak' },
   { id:6, days:100, xp_bonus:2000, label:'100 Day Streak' },
 ];
-const LEVELS = [
-  {level:1,min:0,max:500},{level:2,min:500,max:1200},{level:3,min:1200,max:2500},
-  {level:4,min:2500,max:4500},{level:5,min:4500,max:7500},{level:6,min:7500,max:12000},
-  {level:7,min:12000,max:18000},{level:8,min:18000,max:26000},{level:9,min:26000,max:36000},
-  {level:10,min:36000,max:99999},
+const DEFAULT_LEVELS = [
+  {level:1,min:0,max:5000},{level:2,min:5000,max:10000},{level:3,min:10000,max:20000},
+  {level:4,min:20000,max:40000},{level:5,min:40000,max:80000},{level:6,min:80000,max:160000},
+  {level:7,min:160000,max:320000},{level:8,min:320000,max:640000},{level:9,min:640000,max:1280000},
+  {level:10,min:1280000,max:9999999},
 ];
 const TCOLS = {
   handle:['creator name','tiktok handle','creator handle','handle','tiktok @','username','creator username','@handle','tiktok id','creator id','name','influencer handle','affiliate handle','tiktoker','creator','tiktok','account','creator nickname'],
@@ -115,9 +115,9 @@ function HowToEarnDropdown({milestones}){
     </div>
   );
 }
-function getLv(xp){for(let i=LEVELS.length-1;i>=0;i--)if(xp>=LEVELS[i].min)return LEVELS[i];return LEVELS[0]}
-function getNx(xp){const c=getLv(xp);const i=LEVELS.findIndex(l=>l.level===c.level);return LEVELS[i+1]||null}
-function xpPct(xp){const c=getLv(xp);return Math.min(100,Math.round(((xp-c.min)/(c.max-c.min))*100))}
+function getLv(xp,levels){const L=levels||DEFAULT_LEVELS;for(let i=L.length-1;i>=0;i--)if(xp>=L[i].min)return L[i];return L[0]}
+function getNx(xp,levels){const L=levels||DEFAULT_LEVELS;const c=getLv(xp,L);const i=L.findIndex(l=>l.level===c.level);return L[i+1]||null}
+function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.round(((xp-c.min)/(c.max-c.min))*100))}
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
 function avc(n){const c=['#8b5cf6','#a855f7','#06b6d4','#f59e0b','#10b981','#f43f5e'];let h=0;for(const x of n||'')h=(h*31+x.charCodeAt(0))%c.length;return c[h]}
 function tdy(){return new Date().toISOString().slice(0,10)}
@@ -615,7 +615,7 @@ export default function App(){
     const milestone=milestones.find(m=>m.days===newStreak);
     const xpBonus=milestone?milestone.xp_bonus:0;
     const newXP=(profile.xp||0)+xpBonus;
-    const prevLv=getLv(profile.xp).level;
+    const prevLv=getLv(profile.xp,LEVELS).level;
     await supabase.from('profiles').update({xp:newXP,streak:newStreak,last_claim:tdy()}).eq('id',profile.id);
     if(xpBonus>0)await supabase.from('xp_events').insert({profile_id:profile.id,amount:xpBonus,reason:'streak_milestone',note:milestone.label});
     setProfile({...profile,xp:newXP,streak:newStreak,last_claim:tdy()});
@@ -632,7 +632,7 @@ export default function App(){
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
-    const prevLv=getLv(p.xp).level;const newXP=subtract?Math.max(0,p.xp-amount):p.xp+amount;
+    const prevLv=getLv(p.xp,LEVELS).level;const newXP=subtract?Math.max(0,p.xp-amount):p.xp+amount;
     await supabase.from('profiles').update({xp:newXP}).eq('id',profileId);
     await supabase.from('xp_events').insert({profile_id:profileId,amount:subtract?-amount:amount,reason:'manual'});
     toast(subtract?`✅ -${amount} XP → ${p.username}`:`✅ +${amount} XP → ${p.username}`,'ok');
@@ -700,7 +700,7 @@ export default function App(){
         logs.push(`⊘ ${p.username}: ${prodName} — XP excluded | GMV: ${fmtGBP(rawG)}`);
         matched++;continue;
       }
-      const prevLv=getLv(p.xp).level;const xpGain=Math.floor(netGMVForXP/10)*XP_PER_10_GMV;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
+      const prevLv=getLv(p.xp,LEVELS).level;const xpGain=Math.floor(netGMVForXP/10)*XP_PER_10_GMV;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
       const newOrders=(p.total_orders||0)+(rawO||sales);const newGMV=(p.total_gmv||0)+rawG;const aov=rawAOV||( rawO>0?parseFloat((rawG/rawO).toFixed(2)):0);const newAOV=rawAOV||( newOrders>0?parseFloat((newGMV/newOrders).toFixed(2)):0);
       // Streak calculation (must be before profileUpdate)
       const lastClaim=p.last_claim;
@@ -741,7 +741,7 @@ export default function App(){
 
   function exportCSV(){
     const rows=[['Username','TikTok Handles','XP','Level','Sales','GMV','Orders','Commission','Streak','Referral Code','Referral Earnings']];
-    allProfiles.forEach(p=>{const lv=getLv(p.xp);rows.push([p.username,(p.tiktok_handles||[]).join('; '),p.xp,lv.level,p.total_sales||0,p.total_gmv||0,p.total_orders||0,p.total_commission||0,p.streak||0,p.referral_code||'',p.referral_earnings||0]);});
+    allProfiles.forEach(p=>{const lv=getLv(p.xp,LEVELS);rows.push([p.username,(p.tiktok_handles||[]).join('; '),p.xp,lv.level,p.total_sales||0,p.total_gmv||0,p.total_orders||0,p.total_commission||0,p.streak||0,p.referral_code||'',p.referral_earnings||0]);});
     const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`loophole-${tdy()}.csv`;a.click();
     toast('📊 Downloaded','ok');
@@ -784,9 +784,20 @@ export default function App(){
   },[importEvts]);
   const isFiltered=dateRange!=='all';
 
-    const lv=profile?getLv(profile.xp):LEVELS[0];
-  const nx=profile?getNx(profile.xp):LEVELS[1];
-  const pct=profile?xpPct(profile.xp):0;
+  // Build LEVELS dynamically from rewards table
+  const LEVELS=React.useMemo(()=>{
+    if(!rewards||rewards.length===0)return DEFAULT_LEVELS;
+    const sorted=[...rewards].sort((a,b)=>a.xp_required-b.xp_required);
+    return sorted.map((r,i)=>({
+      level:i+1,
+      min:i===0?0:sorted[i-1].xp_required,
+      max:r.xp_required
+    })).concat([{level:sorted.length+1,min:sorted[sorted.length-1].xp_required,max:9999999}]).slice(0,sorted.length);
+  },[rewards]);
+
+    const lv=profile?getLv(profile.xp,LEVELS):LEVELS[0];
+  const nx=profile?getNx(profile.xp,LEVELS):LEVELS[1];
+  const pct=profile?xpPct(profile.xp,LEVELS):0;
   const nextMilestone=profile?milestones.find(m=>m.days>(profile.streak||0)):null;
   const refLink=profile?`${window.location.origin}?ref=${profile.referral_code||''}`:'';
 
@@ -797,7 +808,7 @@ export default function App(){
     return(<div className={`rc${un?' un':isCur?' cur':''}`} onClick={()=>setShowReward(r)}><div className="rc-inner"><div className="rc-img-wrap">{r.image_url?<img src={r.image_url} alt={r.name}/>:<div className="rc-ph">🎁</div>}<div className={`rc-badge${un?' un':isCur?' cur':' lk'}`}>{un?'✓':isCur?'▶':'🔒'}</div></div><div className="rc-body"><div className="rc-lv">Level {r.level}</div><div className="rc-nm">{r.name}</div><div className="rc-xp">{r.xp_required.toLocaleString()} XP</div><div className="rc-prog"><div className="rc-pf" style={{width:`${prog}%`}}/></div></div></div></div>);
   };
 
-  const LbRow=({u,rank})=>{const ulv=getLv(u.xp);const isMe=u.id===profile?.id;const col=avc(u.username);return(<div className={`lbrow${isMe?' me':''}`}><div className={`lbrk${rank===1?' g':rank===2?' s':rank===3?' b':''}`}>{rank}</div><div className="lbav" style={{background:u.avatar_url?'transparent':col}}>{u.avatar_url?<img src={u.avatar_url} alt=""/>:ini(u.username)}</div><div className="lbin"><div className="lbnm">{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div><div className="lbtt">{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div></div><div className="lbrt"><div className="lbxp">{(u.xp||0).toLocaleString()}</div><div className="lblv">Lvl {ulv.level}</div></div></div>);};
+  const LbRow=({u,rank})=>{const ulv=getLv(u.xp,LEVELS);const isMe=u.id===profile?.id;const col=avc(u.username);return(<div className={`lbrow${isMe?' me':''}`}><div className={`lbrk${rank===1?' g':rank===2?' s':rank===3?' b':''}`}>{rank}</div><div className="lbav" style={{background:u.avatar_url?'transparent':col}}>{u.avatar_url?<img src={u.avatar_url} alt=""/>:ini(u.username)}</div><div className="lbin"><div className="lbnm">{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div><div className="lbtt">{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div></div><div className="lbrt"><div className="lbxp">{(u.xp||0).toLocaleString()}</div><div className="lblv">Lvl {ulv.level}</div></div></div>);};
 
   if(loading)return(<><style>{`
 body,html{margin:0;padding:0;background:#070710;}
@@ -833,7 +844,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div className="av" style={{background:avc(profile.username),color:'#fff',flexShrink:0}} onClick={()=>navTo('profile')}>{profile.avatar_url?<img src={profile.avatar_url} alt=""/>:ini(profile.username)}</div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{profile.username}</div>
-          <div style={{fontSize:10,color:'var(--tx3)'}}>{(profile.xp||0).toLocaleString()} XP · Lv{getLv(profile.xp).level}</div>
+          <div style={{fontSize:10,color:'var(--tx3)'}}>{(profile.xp||0).toLocaleString()} XP · Lv{getLv(profile.xp,LEVELS).level}</div>
         </div>
         <div className="streak-pill" style={{fontSize:11,padding:'2px 7px'}} onClick={()=>setShowDaily(true)}>🔥 {profile.streak||0}</div>
       </div>
@@ -1427,7 +1438,7 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
         <div className="asec">
           <div className="asect">Manually Award XP</div>
-          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{const plv=getLv(p.xp);return(<div key={p.id} className="afrow"><div className="afin"><div className="afnm">{p.username}</div><div className="afmt">Lvl {plv.level} · {(p.xp||0).toLocaleString()} XP · {(p.tiktok_handles||[]).join(', ')}</div></div><div className="afac"><input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})}/><button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button><button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button></div></div>);})}
+          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{const plv=getLv(p.xp,LEVELS);return(<div key={p.id} className="afrow"><div className="afin"><div className="afnm">{p.username}</div><div className="afmt">Lvl {plv.level} · {(p.xp||0).toLocaleString()} XP · {(p.tiktok_handles||[]).join(', ')}</div></div><div className="afac"><input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})}/><button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button><button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button></div></div>);})}
         </div>
         <div className="asec">
           <div className="asect">Actions</div>
