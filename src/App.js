@@ -34,10 +34,9 @@ const TCOLS = {
 function MiniChart({xpEvents}){
   const importEvents=(xpEvents||[]).filter(e=>e.reason==='import'&&(e.gmv>0||e.commission>0));
   if(importEvents.length<1) return(
-    <div style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(16,185,129,.08)',borderRadius:14,padding:'14px 16px',marginBottom:12,textAlign:'center',position:'relative',overflow:'hidden'}}>
-      <div style={{position:'absolute',top:-20,right:'30%',width:80,height:80,borderRadius:'50%',background:'radial-gradient(circle,rgba(16,185,129,.06) 0%,transparent 70%)',pointerEvents:'none'}}/>
-      <div style={{fontSize:10,color:'rgba(238,238,248,.25)',marginBottom:4,textTransform:'uppercase',letterSpacing:1.5,position:'relative',fontWeight:500}}>GMV &amp; Commission</div>
-      <div style={{fontSize:12,color:'var(--tx3)',position:'relative'}}>Import sales data to see your earnings trend</div>
+    <div style={{background:'var(--card)',border:'1px solid rgba(255,255,255,.06)',borderRadius:14,padding:'14px 16px',marginBottom:10,textAlign:'center'}}>
+      <div style={{fontSize:10,color:'var(--tx3)',marginBottom:4,textTransform:'uppercase',letterSpacing:1.5,fontWeight:500}}>GMV &amp; Commission</div>
+      <div style={{fontSize:12,color:'var(--tx3)'}}>Import sales data to see your earnings trend</div>
     </div>
   );
   let cumG=0,cumC=0;
@@ -54,9 +53,8 @@ function MiniChart({xpEvents}){
   const totalGMV=points[points.length-1].gmv;
   const totalComm=points[points.length-1].comm;
   return(
-    <div style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(16,185,129,.1)',borderRadius:14,padding:'14px 16px',marginBottom:12,position:'relative',overflow:'hidden'}}>
-      <div style={{position:'absolute',bottom:-20,left:'30%',width:120,height:80,borderRadius:'50%',background:'radial-gradient(circle,rgba(16,185,129,.08) 0%,transparent 70%)',pointerEvents:'none'}}/>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8,position:'relative'}}>
+    <div style={{background:'var(--card)',border:'1px solid rgba(255,255,255,.06)',borderRadius:14,padding:'14px 16px',marginBottom:10}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
         <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1}}>GMV &amp; Commission</div>
         <div style={{display:'flex',gap:10}}>
           <span style={{fontSize:11,color:'var(--gr)',fontWeight:600}}>● {fmtGBP(totalGMV)}</span>
@@ -784,7 +782,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* DATE RANGE FILTER */}
         <div style={{display:'flex',gap:5,marginBottom:13,flexWrap:'wrap',alignItems:'center'}}>
           {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
-            <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',backdropFilter:'blur(8px)',transition:'all .2s'}}>{label}</button>
+            <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>{label}</button>
           ))}
           {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
           <button onClick={()=>setDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange==='custom'?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
@@ -796,41 +794,35 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
 
         {/* HERO GMV CARD */}
-        <div style={{background:'linear-gradient(135deg,rgba(16,185,129,.06) 0%,rgba(6,182,212,.04) 50%,rgba(139,92,246,.06) 100%)',border:'1px solid rgba(16,185,129,.15)',borderRadius:18,padding:'22px 18px 18px',marginBottom:12,position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(16,185,129,.15) 0%,transparent 65%)',pointerEvents:'none'}}/>
-          <div style={{position:'absolute',bottom:-50,left:-30,width:160,height:160,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.08) 0%,transparent 65%)',pointerEvents:'none'}}/>
-          <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(6,182,212,.04) 0%,transparent 60%)',pointerEvents:'none'}}/>
-          <div style={{position:'relative'}}>
-            <div style={{fontSize:10,color:'rgba(238,238,248,.35)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Net GMV</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'var(--gr)',lineHeight:1,marginBottom:18,textShadow:'0 0 40px rgba(16,185,129,.25)'}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:14}}>
-              {[
-                {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'var(--go)'},
-                {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'var(--tx)'},
-                {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'var(--tx)'},
-              ].map((s,i)=>(
-                <div key={i} style={{textAlign:i===1?'center':i===2?'right':'left',padding:'0 2px'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
-                  <div style={{fontSize:9,color:'rgba(238,238,248,.25)',marginTop:4,textTransform:'uppercase',letterSpacing:1,fontWeight:500}}>{s.label}</div>
-                </div>
-              ))}
-            </div>
+        <div style={{background:'var(--card)',border:'1px solid rgba(255,255,255,.06)',borderRadius:16,padding:'22px 18px 18px',marginBottom:10}}>
+          <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Net GMV</div>
+          <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'var(--gr)',lineHeight:1,marginBottom:20}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderTop:'1px solid rgba(255,255,255,.05)',paddingTop:14}}>
+            {[
+              {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'var(--go)'},
+              {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'var(--tx)'},
+              {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'var(--tx)'},
+            ].map((s,i)=>(
+              <div key={i} style={{textAlign:i===1?'center':i===2?'right':'left',padding:'0 2px'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
+                <div style={{fontSize:9,color:'var(--tx3)',marginTop:4,textTransform:'uppercase',letterSpacing:1,fontWeight:500}}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* METRICS GRID */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           {[
-            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'6,182,212'},
-            {label:'Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} units`,icon:'↩️',accent:'244,63,94'},
-            {label:'Returns GMV',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸',accent:'244,63,94'},
-            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'139,92,246'},
+            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡'},
+            {label:'Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} units`,icon:'↩️'},
+            {label:'Returns GMV',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸'},
+            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒'},
           ].map((s,i)=>(
-            <div key={i} style={{background:'rgba(255,255,255,.02)',border:`1px solid rgba(${s.accent},.12)`,borderRadius:14,padding:'14px 12px',position:'relative',overflow:'hidden',backdropFilter:'blur(4px)'}}>
-              <div style={{position:'absolute',top:-15,right:-15,width:60,height:60,borderRadius:'50%',background:`radial-gradient(circle,rgba(${s.accent},.1) 0%,transparent 70%)`,pointerEvents:'none'}}/>
-              <div style={{fontSize:15,marginBottom:6,position:'relative'}}>{s.icon}</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:.5,lineHeight:1,position:'relative'}}>{s.val}</div>
-              <div style={{fontSize:9,color:'rgba(238,238,248,.25)',marginTop:5,textTransform:'uppercase',letterSpacing:1,fontWeight:500,position:'relative'}}>{s.label}</div>
+            <div key={i} style={{background:'var(--card)',border:'1px solid rgba(255,255,255,.06)',borderRadius:14,padding:'14px 12px'}}>
+              <div style={{fontSize:15,marginBottom:6}}>{s.icon}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:.5,lineHeight:1}}>{s.val}</div>
+              <div style={{fontSize:9,color:'var(--tx3)',marginTop:5,textTransform:'uppercase',letterSpacing:1,fontWeight:500}}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -839,23 +831,22 @@ body,html{margin:0;padding:0;background:#070710;}
         <MiniChart xpEvents={filteredEvents} />
 
         {/* TOP PRODUCTS */}
-        <div style={{background:'rgba(255,255,255,.02)',border:'1px solid rgba(245,158,11,.1)',borderRadius:14,padding:'14px 16px',marginBottom:12,position:'relative',overflow:'hidden'}}>
-          <div style={{position:'absolute',top:-30,left:-30,width:100,height:100,borderRadius:'50%',background:'radial-gradient(circle,rgba(245,158,11,.08) 0%,transparent 70%)',pointerEvents:'none'}}/>
-          <div style={{fontSize:10,color:'rgba(238,238,248,.3)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10,position:'relative',fontWeight:500}}>🏆 Top Products</div>
+        <div style={{background:'var(--card)',border:'1px solid rgba(255,255,255,.06)',borderRadius:14,padding:'14px 16px',marginBottom:10}}>
+          <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10,fontWeight:500}}>🏆 Top Products</div>
           {(isFiltered?filteredProducts:topProducts).length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
-            <div style={{width:44,height:44,borderRadius:10,background:'rgba(255,255,255,.03)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0,opacity:.4}}>📦</div>
+            <div style={{width:44,height:44,borderRadius:10,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0,opacity:.4}}>📦</div>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:3}}>No data yet</div>
               <div style={{fontSize:11,color:'var(--tx3)'}}>Your top products will appear here after your first import</div>
             </div>
-          </div>):(topProducts.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,paddingBottom:i<topProducts.length-1?10:0,marginBottom:i<topProducts.length-1?10:0,borderBottom:i<topProducts.length-1?'1px solid rgba(255,255,255,.04)':'none',position:'relative'}}>
+          </div>):(topProducts.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,paddingBottom:i<topProducts.length-1?10:0,marginBottom:i<topProducts.length-1?10:0,borderBottom:i<topProducts.length-1?'1px solid rgba(255,255,255,.04)':'none'}}>
             <div style={{width:28,fontFamily:'var(--fh)',fontSize:15,color:i===0?'var(--go)':i===1?'rgba(238,238,248,.35)':'#cd7f32',flexShrink:0,textAlign:'center'}}>{i+1}</div>
-            {prod?.image_url?<img src={prod.image_url} alt="" style={{width:42,height:42,borderRadius:9,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.06)'}}/>:<div style={{width:42,height:42,borderRadius:9,background:'rgba(255,255,255,.03)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>}
+            {prod?.image_url?<img src={prod.image_url} alt="" style={{width:42,height:42,borderRadius:9,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.06)'}}/>:<div style={{width:42,height:42,borderRadius:9,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>}
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13,fontWeight:600,marginBottom:4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{tp.product_name||'Unknown Product'}</div>
               <div style={{display:'flex',gap:12}}>
-                <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--go)'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:8,color:'rgba(238,238,248,.2)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>Comm</div></div>
-                <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--gr)'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:8,color:'rgba(238,238,248,.2)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>GMV</div></div>
+                <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--go)'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>Comm</div></div>
+                <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--gr)'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>GMV</div></div>
               </div>
             </div>
           </div>);}))}
