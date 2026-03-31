@@ -688,6 +688,7 @@ export default function App(){
         if(ex.end_date&&importDate>ex.end_date)return false;
         return true;
       });
+      logs.push(`🔍 ${p.username}: product="${prodName}" | exclusions=${xpExclusions.length} | excluded=${isExcluded}`);
       if(isExcluded){
         // Still record the sale data but zero out XP
         const profileUpdateNoXP={total_sales:(p.total_sales||0)+sales,total_gmv:(p.total_gmv||0)+rawG,total_orders:(p.total_orders||0)+(rawO||sales),total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
