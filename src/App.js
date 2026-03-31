@@ -1376,7 +1376,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{display:'flex',flexDirection:'column',gap:9}}>
           {products.map(prod=>(
             <div key={prod.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
-              {prod.image_url&&<div style={{width:'100%',aspectRatio:'1/1',overflow:'hidden',borderRadius:'var(--r) var(--r) 0 0'}}><img src={prod.image_url} alt={prod.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/></div>}
+              {prod.image_url&&<div style={{width:'100%',aspectRatio:'16/9',maxHeight:200,overflow:'hidden',borderRadius:'var(--r) var(--r) 0 0'}}><img src={prod.image_url} alt={prod.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/></div>}
               <div style={{padding:'12px 13px'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1,flex:1,marginRight:8}}>{prod.name}</div>
