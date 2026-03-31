@@ -1373,19 +1373,19 @@ body,html{margin:0;padding:0;background:#070710;}
       {page==='products'&&(<div className="pg">
         <div className="sh" style={{marginBottom:11}}>PRODUCTS</div>
         {products.length===0&&(<div style={{textAlign:'center',padding:'40px 0',color:'var(--tx3)',fontSize:13}}>No products yet — check back soon!</div>)}
-        <div style={{display:'flex',flexDirection:'column',gap:9}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9}}>
           {products.map(prod=>(
-            <div key={prod.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
-              {prod.image_url&&<div style={{width:'100%',aspectRatio:'16/9',maxHeight:200,overflow:'hidden',borderRadius:'var(--r) var(--r) 0 0'}}><img src={prod.image_url} alt={prod.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/></div>}
-              <div style={{padding:'12px 13px'}}>
+            <div key={prod.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,overflow:'hidden'}}>
+              {prod.image_url&&<div style={{width:'100%',aspectRatio:'1/1',overflow:'hidden'}}><img src={prod.image_url} alt={prod.name} style={{width:'100%',height:'100%',objectFit:'contain',display:'block',background:'var(--card2)'}}/></div>}
+              <div style={{padding:'10px 11px'}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1,flex:1,marginRight:8}}>{prod.name}</div>
-                  {prod.price&&<div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--gr)',flexShrink:0}}>£{Number(prod.price).toFixed(2)}</div>}
+                  <div style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:.5,flex:1,marginRight:4,lineHeight:1.2}}>{prod.name}</div>
+                  {prod.price&&<div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--gr)',flexShrink:0}}>£{Number(prod.price).toFixed(2)}</div>}
                 </div>
-                {prod.description&&<div style={{fontSize:12,color:'var(--tx2)',lineHeight:1.5,marginBottom:10}}>{prod.description}</div>}
-                <div style={{display:'flex',gap:7}}>
-                  {prod.commission_rate&&<div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.2)',borderRadius:99,padding:'3px 9px',fontSize:11,color:'var(--go)',fontWeight:600}}>{prod.commission_rate}% commission</div>}
-                  {prod.tiktok_url&&<button onClick={()=>{navigator.clipboard.writeText(prod.tiktok_url);toast('Link copied! 📋','ok');}} style={{background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.25)',borderRadius:99,padding:'3px 10px',fontSize:11,color:'var(--pu2)',fontWeight:600,cursor:'pointer'}}>📋 Copy Link</button>}
+                {prod.description&&<div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.4,marginBottom:8}}>{prod.description}</div>}
+                <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                  {prod.commission_rate&&<div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.2)',borderRadius:99,padding:'2px 8px',fontSize:10,color:'var(--go)',fontWeight:600}}>{prod.commission_rate}%</div>}
+                  {prod.tiktok_url&&<button onClick={()=>{navigator.clipboard.writeText(prod.tiktok_url);toast('Link copied! 📋','ok');}} style={{background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.25)',borderRadius:99,padding:'2px 8px',fontSize:10,color:'var(--pu2)',fontWeight:600,cursor:'pointer'}}>📋 Copy</button>}
                 </div>
               </div>
             </div>
