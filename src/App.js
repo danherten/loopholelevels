@@ -401,6 +401,8 @@ export default function App(){
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
   const [newExclusionProduct,setNewExclusionProduct]=useState('');
+  const [newExclusionStart,setNewExclusionStart]=useState('');
+  const [newExclusionEnd,setNewExclusionEnd]=useState('');
 
 
   useEffect(()=>{
@@ -655,7 +657,13 @@ export default function App(){
       const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
       if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
       // Check XP exclusions
-      const isExcluded=xpExclusions.some(ex=>ex.profile_id===p.id&&prodName&&ex.product_name.toLowerCase()===prodName.toLowerCase());
+      const isExcluded=xpExclusions.some(ex=>{
+        if(ex.profile_id!==p.id)return false;
+        if(!prodName||ex.product_name.toLowerCase()!==prodName.toLowerCase())return false;
+        if(ex.start_date&&importDate<ex.start_date)return false;
+        if(ex.end_date&&importDate>ex.end_date)return false;
+        return true;
+      });
       if(isExcluded){
         // Still record the sale data but zero out XP
         const profileUpdateNoXP={total_sales:(p.total_sales||0)+sales,total_gmv:(p.total_gmv||0)+rawG,total_orders:(p.total_orders||0)+(rawO||sales),total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
@@ -1390,7 +1398,7 @@ body,html{margin:0;padding:0;background:#070710;}
           <div className="asect">XP Exclusions</div>
           <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Block specific affiliates from earning XP on certain products. Sales data is still recorded — only XP is excluded.</div>
           {/* Add new exclusion */}
-          <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+          <div style={{display:'flex',gap:6,marginBottom:6,flexWrap:'wrap'}}>
             <select value={newExclusionUser} onChange={e=>setNewExclusionUser(e.target.value)} style={{flex:1,minWidth:120,padding:'7px 8px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:12,outline:'none'}}>
               <option value=''>— Select affiliate —</option>
               {allProfiles.map(p=><option key={p.id} value={p.id}>{p.username}</option>)}
@@ -1399,24 +1407,44 @@ body,html{margin:0;padding:0;background:#070710;}
               <option value=''>— Select product —</option>
               {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
             </select>
+          </div>
+          <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap',alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:11,color:'var(--tx3)'}}>From</span>
+              <input type="date" value={newExclusionStart} onChange={e=>setNewExclusionStart(e.target.value)} style={{padding:'5px 7px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:11,color:'var(--tx3)'}}>To</span>
+              <input type="date" value={newExclusionEnd} onChange={e=>setNewExclusionEnd(e.target.value)} style={{padding:'5px 7px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
+            </div>
+            <span style={{fontSize:10,color:'var(--tx3)'}}>(leave blank = forever)</span>
             <button onClick={async()=>{
               if(!newExclusionUser||!newExclusionProduct){toast('Select both an affiliate and product','wn');return;}
               const existing=xpExclusions.find(ex=>ex.profile_id===newExclusionUser&&ex.product_name===newExclusionProduct);
               if(existing){toast('Already excluded','wn');return;}
-              const {error}=await supabase.from('xp_exclusions').insert({profile_id:newExclusionUser,product_name:newExclusionProduct});
-              if(!error){toast('Exclusion added ✓','ok');setNewExclusionUser('');setNewExclusionProduct('');loadXpExclusions();}else toast('Failed: '+error.message,'wn');
-            }} style={{padding:'7px 14px',background:'rgba(244,63,94,.12)',border:'1px solid rgba(244,63,94,.25)',borderRadius:'var(--rxs)',color:'var(--re)',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>+ Add</button>
+              const row={profile_id:newExclusionUser,product_name:newExclusionProduct};
+              if(newExclusionStart)row.start_date=newExclusionStart;
+              if(newExclusionEnd)row.end_date=newExclusionEnd;
+              const {error}=await supabase.from('xp_exclusions').insert(row);
+              if(!error){toast('Exclusion added ✓','ok');setNewExclusionUser('');setNewExclusionProduct('');setNewExclusionStart('');setNewExclusionEnd('');loadXpExclusions();}else toast('Failed: '+error.message,'wn');
+            }} style={{padding:'7px 14px',background:'rgba(244,63,94,.12)',border:'1px solid rgba(244,63,94,.25)',borderRadius:'var(--rxs)',color:'var(--re)',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',marginLeft:'auto'}}>+ Add</button>
           </div>
           {/* Existing exclusions */}
           {xpExclusions.length===0?<div style={{fontSize:12,color:'var(--tx3)'}}>No exclusions set.</div>:(
             xpExclusions.map(ex=>{
               const prof=allProfiles.find(p=>p.id===ex.profile_id);
+              const hasDate=ex.start_date||ex.end_date;
+              const dateStr=hasDate?`${ex.start_date||'start'} → ${ex.end_date||'forever'}`:null;
               return(
                 <div key={ex.id} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--bo)'}}>
                   <div style={{flex:1}}>
-                    <span style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{prof?.username||'Unknown'}</span>
-                    <span style={{fontSize:11,color:'var(--tx3)',margin:'0 6px'}}>won't earn XP on</span>
-                    <span style={{fontSize:13,fontWeight:600,color:'var(--go)'}}>{ex.product_name}</span>
+                    <div>
+                      <span style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{prof?.username||'Unknown'}</span>
+                      <span style={{fontSize:11,color:'var(--tx3)',margin:'0 6px'}}>won't earn XP on</span>
+                      <span style={{fontSize:13,fontWeight:600,color:'var(--go)'}}>{ex.product_name}</span>
+                    </div>
+                    {dateStr&&<div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>📅 {dateStr}</div>}
+                    {!hasDate&&<div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>Forever</div>}
                   </div>
                   <button onClick={async()=>{await supabase.from('xp_exclusions').delete().eq('id',ex.id);toast('Removed ✓','ok');loadXpExclusions();}} style={{background:'none',border:'none',color:'var(--re)',cursor:'pointer',fontSize:15,padding:'0 4px'}}>✕</button>
                 </div>
