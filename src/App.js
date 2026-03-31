@@ -676,6 +676,29 @@ export default function App(){
       if(!p){logs.push(`⚠ No match: ${handle}`);unmatched++;continue;}
       if(sales===0&&rawG===0){skipped++;continue;}
       const netGMVForXP=Math.max(0,rawG-rawCanG);
+      // Resolve product name FIRST
+      const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
+      const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
+      if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
+      // Check XP exclusions BEFORE calculating XP
+      const isExcluded=xpExclusions.some(ex=>{
+        if(ex.profile_id!==p.id)return false;
+        if(!prodName||ex.product_name.toLowerCase()!==prodName.toLowerCase())return false;
+        if(ex.start_date&&importDate<ex.start_date)return false;
+        if(ex.end_date&&importDate>ex.end_date)return false;
+        return true;
+      });
+      if(isExcluded){
+        // Still record the sale data but zero out XP
+        const profileUpdateNoXP={total_sales:(p.total_sales||0)+sales,total_gmv:(p.total_gmv||0)+rawG,total_orders:(p.total_orders||0)+(rawO||sales),total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
+        await supabase.from('profiles').update(profileUpdateNoXP).eq('id',p.id);
+        await supabase.from('profiles').update({total_aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id);
+        const xpInsertNoXP={profile_id:p.id,amount:0,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV — XP excluded (${prodName})`,gmv:rawG,commission:rawC,aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName,created_at:new Date(importDate+'T12:00:00').toISOString()};
+        await supabase.from('xp_events').insert(xpInsertNoXP);
+        if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
+        logs.push(`⊘ ${p.username}: ${prodName} — XP excluded | GMV: ${fmtGBP(rawG)}`);
+        matched++;continue;
+      }
       const prevLv=getLv(p.xp).level;const xpGain=Math.floor(netGMVForXP/10)*XP_PER_10_GMV;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
       const newOrders=(p.total_orders||0)+(rawO||sales);const newGMV=(p.total_gmv||0)+rawG;const aov=rawAOV||( rawO>0?parseFloat((rawG/rawO).toFixed(2)):0);const newAOV=rawAOV||( newOrders>0?parseFloat((newGMV/newOrders).toFixed(2)):0);
       // Streak calculation (must be before profileUpdate)
@@ -697,28 +720,6 @@ export default function App(){
       if(!puErr){await supabase.from('profiles').update({total_aov:newAOV,total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id).then(()=>{});}
       const xpGainTotal=xpGain+streakXP;
       const streakNote=streakXP>0?` | Day ${newStreak} streak +${streakXP} XP`:(diffDays!==0&&diffDays!==null&&diffDays>1?` | Streak reset (${diffDays}d gap)`:` | Day ${newStreak} streak`);
-      const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
-      const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
-      if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
-      // Check XP exclusions
-      const isExcluded=xpExclusions.some(ex=>{
-        if(ex.profile_id!==p.id)return false;
-        if(!prodName||ex.product_name.toLowerCase()!==prodName.toLowerCase())return false;
-        if(ex.start_date&&importDate<ex.start_date)return false;
-        if(ex.end_date&&importDate>ex.end_date)return false;
-        return true;
-      });
-      if(isExcluded){
-        // Still record the sale data but zero out XP
-        const profileUpdateNoXP={total_sales:(p.total_sales||0)+sales,total_gmv:(p.total_gmv||0)+rawG,total_orders:(p.total_orders||0)+(rawO||sales),total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
-        await supabase.from('profiles').update(profileUpdateNoXP).eq('id',p.id);
-        await supabase.from('profiles').update({total_aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id);
-        const xpInsertNoXP={profile_id:p.id,amount:0,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV — XP excluded (${prodName})`,gmv:rawG,commission:rawC,aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName,created_at:new Date(importDate+'T12:00:00').toISOString()};
-        await supabase.from('xp_events').insert(xpInsertNoXP);
-        if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
-        logs.push(`⊘ ${p.username}: ${prodName} — XP excluded | GMV: ${fmtGBP(rawG)}`);
-        matched++;continue;
-      }
       const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
       await supabase.from('xp_events').insert(xpInsert);
       if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
