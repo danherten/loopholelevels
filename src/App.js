@@ -871,6 +871,7 @@ body,html{margin:0;padding:0;background:#070710;}
     </div>}
 
     <div className="pages" style={isDesktop?{flex:1,overflowY:'auto',paddingBottom:0,minWidth:0}:{}}>
+      <div style={isDesktop?{maxWidth:700,margin:'0 auto'}:{}}>
       {/* HOME */}
       {page==='home'&&(<div className="pg">
         {/* DATE RANGE FILTER */}
@@ -1615,6 +1616,7 @@ body,html{margin:0;padding:0;background:#070710;}
           ))}
         </div>)}
       </div>)}
+      </div>
     </div>
 
     {/* BOTTOM NAV - mobile only */}
