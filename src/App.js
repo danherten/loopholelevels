@@ -679,7 +679,35 @@ export default function App(){
       const rawCanG=canGCol?parseFloat((row[canGCol]||'0').toString().replace(/[^0-9.]/g,''))||0:0;
       const sales=rawS||(rawG>0?Math.max(1,Math.round(rawG/10)):0);
       if(!p){logs.push(`⚠ No match: ${handle}`);unmatched++;continue;}
-      if(sales===0&&rawG===0){skipped++;continue;}
+      if(sales===0&&rawG===0&&rawCan===0&&rawCanG===0){skipped++;continue;}
+      // If this is a return-only row (no new sales), subtract XP and update return stats
+      if(sales===0&&rawG===0&&(rawCan>0||rawCanG>0)){
+        const prodNameForReturn=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
+        let returnProdName=null;
+        if(prodNameForReturn){
+          const keywordMatch=products.find(pr=>(pr.keywords||[]).some(k=>prodNameForReturn.toLowerCase().includes(k.toLowerCase())||k.toLowerCase().includes(prodNameForReturn.toLowerCase())));
+          if(keywordMatch)returnProdName=keywordMatch.name;
+          if(!returnProdName){const nameMatch=products.find(pr=>pr.name.toLowerCase().includes(prodNameForReturn.toLowerCase())||prodNameForReturn.toLowerCase().includes(pr.name.toLowerCase()));if(nameMatch)returnProdName=nameMatch.name;}
+          if(!returnProdName)returnProdName=prodNameForReturn;
+        }
+        const returnExcluded=xpExclusions.some(ex=>{
+          if(ex.profile_id!==p.id)return false;
+          if(!returnProdName||ex.product_name.toLowerCase()!==returnProdName.toLowerCase())return false;
+          if(ex.start_date&&importDate<ex.start_date)return false;
+          if(ex.end_date&&importDate>ex.end_date)return false;
+          return true;
+        });
+        const xpToRemove=returnExcluded?0:Math.floor(rawCanG/10)*XP_PER_10_GMV;
+        const newXP=Math.max(0,(p.xp||0)-xpToRemove);
+        await supabase.from('profiles').update({
+          xp:newXP,
+          total_cancelled:(p.total_cancelled||0)+rawCan,
+          total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG
+        }).eq('id',p.id);
+        await supabase.from('xp_events').insert({profile_id:p.id,amount:xpToRemove>0?-xpToRemove:0,reason:'import',note:`Return: ${rawCan} item${rawCan!==1?'s':''}  (${fmtGBP(rawCanG)})${xpToRemove>0?' → -'+xpToRemove+' XP':''}${returnExcluded?' (XP excluded)':''}`,gmv:0,commission:0,aov:0,orders:0,sales:0,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:returnProdName,created_at:new Date(importDate+'T12:00:00').toISOString()});
+        logs.push(`↩️ ${p.username}: return — ${rawCan} item${rawCan!==1?'s':''} (${fmtGBP(rawCanG)})${xpToRemove>0?' → -'+xpToRemove+' XP':''}${returnExcluded?' (XP excluded)':''}`);
+        matched++;continue;
+      }
       const netGMVForXP=Math.max(0,rawG-rawCanG);
       // Resolve product name FIRST
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
