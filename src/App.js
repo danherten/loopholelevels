@@ -683,8 +683,13 @@ export default function App(){
       const netGMVForXP=Math.max(0,rawG-rawCanG);
       // Resolve product name FIRST
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
-      const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
-      if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
+      let prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||null):null;
+      // If no exact mapping, try fuzzy match against products in database
+      if(!prodName&&rawProdName){
+        const match=products.find(p=>p.name.toLowerCase().includes(rawProdName.toLowerCase())||rawProdName.toLowerCase().includes(p.name.toLowerCase()));
+        if(match)prodName=match.name;
+        else prodName=rawProdName;
+      }
       // Check XP exclusions BEFORE calculating XP
       const isExcluded=xpExclusions.some(ex=>{
         if(ex.profile_id!==p.id)return false;
@@ -1452,7 +1457,6 @@ body,html{margin:0;padding:0;background:#070710;}
           <button className="aact" onClick={()=>{if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(!showME);}}>🔥 Edit Streak Milestones & XP</button>
           <button className="aact" onClick={exportCSV}>📊 Export Affiliate Data (.csv)</button>
           <button className="aact" onClick={()=>{if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(!showPE);}}>📦 Edit Products</button>
-          <button className="aact" onClick={()=>setShowPM(!showPM)}>🔗 Map Import Names to Products</button>
           <button className="aact" onClick={()=>{loadXpExclusions();setShowExclusions(!showExclusions);}}>🚫 XP Exclusions</button>
           <button className="aact" onClick={generatePayouts}>💷 Generate Payout Records</button>
         </div>
@@ -1589,32 +1593,6 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
         ))}
         <button onClick={()=>setEditProducts([...editProducts,{name:'',description:'',price:'',tiktok_url:'',commission_rate:'',image_url:null,sort_order:editProducts.length}])} style={{width:'100%',marginTop:9,padding:'8px',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.2)',borderRadius:'var(--rsm)',color:'var(--pu2)',fontSize:12,cursor:'pointer',fontWeight:600}}>+ Add Product</button>
-      </div>)}
-      {showPM&&adminUnlocked&&(<div className="asec" style={{margin:'0 13px 9px'}}>
-        <div className="asect">Map Import Names to Products</div>
-        <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>When TikTok data uses a different name, map it to the right product here. Import a file first to see unrecognised names.</div>
-        {unmappedProducts.length===0&&Object.keys(productMappings).length===0&&<div style={{fontSize:12,color:'var(--tx3)'}}>No unrecognised product names yet.</div>}
-        {unmappedProducts.map((name,i)=>(
-          <div key={i} style={{display:'flex',gap:7,alignItems:'center',padding:'7px 0',borderBottom:'1px solid var(--bo)'}}>
-            <div style={{flex:1,fontSize:12,color:'var(--go)',fontWeight:500}}>{name}</div>
-            <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
-            <select style={{flex:1,padding:'5px 7px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:12,outline:'none'}}
-              value={productMappings[name.toLowerCase()]||''}
-              onChange={async e=>{const v=e.target.value;if(v){await supabase.from('product_mappings').upsert({import_name:name.toLowerCase(),product_name:v},{onConflict:'import_name'});setProductMappings(prev=>({...prev,[name.toLowerCase()]:v}));setUnmappedProducts(prev=>prev.filter(x=>x!==name));}}}>
-              <option value=''>-- select product --</option>
-              {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
-        ))}
-        {Object.keys(productMappings).filter(k=>productMappings[k]).length>0&&(<div style={{marginTop:9}}>
-          <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Active Mappings</div>
-          {Object.entries(productMappings).map(([k,v],i)=>v&&(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px solid var(--bo)',fontSize:11}}>
-              <span style={{color:'var(--go)'}}>{k}</span><span style={{color:'var(--tx3)',margin:'0 6px'}}>→</span><span style={{color:'var(--gr)',flex:1}}>{v}</span>
-              <button onClick={async()=>{await supabase.from('product_mappings').delete().eq('import_name',k);setProductMappings(prev=>{const n={...prev};delete n[k];return n;});}} style={{background:'none',border:'none',color:'var(--re)',cursor:'pointer',fontSize:13,padding:'0 4px'}}>✕</button>
-            </div>
-          ))}
-        </div>)}
       </div>)}
       </div>
     </div>
