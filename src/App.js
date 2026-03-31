@@ -397,6 +397,10 @@ export default function App(){
   const [importHistory,setImportHistory]=useState([]);
   const [lastUpdated,setLastUpdated]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(null);
+  const [xpExclusions,setXpExclusions]=useState([]);
+  const [showExclusions,setShowExclusions]=useState(false);
+  const [newExclusionUser,setNewExclusionUser]=useState('');
+  const [newExclusionProduct,setNewExclusionProduct]=useState('');
 
 
   useEffect(()=>{
@@ -404,7 +408,7 @@ export default function App(){
     const init=async()=>{
       try{
         const {data:{session}}=await supabase.auth.getSession();
-        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();loadLastUpdated();}
+        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();loadXpExclusions();loadLastUpdated();}
         else{loadRewards();loadProducts();loadProductMappings();loadLastUpdated();}
       }catch(e){console.error('init error:',e);}
       setLoading(false);
@@ -508,6 +512,7 @@ export default function App(){
     try{await supabase.from('app_meta').upsert({key:'last_import',value:profile?.username||'admin',updated_at:now},{onConflict:'key'});setLastUpdated({time:now,user:profile?.username||'admin'});}catch(e){}
   }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
+  async function loadXpExclusions(){const {data}=await supabase.from('xp_exclusions').select('*');if(data)setXpExclusions(data);}
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
   async function deleteImportByDate(date){const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');if(!evts)return;const byProfile={};evts.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0};byProfile[e.profile_id].xp+=e.amount||0;byProfile[e.profile_id].gmv+=e.gmv||0;byProfile[e.profile_id].comm+=e.commission||0;});for(const [pid,vals] of Object.entries(byProfile)){const {data:p}=await supabase.from('profiles').select('xp,total_gmv,total_commission').eq('id',pid).single();if(p){await supabase.from('profiles').update({xp:Math.max(0,(p.xp||0)-vals.xp),total_gmv:Math.max(0,(p.total_gmv||0)-vals.gmv),total_commission:Math.max(0,(p.total_commission||0)-vals.comm)}).eq('id',pid);}}await supabase.from('xp_events').delete().in('id',evts.map(e=>e.id));
     await supabase.from('affiliate_product_stats').delete().in('profile_id',[...new Set(evts.map(e=>e.profile_id))]);
@@ -577,7 +582,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadWeeklyLeaderboard();}if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadWeeklyLeaderboard();}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -649,6 +654,19 @@ export default function App(){
       const rawProdName=(pCol&&row[pCol]?row[pCol].toString().trim():null)||productFromFile;
       const prodName=rawProdName?(productMappings[rawProdName.toLowerCase()]||rawProdName):null;
       if(rawProdName&&!productMappings[rawProdName.toLowerCase()])setUnmappedProducts(prev=>[...new Set([...prev,rawProdName])]);
+      // Check XP exclusions
+      const isExcluded=xpExclusions.some(ex=>ex.profile_id===p.id&&prodName&&ex.product_name.toLowerCase()===prodName.toLowerCase());
+      if(isExcluded){
+        // Still record the sale data but zero out XP
+        const profileUpdateNoXP={total_sales:(p.total_sales||0)+sales,total_gmv:(p.total_gmv||0)+rawG,total_orders:(p.total_orders||0)+(rawO||sales),total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
+        await supabase.from('profiles').update(profileUpdateNoXP).eq('id',p.id);
+        await supabase.from('profiles').update({total_aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id);
+        const xpInsertNoXP={profile_id:p.id,amount:0,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV — XP excluded (${prodName})`,gmv:rawG,commission:rawC,aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName,created_at:new Date(importDate+'T12:00:00').toISOString()};
+        await supabase.from('xp_events').insert(xpInsertNoXP);
+        if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
+        logs.push(`⊘ ${p.username}: ${prodName} — XP excluded | GMV: ${fmtGBP(rawG)}`);
+        matched++;continue;
+      }
       const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
       await supabase.from('xp_events').insert(xpInsert);
       if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
@@ -1364,8 +1382,48 @@ body,html{margin:0;padding:0;background:#070710;}
           <button className="aact" onClick={exportCSV}>📊 Export Affiliate Data (.csv)</button>
           <button className="aact" onClick={()=>{if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(!showPE);}}>📦 Edit Products</button>
           <button className="aact" onClick={()=>setShowPM(!showPM)}>🔗 Map Import Names to Products</button>
+          <button className="aact" onClick={()=>{loadXpExclusions();setShowExclusions(!showExclusions);}}>🚫 XP Exclusions</button>
           <button className="aact" onClick={generatePayouts}>💷 Generate Payout Records</button>
         </div>
+        {/* XP EXCLUSIONS */}
+        {showExclusions&&(<div className="asec">
+          <div className="asect">XP Exclusions</div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Block specific affiliates from earning XP on certain products. Sales data is still recorded — only XP is excluded.</div>
+          {/* Add new exclusion */}
+          <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+            <select value={newExclusionUser} onChange={e=>setNewExclusionUser(e.target.value)} style={{flex:1,minWidth:120,padding:'7px 8px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:12,outline:'none'}}>
+              <option value=''>— Select affiliate —</option>
+              {allProfiles.map(p=><option key={p.id} value={p.id}>{p.username}</option>)}
+            </select>
+            <select value={newExclusionProduct} onChange={e=>setNewExclusionProduct(e.target.value)} style={{flex:1,minWidth:120,padding:'7px 8px',background:'var(--bg2)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:12,outline:'none'}}>
+              <option value=''>— Select product —</option>
+              {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
+            </select>
+            <button onClick={async()=>{
+              if(!newExclusionUser||!newExclusionProduct){toast('Select both an affiliate and product','wn');return;}
+              const existing=xpExclusions.find(ex=>ex.profile_id===newExclusionUser&&ex.product_name===newExclusionProduct);
+              if(existing){toast('Already excluded','wn');return;}
+              const {error}=await supabase.from('xp_exclusions').insert({profile_id:newExclusionUser,product_name:newExclusionProduct});
+              if(!error){toast('Exclusion added ✓','ok');setNewExclusionUser('');setNewExclusionProduct('');loadXpExclusions();}else toast('Failed: '+error.message,'wn');
+            }} style={{padding:'7px 14px',background:'rgba(244,63,94,.12)',border:'1px solid rgba(244,63,94,.25)',borderRadius:'var(--rxs)',color:'var(--re)',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'}}>+ Add</button>
+          </div>
+          {/* Existing exclusions */}
+          {xpExclusions.length===0?<div style={{fontSize:12,color:'var(--tx3)'}}>No exclusions set.</div>:(
+            xpExclusions.map(ex=>{
+              const prof=allProfiles.find(p=>p.id===ex.profile_id);
+              return(
+                <div key={ex.id} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--bo)'}}>
+                  <div style={{flex:1}}>
+                    <span style={{fontSize:13,fontWeight:600,color:'var(--tx)'}}>{prof?.username||'Unknown'}</span>
+                    <span style={{fontSize:11,color:'var(--tx3)',margin:'0 6px'}}>won't earn XP on</span>
+                    <span style={{fontSize:13,fontWeight:600,color:'var(--go)'}}>{ex.product_name}</span>
+                  </div>
+                  <button onClick={async()=>{await supabase.from('xp_exclusions').delete().eq('id',ex.id);toast('Removed ✓','ok');loadXpExclusions();}} style={{background:'none',border:'none',color:'var(--re)',cursor:'pointer',fontSize:15,padding:'0 4px'}}>✕</button>
+                </div>
+              );
+            })
+          )}
+        </div>)}
         {/* REFERRAL PAYOUTS MANAGEMENT */}
         <div className="asec">
           <div className="asect">Referral Payouts</div>
