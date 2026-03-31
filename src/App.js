@@ -25,7 +25,7 @@ const TCOLS = {
   orders:['attributed orders','orders','order count','total orders','num orders','# orders'],
   commission:['est. commission','commission','estimated commission','est commission','creator commission','total commission'],
   aov_col:['aov','average order value','avg order value'],
-  product:['product name','product','item name','product title','sku name','listing name','product id','item','listing'],
+  product:['product name','product title','sku name','listing name','product id','item name'],
   cancelled:['items refunded','cancelled orders','cancellations','canceled orders','cancelled','canceled','refunded orders','returns','returned orders','cancel count'],
   cancelled_gmv:['refunds','cancelled gmv','canceled gmv','refunded gmv','returned gmv','cancellation value','refund value','return value','cancelled value'],
   live_streams:['live streams','lives','live stream count','livestreams','live','streams'],
