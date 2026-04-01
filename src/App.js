@@ -397,6 +397,8 @@ export default function App(){
   const [importHistory,setImportHistory]=useState([]);
   const [lastUpdated,setLastUpdated]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(null);
+  const [adminSearch,setAdminSearch]=useState('');
+  const [adminLevelFilter,setAdminLevelFilter]=useState('all');
   const [xpExclusions,setXpExclusions]=useState([]);
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
@@ -1480,59 +1482,96 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
         <div className="asec">
           <div className="asect">Affiliate Overview</div>
-          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{
-            const plv=getLv(p.xp,LEVELS);
-            const pnx=getNx(p.xp,LEVELS);
-            const ppct=xpPct(p.xp,LEVELS);
-            const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
-            const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
-            return(<div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:10,overflow:'hidden'}}>
-              {/* Header */}
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-                <div style={{width:38,height:38,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:14,fontWeight:600}}>{p.username}</div>
-                  <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(p.tiktok_handles||[]).join(' · ')}</div>
+          {/* TOTALS CARD */}
+          {allProfiles.length>0&&(<div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:12}}>
+            <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:10,fontWeight:500}}>All Affiliates — Totals</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
+              {[
+                {label:'Affiliates',val:allProfiles.length,color:'var(--pu2)'},
+                {label:'Total Net GMV',val:fmtGBP(Math.max(0,allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0)-allProfiles.reduce((s,p)=>s+(p.total_cancelled_gmv||0),0))),color:'var(--gr)'},
+                {label:'Total Commission',val:fmtGBP(allProfiles.reduce((s,p)=>s+(p.total_commission||0),0)),color:'var(--go)'},
+                {label:'Total Orders',val:allProfiles.reduce((s,p)=>s+(p.total_orders||0),0).toLocaleString(),color:'var(--tx)'},
+                {label:'Total Units',val:allProfiles.reduce((s,p)=>s+(p.total_sales||0),0).toLocaleString(),color:'var(--tx)'},
+                {label:'Total Returns',val:`${allProfiles.reduce((s,p)=>s+(p.total_cancelled||0),0)} (${fmtGBP(allProfiles.reduce((s,p)=>s+(p.total_cancelled_gmv||0),0))})`,color:'var(--re)'},
+                {label:'Total XP',val:allProfiles.reduce((s,p)=>s+(p.xp||0),0).toLocaleString(),color:'var(--pu2)'},
+                {label:'Avg GMV / Affiliate',val:fmtGBP(allProfiles.length>0?allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0)/allProfiles.length:0),color:'var(--cy)'},
+                {label:'Avg Level',val:(allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0'),color:'var(--cy)'},
+              ].map((s,i)=>(
+                <div key={i} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
+                  <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
                 </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--pu2)'}}>{(p.xp||0).toLocaleString()} XP</div>
-                  <div style={{fontSize:10,color:'var(--tx3)'}}>Level {plv.level}</div>
-                </div>
-              </div>
-              {/* XP Progress bar */}
-              <div style={{marginBottom:12}}>
-                <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
-                  <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${ppct}%`,transition:'width .5s'}}/>
-                </div>
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--tx3)',marginTop:3}}>
-                  <span>Lvl {plv.level}</span>
-                  <span>{pnx?`${(pnx.min-(p.xp||0)).toLocaleString()} XP to Lvl ${pnx.level}`:'MAX'}</span>
-                </div>
-              </div>
-              {/* Stats grid */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
-                {[
-                  {label:'Net GMV',val:fmtGBP(netGMV),color:'var(--gr)'},
-                  {label:'Commission',val:fmtGBP(netComm),color:'var(--go)'},
-                  {label:'Orders',val:(p.total_orders||0).toLocaleString(),color:'var(--tx)'},
-                  {label:'Units Sold',val:(p.total_sales||0).toLocaleString(),color:'var(--tx)'},
-                  {label:'Returns',val:`${p.total_cancelled||0} (${fmtGBP(p.total_cancelled_gmv||0)})`,color:'var(--re)'},
-                  {label:'Streak',val:`🔥 ${p.streak||0} days`,color:'var(--go)'},
-                ].map((s,i)=>(
-                  <div key={i} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
-                    <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
+              ))}
+            </div>
+          </div>)}
+          {/* SEARCH & FILTER */}
+          <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+            <input value={adminSearch} onChange={e=>setAdminSearch(e.target.value)} placeholder="Search affiliates..." style={{flex:1,minWidth:150,padding:'8px 12px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:13,outline:'none',fontFamily:'var(--fb)'}}/>
+            <select value={adminLevelFilter} onChange={e=>setAdminLevelFilter(e.target.value)} style={{padding:'8px 10px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:12,outline:'none'}}>
+              <option value="all">All Levels</option>
+              {LEVELS.map(l=><option key={l.level} value={l.level}>Level {l.level}</option>)}
+            </select>
+          </div>
+          {/* FILTERED AFFILIATE CARDS */}
+          {(()=>{
+            const filtered=allProfiles.filter(p=>{
+              const matchSearch=!adminSearch||p.username.toLowerCase().includes(adminSearch.toLowerCase())||(p.tiktok_handles||[]).some(h=>h.toLowerCase().includes(adminSearch.toLowerCase()));
+              const matchLevel=adminLevelFilter==='all'||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
+              return matchSearch&&matchLevel;
+            });
+            return(<>
+              <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{filtered.length} affiliate{filtered.length!==1?'s':''}{adminSearch||adminLevelFilter!=='all'?' found':''}</div>
+              {filtered.map(p=>{
+                const plv=getLv(p.xp,LEVELS);
+                const pnx=getNx(p.xp,LEVELS);
+                const ppct=xpPct(p.xp,LEVELS);
+                const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+                const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
+                return(<div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:10}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                    <div style={{width:38,height:38,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:600}}>{p.username}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(p.tiktok_handles||[]).join(' · ')}</div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--pu2)'}}>{(p.xp||0).toLocaleString()} XP</div>
+                      <div style={{fontSize:10,color:'var(--tx3)'}}>Level {plv.level}</div>
+                    </div>
                   </div>
-                ))}
-              </div>
-              {/* XP Award */}
-              <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1}}/>
-                <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
-                <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
-              </div>
-            </div>);
-          })}
+                  <div style={{marginBottom:12}}>
+                    <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
+                      <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${ppct}%`,transition:'width .5s'}}/>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--tx3)',marginTop:3}}>
+                      <span>Lvl {plv.level}</span>
+                      <span>{pnx?`${(pnx.min-(p.xp||0)).toLocaleString()} XP to Lvl ${pnx.level}`:'MAX'}</span>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
+                    {[
+                      {label:'Net GMV',val:fmtGBP(netGMV),color:'var(--gr)'},
+                      {label:'Commission',val:fmtGBP(netComm),color:'var(--go)'},
+                      {label:'Orders',val:(p.total_orders||0).toLocaleString(),color:'var(--tx)'},
+                      {label:'Units Sold',val:(p.total_sales||0).toLocaleString(),color:'var(--tx)'},
+                      {label:'Returns',val:`${p.total_cancelled||0} (${fmtGBP(p.total_cancelled_gmv||0)})`,color:'var(--re)'},
+                      {label:'Streak',val:`🔥 ${p.streak||0} days`,color:'var(--go)'},
+                    ].map((s,si)=>(
+                      <div key={si} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
+                        <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
+                        <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:'flex',gap:5,alignItems:'center'}}>
+                    <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1}}/>
+                    <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
+                    <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
+                  </div>
+                </div>);
+              })}
+            </>);
+          })()}
         </div>
         <div className="asec">
           <div className="asect">Actions</div>
