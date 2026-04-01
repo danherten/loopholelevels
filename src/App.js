@@ -398,7 +398,7 @@ export default function App(){
   const [lastUpdated,setLastUpdated]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(null);
   const [adminSearch,setAdminSearch]=useState('');
-  const [adminLevelFilter,setAdminLevelFilter]=useState('all');
+  const [adminLevelFilter,setAdminLevelFilter]=useState('');
   const [xpExclusions,setXpExclusions]=useState([]);
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
@@ -1508,17 +1508,18 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
             <input value={adminSearch} onChange={e=>setAdminSearch(e.target.value)} placeholder="Search affiliates..." style={{flex:1,minWidth:150,padding:'8px 12px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:13,outline:'none',fontFamily:'var(--fb)'}}/>
             <select value={adminLevelFilter} onChange={e=>setAdminLevelFilter(e.target.value)} style={{padding:'8px 10px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:12,outline:'none'}}>
+              <option value="">Filter by Level</option>
               <option value="all">All Levels</option>
               {LEVELS.map(l=><option key={l.level} value={l.level}>Level {l.level}</option>)}
             </select>
           </div>
           {/* FILTERED AFFILIATE CARDS */}
           {(()=>{
-            const hasFilter=adminSearch.trim()||adminLevelFilter!=='all';
+            const hasFilter=adminSearch.trim()||adminLevelFilter!=='';
             if(!hasFilter)return <div style={{fontSize:12,color:'var(--tx3)',textAlign:'center',padding:'16px 0'}}>Search or filter by level to view individual affiliates</div>;
             const filtered=allProfiles.filter(p=>{
               const matchSearch=!adminSearch||p.username.toLowerCase().includes(adminSearch.toLowerCase())||(p.tiktok_handles||[]).some(h=>h.toLowerCase().includes(adminSearch.toLowerCase()));
-              const matchLevel=adminLevelFilter==='all'||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
+              const matchLevel=adminLevelFilter===''||adminLevelFilter==='all'||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
               return matchSearch&&matchLevel;
             });
             return(<>
