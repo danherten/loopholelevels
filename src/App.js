@@ -1514,6 +1514,8 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
           {/* FILTERED AFFILIATE CARDS */}
           {(()=>{
+            const hasFilter=adminSearch.trim()||adminLevelFilter!=='all';
+            if(!hasFilter)return <div style={{fontSize:12,color:'var(--tx3)',textAlign:'center',padding:'16px 0'}}>Search or filter by level to view individual affiliates</div>;
             const filtered=allProfiles.filter(p=>{
               const matchSearch=!adminSearch||p.username.toLowerCase().includes(adminSearch.toLowerCase())||(p.tiktok_handles||[]).some(h=>h.toLowerCase().includes(adminSearch.toLowerCase()));
               const matchLevel=adminLevelFilter==='all'||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
