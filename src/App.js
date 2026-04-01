@@ -1479,8 +1479,60 @@ body,html{margin:0;padding:0;background:#070710;}
           {importLog.length>0&&<div className="ilog">{importLog.map((l,i)=><div key={i} className={l.startsWith('✓')?'logo':l.startsWith('⚠')?'logw':l.startsWith('ERROR')?'loge':''}>{l}</div>)}</div>}
         </div>
         <div className="asec">
-          <div className="asect">Manually Award XP</div>
-          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{const plv=getLv(p.xp,LEVELS);return(<div key={p.id} className="afrow"><div className="afin"><div className="afnm">{p.username}</div><div className="afmt">Lvl {plv.level} · {(p.xp||0).toLocaleString()} XP · {(p.tiktok_handles||[]).join(', ')}</div></div><div className="afac"><input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})}/><button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button><button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button></div></div>);})}
+          <div className="asect">Affiliate Overview</div>
+          {allProfiles.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No affiliates yet.</div>:allProfiles.map(p=>{
+            const plv=getLv(p.xp,LEVELS);
+            const pnx=getNx(p.xp,LEVELS);
+            const ppct=xpPct(p.xp,LEVELS);
+            const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+            const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
+            return(<div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:10,overflow:'hidden'}}>
+              {/* Header */}
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                <div style={{width:38,height:38,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:14,fontWeight:600}}>{p.username}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(p.tiktok_handles||[]).join(' · ')}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--pu2)'}}>{(p.xp||0).toLocaleString()} XP</div>
+                  <div style={{fontSize:10,color:'var(--tx3)'}}>Level {plv.level}</div>
+                </div>
+              </div>
+              {/* XP Progress bar */}
+              <div style={{marginBottom:12}}>
+                <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
+                  <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${ppct}%`,transition:'width .5s'}}/>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--tx3)',marginTop:3}}>
+                  <span>Lvl {plv.level}</span>
+                  <span>{pnx?`${(pnx.min-(p.xp||0)).toLocaleString()} XP to Lvl ${pnx.level}`:'MAX'}</span>
+                </div>
+              </div>
+              {/* Stats grid */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
+                {[
+                  {label:'Net GMV',val:fmtGBP(netGMV),color:'var(--gr)'},
+                  {label:'Commission',val:fmtGBP(netComm),color:'var(--go)'},
+                  {label:'Orders',val:(p.total_orders||0).toLocaleString(),color:'var(--tx)'},
+                  {label:'Units Sold',val:(p.total_sales||0).toLocaleString(),color:'var(--tx)'},
+                  {label:'Returns',val:`${p.total_cancelled||0} (${fmtGBP(p.total_cancelled_gmv||0)})`,color:'var(--re)'},
+                  {label:'Streak',val:`🔥 ${p.streak||0} days`,color:'var(--go)'},
+                ].map((s,i)=>(
+                  <div key={i} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
+                    <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              {/* XP Award */}
+              <div style={{display:'flex',gap:5,alignItems:'center'}}>
+                <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1}}/>
+                <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
+                <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
+              </div>
+            </div>);
+          })}
         </div>
         <div className="asec">
           <div className="asect">Actions</div>
