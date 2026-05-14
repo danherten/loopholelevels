@@ -1548,8 +1548,9 @@ body,html{margin:0;padding:0;background:#070710;}
 
         <div className="asec" style={{marginBottom:9}}><div className="asect">TikTok Handles</div><ProfileHandles profile={profile} setProfile={setProfile} toast={toast}/></div>
         <div className="mcard">
+          <div className="mi" onClick={()=>navTo('products')}><div className="mil"><span className="mii">📦</span>Products</div><span className="mich">›</span></div>
+          <div className="mi" onClick={()=>navTo('referrals')}><div className="mil"><span className="mii">👥</span>Refer &amp; Earn</div><span className="mich">›</span></div>
           <div className="mi" onClick={openAdminGate}><div className="mil"><span className="mii">🔐</span>Admin Panel</div><span className="mich">›</span></div>
-
         </div>
         <button className="btn btnre" onClick={doLogout}>Sign Out</button>
       </div>)}
@@ -1820,11 +1821,12 @@ body,html{margin:0;padding:0;background:#070710;}
 
     {/* BOTTOM NAV - mobile only */}
     {!isDesktop&&<div className="bnav">
-      {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
-        <button key={pg} className={`ni${page===pg?' on':''}`} onClick={()=>navTo(pg)}>
+      {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['profile','👤','Profile',['profile','products','referrals']]].map(([pg,icon,label,activeOn])=>{
+        const on=(activeOn||[pg]).includes(page);
+        return(<button key={pg} className={`ni${on?' on':''}`} onClick={()=>navTo(pg)}>
           <div className="nicon">{icon}</div><div className="nlbl">{label}</div>
-        </button>
-      ))}
+        </button>);
+      })}
       {adminUnlocked&&(<button className={`ni${page==='admin'?' on':''}`} onClick={()=>navTo('admin')}><div className="nicon">👑</div><div className="nlbl">Admin</div></button>)}
     </div>}
 
