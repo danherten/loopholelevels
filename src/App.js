@@ -842,18 +842,33 @@ export default function App(){
     toast('📊 Downloaded','ok');
   }
 
-  const filteredEvents=React.useMemo(()=>{
-    if(!xpEvents||dateRange==='all')return xpEvents||[];
-    const now=new Date();
-    let start,end=new Date();
-    end.setHours(23,59,59,999);
-    if(dateRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
+  const rangeBounds=React.useMemo(()=>{
+    if(dateRange==='all')return null;
+    let start,end=new Date();end.setHours(23,59,59,999);
+    if(dateRange==='yesterday'){start=new Date();start.setDate(start.getDate()-1);start.setHours(0,0,0,0);end=new Date(start);end.setHours(23,59,59,999);}
+    else if(dateRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
     else if(dateRange==='30d'){start=new Date();start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
     else if(dateRange==='month'){const[my,mm]=selectedMonth.split('-').map(Number);start=new Date(my,mm-1,1);end=new Date(my,mm,0,23,59,59,999);}
     else if(dateRange==='custom'&&customStart&&customEnd){start=new Date(customStart);start.setHours(0,0,0,0);end=new Date(customEnd);end.setHours(23,59,59,999);}
-    else return xpEvents||[];
-    return(xpEvents||[]).filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
-  },[xpEvents,dateRange,customStart,customEnd,selectedMonth]);
+    else return null;
+    let prevStart,prevEnd;
+    if(dateRange==='month'){const[my,mm]=selectedMonth.split('-').map(Number);prevStart=new Date(my,mm-2,1);prevEnd=new Date(my,mm-1,0,23,59,59,999);}
+    else{const dur=end.getTime()-start.getTime();prevEnd=new Date(start.getTime()-1);prevStart=new Date(prevEnd.getTime()-dur);}
+    return{start,end,prevStart,prevEnd};
+  },[dateRange,customStart,customEnd,selectedMonth]);
+
+  const filteredEvents=React.useMemo(()=>{
+    if(!xpEvents)return[];
+    if(!rangeBounds)return xpEvents;
+    const{start,end}=rangeBounds;
+    return xpEvents.filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
+  },[xpEvents,rangeBounds]);
+
+  const prevEvents=React.useMemo(()=>{
+    if(!xpEvents||!rangeBounds)return[];
+    const{prevStart,prevEnd}=rangeBounds;
+    return xpEvents.filter(e=>{const d=new Date(e.created_at);return d>=prevStart&&d<=prevEnd;});
+  },[xpEvents,rangeBounds]);
 
   const importEvts=filteredEvents.filter(e=>e.reason==='import');
   const filteredGMVGross=importEvts.reduce((s,e)=>s+(e.gmv||0),0);
@@ -866,6 +881,30 @@ export default function App(){
   const filteredGMV=Math.max(0,filteredGMVGross-filteredCancelledGMV);
   const filteredComm=filteredGMVGross>0?Math.max(0,filteredCommGross-(filteredCommGross*(filteredCancelledGMV/filteredGMVGross))):0;
   const filteredAOV=(filteredOrders-filteredCancelled)>0?filteredGMV/(filteredOrders-filteredCancelled):0;
+  const filteredCommPerLive=filteredLiveStreams>0?filteredComm/filteredLiveStreams:0;
+
+  const prevImports=prevEvents.filter(e=>e.reason==='import');
+  const prevGMVGross=prevImports.reduce((s,e)=>s+(e.gmv||0),0);
+  const prevCommGross=prevImports.reduce((s,e)=>s+(e.commission||0),0);
+  const prevOrders=prevImports.reduce((s,e)=>s+(e.orders||0),0);
+  const prevUnits=prevImports.reduce((s,e)=>s+(e.sales||0),0);
+  const prevLiveStreams=prevImports.reduce((s,e)=>s+(e.live_streams||0),0);
+  const prevCancelled=prevImports.reduce((s,e)=>s+(e.cancelled||0),0);
+  const prevCancelledGMV=prevImports.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
+  const prevGMV=Math.max(0,prevGMVGross-prevCancelledGMV);
+  const prevComm=prevGMVGross>0?Math.max(0,prevCommGross-(prevCommGross*(prevCancelledGMV/prevGMVGross))):0;
+  const prevAOV=(prevOrders-prevCancelled)>0?prevGMV/(prevOrders-prevCancelled):0;
+  const prevCommPerLive=prevLiveStreams>0?prevComm/prevLiveStreams:0;
+
+  const renderDelta=(current,prev,fmt,lowerIsBetter)=>{
+    if(!rangeBounds)return null;
+    const diff=current-prev;
+    if(Math.abs(diff)<0.005)return(<span style={{display:'inline-flex',alignItems:'center',background:'rgba(255,255,255,.05)',color:'var(--tx3)',padding:'1px 6px',borderRadius:99,fontSize:9,fontWeight:700,marginLeft:5,letterSpacing:.3,verticalAlign:'middle'}}>–</span>);
+    const good=lowerIsBetter?diff<0:diff>0;
+    const color=good?'#10b981':'#f43f5e';
+    const bg=good?'rgba(16,185,129,.14)':'rgba(244,63,94,.14)';
+    return(<span style={{display:'inline-flex',alignItems:'center',gap:2,background:bg,color,padding:'1px 6px',borderRadius:99,fontSize:9,fontWeight:700,marginLeft:5,letterSpacing:.3,verticalAlign:'middle'}}>{diff>0?'▲':'▼'} {fmt(Math.abs(diff))}</span>);
+  };
   const filteredProducts=React.useMemo(()=>{
     const byProd={};
     importEvts.forEach(e=>{
@@ -966,7 +1005,7 @@ body,html{margin:0;padding:0;background:#070710;}
       {page==='home'&&(<div className="pg">
         {/* DATE RANGE FILTER */}
         <div style={{display:'flex',gap:5,marginBottom:13,flexWrap:'wrap',alignItems:'center'}}>
-          {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
+          {[['all','All'],['yesterday','Yesterday'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
             <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>{label}</button>
           ))}
           {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
@@ -983,15 +1022,19 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4,#8b5cf6)'}}/>
           <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
             <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Net GMV</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1,marginBottom:20}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
+            <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:20}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
+              {isFiltered&&renderDelta(filteredGMV,prevGMV,fmtGBP)}
+            </div>
             <div style={{display:'flex',gap:0}}>
               {[
-                {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'#f59e0b',bg:'rgba(245,158,11,.08)'},
-                {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)'},
-                {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)'},
+                {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
+                {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
+                {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
               ].map((s,i)=>(
                 <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
+                  {s.chip&&<div style={{marginTop:5}}>{s.chip}</div>}
                   <div style={{fontSize:9,color:'var(--tx3)',marginTop:4,textTransform:'uppercase',letterSpacing:.8,fontWeight:500}}>{s.label}</div>
                 </div>
               ))}
@@ -1027,16 +1070,16 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* METRICS GRID */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           {[
-            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#10b981'},
-            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#10b981'},
-            {label:'Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} units`,icon:'↩️',accent:'#f43f5e'},
-            {label:'Returns GMV',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸',accent:'#f43f5e'},
+            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
+            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
+            {label:'Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} units`,icon:'↩️',accent:'#f43f5e',chip:isFiltered?renderDelta(filteredCancelled,prevCancelled,v=>`${Math.round(v).toLocaleString()} u`,true):null},
+            {label:'Returns GMV',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸',accent:'#f43f5e',chip:isFiltered?renderDelta(filteredCancelledGMV,prevCancelledGMV,fmtGBP,true):null},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
               <div style={{width:3,background:s.accent,flexShrink:0}}/>
               <div style={{padding:'13px 12px',flex:1}}>
                 <div style={{fontSize:15,marginBottom:5}}>{s.icon}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:.5,lineHeight:1}}>{s.val}</div>
+                <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap'}}><div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:.5,lineHeight:1}}>{s.val}</div>{s.chip}</div>
                 <div style={{fontSize:9,color:'var(--tx3)',marginTop:5,textTransform:'uppercase',letterSpacing:.8,fontWeight:500}}>{s.label}</div>
               </div>
             </div>
