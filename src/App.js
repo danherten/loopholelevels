@@ -433,7 +433,7 @@ export default function App(){
   const [editMilestones,setEditMilestones]=useState([]);
   const [dragOver,setDragOver]=useState(false);
   const [xpEvents,setXpEvents]=useState([]);
-  const [dateRange,setDateRange]=useState('all');
+  const [dateRange,setDateRange]=useState('yesterday');
   const [customStart,setCustomStart]=useState('');
   const [customEnd,setCustomEnd]=useState('');
   const [selectedMonth,setSelectedMonth]=useState(()=>{const n=new Date();const y=n.getFullYear();const m=String(n.getMonth()+1).padStart(2,'0');return y+'-'+m;});
@@ -1005,7 +1005,7 @@ body,html{margin:0;padding:0;background:#070710;}
       {page==='home'&&(<div className="pg">
         {/* DATE RANGE FILTER */}
         <div style={{display:'flex',gap:5,marginBottom:13,flexWrap:'wrap',alignItems:'center'}}>
-          {[['all','All'],['yesterday','Yesterday'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
+          {[['yesterday','Yesterday'],['7d','7D'],['30d','30D'],['month','Month'],['all','All']].map(([val,label])=>(
             <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>{label}</button>
           ))}
           {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
