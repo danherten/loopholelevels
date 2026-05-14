@@ -43,6 +43,7 @@ All persistence is Postgres via `@supabase/supabase-js`. Tables referenced:
 - `xp_exclusions` — `(profile_id, product_name, start_date?, end_date?)` rows that zero out XP for matching imports while still recording sale stats.
 - `payouts` — monthly referral payout records (1% of referrer's referred-creator net GMV).
 - `app_meta` — singleton row with `key='last_import'` for the "last updated by" banner.
+- `live_sessions` — affiliate-logged live streams: `started_at`, `ended_at`, `product_name`, `gmv`, `units`, `notes`. A row with `ended_at IS NULL` is the in-progress session for that profile (a unique partial index enforces at most one). Schema/RLS lives at [migrations/0001_live_sessions.sql](migrations/0001_live_sessions.sql).
 
 ### The import pipeline ([src/App.js:652-783](src/App.js))
 
