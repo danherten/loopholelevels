@@ -125,9 +125,6 @@ function fmtGBP(v){return'£'+(Number(v)||0).toLocaleString('en-GB',{minimumFrac
 function findCol(headers,type){const maps=TCOLS[type];for(const m of maps){const f=headers.find(h=>h.toLowerCase().replace(/[_\-]/g,' ').trim()===m||h.toLowerCase().includes(m));if(f)return f;}return null}
 function parseCSV(text){const lines=text.split(/\r?\n/).filter(l=>l.trim());if(!lines.length)return[];const dl=lines[0].includes('\t')?'\t':',';const hdrs=splitLine(lines[0],dl);return lines.slice(1).map(line=>{const vals=splitLine(line,dl);const obj={};hdrs.forEach((h,i)=>{obj[h.trim()]=vals[i]!==undefined?vals[i].trim():'';});return obj;}).filter(r=>Object.values(r).some(v=>v))}
 function splitLine(l,dl){const r=[];let cur='';let inQ=false;for(const c of l){if(c==='"'){inQ=!inQ;}else if(c===dl&&!inQ){r.push(cur);cur='';}else{cur+=c;}}r.push(cur);return r.map(s=>s.replace(/^"|"$/g,'').trim())}
-function fmtDuration(seconds){const s=Math.max(0,Math.floor(seconds||0));const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);if(h>0)return`${h}h ${m}m`;if(m>0)return`${m}m`;return`${s}s`}
-function fmtHMS(seconds){const s=Math.max(0,Math.floor(seconds||0));const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);const sec=s%60;return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`}
-function sessionDurationSec(s,nowTs){if(!s)return 0;const start=new Date(s.started_at).getTime();const end=s.ended_at?new Date(s.ended_at).getTime():(nowTs||Date.now());return Math.max(0,Math.floor((end-start)/1000))}
 
 const CSS=`
 :root{--bg:#070710;--bg2:#0e0e1c;--card:#12121f;--card2:#1a1a2e;--card3:#22223d;--bo:rgba(255,255,255,.07);--bo2:rgba(255,255,255,.13);--tx:#eeeef8;--tx2:rgba(238,238,248,.55);--tx3:rgba(238,238,248,.3);--pu:#8b5cf6;--pu2:#a78bfa;--pu3:#c4b5fd;--go:#f59e0b;--gr:#10b981;--re:#f43f5e;--cy:#06b6d4;--r:14px;--rsm:10px;--rxs:7px;--nav:52px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Bebas Neue',sans-serif;--fb:'Space Grotesk',sans-serif;}
@@ -408,22 +405,6 @@ export default function App(){
   const [newExclusionProduct,setNewExclusionProduct]=useState('');
   const [newExclusionStart,setNewExclusionStart]=useState('');
   const [newExclusionEnd,setNewExclusionEnd]=useState('');
-  const [liveSessions,setLiveSessions]=useState([]);
-  const [activeSession,setActiveSession]=useState(null);
-  const [livesRange,setLivesRange]=useState('all');
-  const [livesSelectedMonth,setLivesSelectedMonth]=useState(()=>{const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');});
-  const [livesCustomStart,setLivesCustomStart]=useState('');
-  const [livesCustomEnd,setLivesCustomEnd]=useState('');
-  const [showStartLive,setShowStartLive]=useState(false);
-  const [showStopLive,setShowStopLive]=useState(false);
-  const [showLogSession,setShowLogSession]=useState(false);
-  const [showSessionLog,setShowSessionLog]=useState(false);
-  const [startLiveProduct,setStartLiveProduct]=useState('');
-  const [stopLiveGmv,setStopLiveGmv]=useState('');
-  const [stopLiveUnits,setStopLiveUnits]=useState('');
-  const [stopLiveNotes,setStopLiveNotes]=useState('');
-  const [logForm,setLogForm]=useState({product_name:'',date:tdy(),start_time:'19:00',duration_min:'60',gmv:'',units:'',notes:''});
-  const [tickNow,setTickNow]=useState(Date.now());
 
 
   useEffect(()=>{
@@ -448,9 +429,8 @@ export default function App(){
     return()=>{if(sub)sub.unsubscribe();clearTimeout(t);};
   },[]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
-  useEffect(()=>{if(!activeSession)return;const i=setInterval(()=>setTickNow(Date.now()),1000);return()=>clearInterval(i);},[activeSession]);
 
-  async function loadProfile(id){const {data}=await supabase.from('profiles').select('*').eq('id',id).single();if(data){setProfile(data);await loadXpEvents(id);loadLiveSessions(id);}}
+  async function loadProfile(id){const {data}=await supabase.from('profiles').select('*').eq('id',id).single();if(data){setProfile(data);await loadXpEvents(id);}}
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
 
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
@@ -537,51 +517,6 @@ export default function App(){
   }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
   async function loadXpExclusions(){const {data}=await supabase.from('xp_exclusions').select('*');if(data)setXpExclusions(data);}
-  async function loadLiveSessions(pid){
-    const id=pid||profile?.id;if(!id)return;
-    const {data}=await supabase.from('live_sessions').select('*').eq('profile_id',id).order('started_at',{ascending:false});
-    if(data){setLiveSessions(data);setActiveSession(data.find(s=>!s.ended_at)||null);}
-  }
-  async function startLive(){
-    if(!profile||activeSession)return;
-    const payload={profile_id:profile.id,started_at:new Date().toISOString(),product_name:startLiveProduct||null};
-    const {data,error}=await supabase.from('live_sessions').insert(payload).select().single();
-    if(error){toast('Failed to start: '+error.message,'wn');return;}
-    setActiveSession(data);setLiveSessions(prev=>[data,...prev]);
-    setShowStartLive(false);setStartLiveProduct('');
-    toast('🔴 Live started','ok');
-  }
-  async function stopLive(){
-    if(!activeSession)return;
-    const gmv=parseFloat(stopLiveGmv)||0;const units=parseInt(stopLiveUnits)||0;
-    const updates={ended_at:new Date().toISOString(),gmv,units,notes:stopLiveNotes||null};
-    const {data,error}=await supabase.from('live_sessions').update(updates).eq('id',activeSession.id).select().single();
-    if(error){toast('Failed to stop: '+error.message,'wn');return;}
-    setLiveSessions(prev=>prev.map(s=>s.id===data.id?data:s));setActiveSession(null);
-    setShowStopLive(false);setStopLiveGmv('');setStopLiveUnits('');setStopLiveNotes('');
-    toast(`Logged ${fmtGBP(gmv)} · ${fmtDuration(sessionDurationSec(data))}`,'ok');
-  }
-  async function logPastSession(){
-    if(!profile)return;
-    const {product_name,date,start_time,duration_min,gmv,units,notes}=logForm;
-    if(!date||!start_time||!duration_min){toast('Date, start time and duration required','wn');return;}
-    const start=new Date(`${date}T${start_time}:00`);
-    const end=new Date(start.getTime()+(parseFloat(duration_min)||0)*60000);
-    if(end<=start){toast('Duration must be > 0','wn');return;}
-    const payload={profile_id:profile.id,product_name:product_name||null,started_at:start.toISOString(),ended_at:end.toISOString(),gmv:parseFloat(gmv)||0,units:parseInt(units)||0,notes:notes||null};
-    const {data,error}=await supabase.from('live_sessions').insert(payload).select().single();
-    if(error){toast('Failed: '+error.message,'wn');return;}
-    setLiveSessions(prev=>[data,...prev].sort((a,b)=>b.started_at.localeCompare(a.started_at)));
-    setShowLogSession(false);
-    setLogForm({product_name:'',date:tdy(),start_time:'19:00',duration_min:'60',gmv:'',units:'',notes:''});
-    toast('Session logged ✓','ok');
-  }
-  async function deleteLiveSession(id){
-    await supabase.from('live_sessions').delete().eq('id',id);
-    setLiveSessions(prev=>prev.filter(s=>s.id!==id));
-    if(activeSession?.id===id)setActiveSession(null);
-    toast('Session deleted','ok');
-  }
   async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
   async function deleteImportByDate(date){
     const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission,cancelled,cancelled_gmv,orders,sales,live_streams').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');
@@ -695,7 +630,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadWeeklyLeaderboard();}if(pg==='referrals')loadReferralStats();if(pg==='lives')loadLiveSessions();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadWeeklyLeaderboard();}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -892,63 +827,6 @@ export default function App(){
   },[importEvts]);
   const isFiltered=dateRange!=='all';
 
-  const livesFiltered=React.useMemo(()=>{
-    const completed=liveSessions.filter(s=>s.ended_at);
-    if(livesRange==='all')return completed;
-    let start=new Date(0),end=new Date();end.setHours(23,59,59,999);
-    if(livesRange==='today'){start=new Date();start.setHours(0,0,0,0);}
-    else if(livesRange==='yesterday'){start=new Date();start.setDate(start.getDate()-1);start.setHours(0,0,0,0);end=new Date(start);end.setHours(23,59,59,999);}
-    else if(livesRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
-    else if(livesRange==='30d'){start=new Date();start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
-    else if(livesRange==='month'){const[my,mm]=livesSelectedMonth.split('-').map(Number);start=new Date(my,mm-1,1);end=new Date(my,mm,0,23,59,59,999);}
-    else if(livesRange==='custom'&&livesCustomStart&&livesCustomEnd){start=new Date(livesCustomStart);start.setHours(0,0,0,0);end=new Date(livesCustomEnd);end.setHours(23,59,59,999);}
-    else return completed;
-    return completed.filter(s=>{const d=new Date(s.started_at);return d>=start&&d<=end;});
-  },[liveSessions,livesRange,livesCustomStart,livesCustomEnd,livesSelectedMonth]);
-  const livesAgg=React.useMemo(()=>{
-    let totalSec=0,gmv=0,units=0;
-    livesFiltered.forEach(s=>{totalSec+=sessionDurationSec(s);gmv+=(s.gmv||0);units+=(s.units||0);});
-    const hours=totalSec/3600;
-    return{totalSec,sessions:livesFiltered.length,gmv,units,hours,gmvPerHour:hours>0?gmv/hours:0};
-  },[livesFiltered]);
-  const bestSession=React.useMemo(()=>{
-    let best=null,bestRate=0;
-    livesFiltered.forEach(s=>{const sec=sessionDurationSec(s);if(sec<60)return;const rate=(s.gmv||0)/(sec/3600);if(rate>bestRate){bestRate=rate;best={...s,gmvPerHour:rate,durationSec:sec};}});
-    return best;
-  },[livesFiltered]);
-  const livesTopProducts=React.useMemo(()=>{
-    const byProd={};
-    livesFiltered.forEach(s=>{const k=s.product_name||'(no product)';if(!byProd[k])byProd[k]={product_name:k,gmv:0,units:0,sessions:0,sec:0};byProd[k].gmv+=(s.gmv||0);byProd[k].units+=(s.units||0);byProd[k].sessions++;byProd[k].sec+=sessionDurationSec(s);});
-    return Object.values(byProd).sort((a,b)=>b.gmv-a.gmv).slice(0,10);
-  },[livesFiltered]);
-  const livesByDay=React.useMemo(()=>{
-    const byDay={};
-    livesFiltered.forEach(s=>{const d=s.started_at.slice(0,10);if(!byDay[d])byDay[d]={date:d,gmv:0};byDay[d].gmv+=(s.gmv||0);});
-    return Object.values(byDay).sort((a,b)=>a.date.localeCompare(b.date));
-  },[livesFiltered]);
-  const hourHeatmap=React.useMemo(()=>{
-    const buckets=Array.from({length:24},(_,h)=>({hour:h,gmv:0,sec:0}));
-    livesFiltered.forEach(s=>{
-      const start=new Date(s.started_at).getTime();const end=new Date(s.ended_at).getTime();
-      const totalSec=Math.max(1,(end-start)/1000);
-      let cur=start;
-      while(cur<end){
-        const d=new Date(cur);const hour=d.getHours();
-        const hourEnd=new Date(d);hourEnd.setMinutes(0,0,0);hourEnd.setHours(hour+1);
-        const chunkEnd=Math.min(end,hourEnd.getTime());
-        const sec=(chunkEnd-cur)/1000;
-        buckets[hour].sec+=sec;
-        buckets[hour].gmv+=(s.gmv||0)*(sec/totalSec);
-        cur=chunkEnd;
-      }
-    });
-    const rates=buckets.map(b=>({...b,rate:b.sec>0?b.gmv/(b.sec/3600):null}));
-    const rated=rates.filter(b=>b.rate!=null).map(b=>b.rate).sort((a,b)=>a-b);
-    const t1=rated.length?rated[Math.floor(rated.length/3)]:0;
-    const t2=rated.length?rated[Math.floor(2*rated.length/3)]:0;
-    return rates.map(b=>({...b,tier:b.rate==null?null:(b.rate>=t2&&rated.length>=3?'best':b.rate>=t1&&rated.length>=3?'avg':rated.length<3?'avg':'worst')}));
-  },[livesFiltered]);
-
   // Build LEVELS dynamically from rewards table
   const LEVELS=React.useMemo(()=>{
     if(!rewards||rewards.length===0)return DEFAULT_LEVELS;
@@ -996,7 +874,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginTop:2}}>Affiliate Levels</div>
       </div>
       <div style={{flex:1,padding:'8px',overflowY:'auto'}}>
-        {[['home','🏠','Home'],['lives','📡','Lives'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
+        {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
           <button key={pg} onClick={()=>navTo(pg)} style={{width:'100%',display:'flex',alignItems:'center',gap:11,padding:'10px 14px',background:page===pg?'rgba(139,92,246,.15)':'transparent',border:'none',color:page===pg?'var(--pu2)':'var(--tx2)',cursor:'pointer',fontSize:13,fontWeight:500,fontFamily:'var(--fb)',textAlign:'left',borderRadius:'var(--rsm)'}}>
             <span style={{fontSize:17}}>{icon}</span>{label}
           </button>
@@ -1554,183 +1432,6 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
       </div>)}
 
-      {/* LIVES */}
-      {page==='lives'&&(<div className="pg">
-        <div style={{display:'flex',gap:5,marginBottom:13,flexWrap:'wrap',alignItems:'center'}}>
-          {[['today','Today'],['yesterday','Yesterday'],['7d','7D'],['30d','30D'],['all','All'],['month','Month']].map(([val,label])=>(
-            <button key={val} onClick={()=>setLivesRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${livesRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:livesRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:livesRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
-          ))}
-          {livesRange==='month'&&<input type='month' value={livesSelectedMonth} onChange={e=>setLivesSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',maxWidth:120}}/>}
-          <button onClick={()=>setLivesRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${livesRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:livesRange==='custom'?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:livesRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
-          {livesRange==='custom'&&(<>
-            <input type="date" value={livesCustomStart} onChange={e=>setLivesCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
-            <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
-            <input type="date" value={livesCustomEnd} onChange={e=>setLivesCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
-          </>)}
-        </div>
-
-        {activeSession?(
-          <div style={{borderRadius:14,overflow:'hidden',marginBottom:11,background:'linear-gradient(135deg,rgba(244,63,94,.16),rgba(139,92,246,.1))',border:'1px solid rgba(244,63,94,.4)',padding:'16px 18px'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
-              <div>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                  <span style={{display:'inline-block',width:9,height:9,borderRadius:'50%',background:'#f43f5e'}}/>
-                  <span style={{fontSize:11,color:'#f43f5e',fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>LIVE</span>
-                </div>
-                <div style={{fontFamily:'var(--fh)',fontSize:38,letterSpacing:2,lineHeight:1}}>{fmtHMS(sessionDurationSec(activeSession,tickNow))}</div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginTop:4}}>{activeSession.product_name||'No product set'} · started {new Date(activeSession.started_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
-              </div>
-              <button onClick={()=>setShowStopLive(true)} style={{background:'#f43f5e',border:'none',borderRadius:'var(--rsm)',color:'#fff',padding:'10px 18px',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1.5,cursor:'pointer'}}>■ STOP &amp; LOG</button>
-            </div>
-          </div>
-        ):(
-          <div style={{display:'flex',gap:7,marginBottom:11}}>
-            <button onClick={()=>setShowStartLive(true)} style={{flex:1,background:'linear-gradient(135deg,#f43f5e,#8b5cf6)',border:'none',borderRadius:'var(--rsm)',color:'#fff',padding:'12px',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1.5,cursor:'pointer'}}>▶ START LIVE</button>
-            <button onClick={()=>setShowLogSession(true)} style={{flex:1,background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rsm)',color:'var(--tx2)',padding:'12px',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Log past session</button>
-          </div>
-        )}
-
-        <div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
-          <div style={{height:3,background:'linear-gradient(90deg,#06b6d4,#8b5cf6)'}}/>
-          <div style={{background:'var(--card)',padding:'18px 16px'}}>
-            <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:4,fontWeight:500}}>Lives · {livesRange.toUpperCase()}</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:42,letterSpacing:1,lineHeight:1,marginBottom:4}}>{fmtDuration(livesAgg.totalSec)}</div>
-            <div style={{fontSize:11,color:'var(--tx3)',marginBottom:14}}>across {livesAgg.sessions} session{livesAgg.sessions===1?'':'s'}</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-              {[
-                {label:'Units',val:livesAgg.units.toLocaleString(),color:'var(--pu2)'},
-                {label:'GMV',val:fmtGBP(livesAgg.gmv),color:'#06b6d4'},
-                {label:'GMV / hr',val:fmtGBP(livesAgg.gmvPerHour),color:'#06b6d4'},
-              ].map((s,i)=>(
-                <div key={i} style={{background:'var(--card2)',borderRadius:10,padding:'10px 8px'}}>
-                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.8,fontWeight:500,marginBottom:3}}>{s.label}</div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:17,color:s.color,lineHeight:1}}>{s.val}</div>
-                </div>
-              ))}
-            </div>
-            {bestSession&&(
-              <div style={{marginTop:12,padding:'10px 12px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:'var(--rsm)',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-                <div style={{minWidth:0}}>
-                  <div style={{fontSize:9,color:'var(--go)',letterSpacing:.8,textTransform:'uppercase',fontWeight:700,marginBottom:2}}>🏆 Best Session</div>
-                  <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{bestSession.product_name||'No product'} · {bestSession.started_at.slice(0,10)}</div>
-                </div>
-                <div style={{textAlign:'right',flexShrink:0}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--go)',lineHeight:1}}>{fmtGBP(bestSession.gmvPerHour)}/hr</div>
-                  <div style={{fontSize:9,color:'var(--tx3)',marginTop:3}}>{fmtGBP(bestSession.gmv)} · {fmtDuration(bestSession.durationSec)}</div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {livesTopProducts.length>0&&(
-          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11}}>
-            <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:600,marginBottom:10}}>Top Products by GMV</div>
-            {(()=>{
-              const max=Math.max(...livesTopProducts.map(p=>p.gmv),1);
-              return livesTopProducts.map((p,i)=>(
-                <div key={i} style={{marginBottom:i<livesTopProducts.length-1?10:0}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
-                    <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'70%'}}>{p.product_name}</div>
-                    <div style={{fontFamily:'var(--fh)',fontSize:14,color:'#06b6d4'}}>{fmtGBP(p.gmv)}</div>
-                  </div>
-                  <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden',marginBottom:4}}>
-                    <div style={{height:'100%',width:`${(p.gmv/max)*100}%`,background:'linear-gradient(90deg,#06b6d4,var(--pu2))',borderRadius:99}}/>
-                  </div>
-                  <div style={{fontSize:10,color:'var(--tx3)'}}>{p.units} units · {p.sessions} session{p.sessions===1?'':'s'} · {fmtDuration(p.sec)} live</div>
-                </div>
-              ));
-            })()}
-          </div>
-        )}
-
-        {livesByDay.length>=1&&(()=>{
-          const max=Math.max(...livesByDay.map(d=>d.gmv),1);
-          const W=320,H=90,PAD=8;
-          const xScale=(i)=>livesByDay.length===1?W/2:PAD+((i/(livesByDay.length-1))*(W-PAD*2));
-          const yScale=(v)=>H-PAD-((v/max))*(H-PAD*2);
-          const path=livesByDay.map((d,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(d.gmv).toFixed(1)}`).join(' ');
-          return(
-            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
-              <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4)'}}/>
-              <div style={{background:'var(--card)',padding:'12px 14px'}}>
-                <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Live GMV Over Time · {livesByDay.length} day{livesByDay.length===1?'':'s'}</div>
-                <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:90}}>
-                  <path d={path} fill="none" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  {livesByDay.map((d,i)=><circle key={i} cx={xScale(i)} cy={yScale(d.gmv)} r="2.5" fill="#06b6d4"/>)}
-                </svg>
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginTop:2}}>
-                  <span>{livesByDay[0]?.date}</span><span>{livesByDay[livesByDay.length-1]?.date}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',padding:'14px 14px',marginBottom:11}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:4,flexWrap:'wrap',gap:6}}>
-            <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:600}}>Live-Hour Heatmap</div>
-            <div style={{display:'flex',gap:8,fontSize:9,color:'var(--tx3)'}}>
-              <span><span style={{display:'inline-block',width:8,height:8,background:'#10b981',borderRadius:2,marginRight:3,verticalAlign:'middle'}}/>Best</span>
-              <span><span style={{display:'inline-block',width:8,height:8,background:'#f59e0b',borderRadius:2,marginRight:3,verticalAlign:'middle'}}/>Average</span>
-              <span><span style={{display:'inline-block',width:8,height:8,background:'#f43f5e',borderRadius:2,marginRight:3,verticalAlign:'middle'}}/>Worst</span>
-            </div>
-          </div>
-          <div style={{fontSize:10,color:'var(--tx3)',marginBottom:9}}>£ per hour of live time · ranked into thirds</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(12, 1fr)',gap:3}}>
-            {hourHeatmap.map(b=>{
-              const bg=b.tier==='best'?'rgba(16,185,129,.16)':b.tier==='avg'?'rgba(245,158,11,.16)':b.tier==='worst'?'rgba(244,63,94,.16)':'var(--card3)';
-              const bo=b.tier==='best'?'#10b981':b.tier==='avg'?'#f59e0b':b.tier==='worst'?'#f43f5e':'var(--bo)';
-              const txt=b.tier==='best'?'#10b981':b.tier==='avg'?'#f59e0b':b.tier==='worst'?'#f43f5e':'var(--tx3)';
-              return(
-                <div key={b.hour} style={{background:bg,border:`1px solid ${bo}`,borderRadius:6,padding:'5px 2px',textAlign:'center'}}>
-                  <div style={{fontSize:8,color:'var(--tx3)',fontFamily:'monospace'}}>{String(b.hour).padStart(2,'0')}</div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:11,color:txt,letterSpacing:.3}}>{b.rate==null?'—':b.rate>=10?`£${Math.round(b.rate)}`:`£${b.rate.toFixed(1)}`}</div>
-                </div>
-              );
-            })}
-          </div>
-          {livesAgg.sessions>0&&(()=>{
-            const ranked=hourHeatmap.filter(b=>b.rate!=null).sort((a,b)=>b.rate-a.rate);
-            const best=ranked[0];
-            return best?(<div style={{marginTop:9,fontSize:10,color:'var(--tx3)',display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:6}}><span>{livesAgg.sessions} sessions · best hour {String(best.hour).padStart(2,'0')}:00 ({fmtGBP(best.rate)}/hr)</span><span>Total {fmtGBP(livesAgg.gmv)}</span></div>):null;
-          })()}
-        </div>
-
-        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',marginBottom:11}}>
-          <button onClick={()=>setShowSessionLog(!showSessionLog)} style={{width:'100%',background:'none',border:'none',padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',color:'var(--tx)'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:12,display:'inline-block',transform:showSessionLog?'rotate(90deg)':'none',transition:'transform .15s'}}>▶</span>
-              <span style={{fontSize:13,fontWeight:600}}>Session Log</span>
-              <span style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6}}>click to {showSessionLog?'collapse':'expand'}</span>
-            </div>
-            <span style={{fontSize:11,color:'var(--tx3)'}}>{livesFiltered.length} session{livesFiltered.length===1?'':'s'}</span>
-          </button>
-          {showSessionLog&&(
-            <div style={{borderTop:'1px solid var(--bo)',maxHeight:340,overflowY:'auto'}}>
-              {livesFiltered.length===0?(
-                <div style={{padding:'18px 14px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No sessions in this range yet.</div>
-              ):livesFiltered.map(s=>{
-                const sec=sessionDurationSec(s);const rate=sec>0?(s.gmv||0)/(sec/3600):0;
-                return(
-                  <div key={s.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderBottom:'1px solid var(--bo)'}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{s.product_name||'(no product)'}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{new Date(s.started_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})} · {fmtDuration(sec)} · {s.units||0} units</div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontFamily:'var(--fh)',fontSize:14,color:'#06b6d4'}}>{fmtGBP(s.gmv||0)}</div>
-                      <div style={{fontSize:9,color:'var(--tx3)'}}>{fmtGBP(rate)}/hr</div>
-                    </div>
-                    <button onClick={()=>{if(window.confirm('Delete this session?'))deleteLiveSession(s.id);}} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:16,padding:4}}>×</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>)}
-
       {/* PROFILE */}
       {page==='profile'&&(<div className="pg">
         <div className="phead">
@@ -2024,7 +1725,7 @@ body,html{margin:0;padding:0;background:#070710;}
 
     {/* BOTTOM NAV - mobile only */}
     {!isDesktop&&<div className="bnav">
-      {[['home','🏠','Home'],['lives','📡','Lives'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
+      {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
         <button key={pg} className={`ni${page===pg?' on':''}`} onClick={()=>navTo(pg)}>
           <div className="nicon">{icon}</div><div className="nlbl">{label}</div>
         </button>
@@ -2183,60 +1884,6 @@ body,html{margin:0;padding:0;background:#070710;}
         <div className="lvlup-txt">LEVEL {levelUpAnim}</div>
         <div className="lvlup-sub">You've reached Level {levelUpAnim}!</div>
         <button onClick={()=>setLevelUpAnim(null)} style={{marginTop:20,padding:'9px 26px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:17,letterSpacing:2,cursor:'pointer'}}>KEEP GOING</button>
-      </div>
-    </div>)}
-
-    {showStartLive&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowStartLive(false)}>
-      <div className="sheet">
-        <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>▶ START LIVE</div>
-        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:13}}>Pick the product you're streaming. You can edit GMV and units when you stop.</div>
-        <label className="lbl">Product (optional)</label>
-        <select className="inp" value={startLiveProduct} onChange={e=>setStartLiveProduct(e.target.value)} style={{cursor:'pointer',marginBottom:10}}>
-          <option value="">— no product —</option>
-          {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
-        </select>
-        <button className="clmbtn" onClick={startLive}>GO LIVE</button>
-        <button className="shcan" onClick={()=>setShowStartLive(false)}>Cancel</button>
-      </div>
-    </div>)}
-
-    {showStopLive&&activeSession&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowStopLive(false)}>
-      <div className="sheet">
-        <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>STOP &amp; LOG</div>
-        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:13}}>Session length: <strong style={{color:'var(--tx)'}}>{fmtHMS(sessionDurationSec(activeSession,tickNow))}</strong></div>
-        <div style={{display:'flex',flexDirection:'column',gap:9,marginBottom:10}}>
-          <div><label className="lbl">GMV (£)</label><input className="inp" type="number" step="0.01" min="0" placeholder="0.00" value={stopLiveGmv} onChange={e=>setStopLiveGmv(e.target.value)}/></div>
-          <div><label className="lbl">Units sold</label><input className="inp" type="number" min="0" placeholder="0" value={stopLiveUnits} onChange={e=>setStopLiveUnits(e.target.value)}/></div>
-          <div><label className="lbl">Notes (optional)</label><input className="inp" placeholder="anything to remember" value={stopLiveNotes} onChange={e=>setStopLiveNotes(e.target.value)}/></div>
-        </div>
-        <button className="clmbtn" onClick={stopLive}>LOG SESSION</button>
-        <button className="shcan" onClick={()=>setShowStopLive(false)}>Keep running</button>
-      </div>
-    </div>)}
-
-    {showLogSession&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowLogSession(false)}>
-      <div className="sheet">
-        <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:13}}>+ LOG PAST SESSION</div>
-        <div style={{display:'flex',flexDirection:'column',gap:9,marginBottom:10}}>
-          <div><label className="lbl">Product (optional)</label>
-            <select className="inp" value={logForm.product_name} onChange={e=>setLogForm({...logForm,product_name:e.target.value})} style={{cursor:'pointer'}}>
-              <option value="">— no product —</option>
-              {products.map(p=><option key={p.id} value={p.name}>{p.name}</option>)}
-            </select>
-          </div>
-          <div style={{display:'flex',gap:9}}>
-            <div style={{flex:1}}><label className="lbl">Date</label><input className="inp" type="date" value={logForm.date} onChange={e=>setLogForm({...logForm,date:e.target.value})}/></div>
-            <div style={{flex:1}}><label className="lbl">Start time</label><input className="inp" type="time" value={logForm.start_time} onChange={e=>setLogForm({...logForm,start_time:e.target.value})}/></div>
-          </div>
-          <div><label className="lbl">Duration (minutes)</label><input className="inp" type="number" min="0" value={logForm.duration_min} onChange={e=>setLogForm({...logForm,duration_min:e.target.value})}/></div>
-          <div style={{display:'flex',gap:9}}>
-            <div style={{flex:1}}><label className="lbl">GMV (£)</label><input className="inp" type="number" step="0.01" min="0" placeholder="0.00" value={logForm.gmv} onChange={e=>setLogForm({...logForm,gmv:e.target.value})}/></div>
-            <div style={{flex:1}}><label className="lbl">Units</label><input className="inp" type="number" min="0" placeholder="0" value={logForm.units} onChange={e=>setLogForm({...logForm,units:e.target.value})}/></div>
-          </div>
-          <div><label className="lbl">Notes</label><input className="inp" placeholder="optional" value={logForm.notes} onChange={e=>setLogForm({...logForm,notes:e.target.value})}/></div>
-        </div>
-        <button className="clmbtn" onClick={logPastSession}>SAVE SESSION</button>
-        <button className="shcan" onClick={()=>setShowLogSession(false)}>Cancel</button>
       </div>
     </div>)}
 
