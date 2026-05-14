@@ -32,8 +32,15 @@ const TCOLS = {
 };
 
 function MiniChart({xpEvents}){
-  const importEvents=(xpEvents||[]).filter(e=>e.reason==='import'&&(e.gmv>0||e.commission>0));
-  if(importEvents.length<1) return(
+  const [mode,setMode]=React.useState('both');
+  const byDay={};
+  (xpEvents||[]).filter(e=>e.reason==='import'&&(e.gmv>0||e.commission>0)).forEach(e=>{
+    const d=(e.created_at||'').slice(0,10);if(!d)return;
+    if(!byDay[d])byDay[d]={date:d,gmv:0,comm:0};
+    byDay[d].gmv+=e.gmv||0;byDay[d].comm+=e.commission||0;
+  });
+  const days=Object.values(byDay).sort((a,b)=>a.date.localeCompare(b.date));
+  if(days.length<1) return(
     <div style={{borderRadius:14,overflow:'hidden',marginBottom:10}}>
       <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4)'}}/>
       <div style={{background:'var(--card)',padding:'14px 16px',textAlign:'center'}}>
@@ -42,46 +49,91 @@ function MiniChart({xpEvents}){
       </div>
     </div>
   );
-  let cumG=0,cumC=0;
-  const points=importEvents.map(e=>{cumG+=e.gmv||0;cumC+=e.commission||0;return{gmv:cumG,comm:cumC,date:new Date(e.created_at)};});
-  const maxVal=Math.max(...points.map(p=>p.gmv),1);
-  const W=320,H=90,PAD=8;
-  const xScale=(i)=>points.length===1?W/2:PAD+((i/(points.length-1))*(W-PAD*2));
-  const yScale=(v)=>H-PAD-((v/maxVal))*(H-PAD*2);
-  const gmvPath=points.map((p,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(p.gmv).toFixed(1)}`).join(' ');
-  const commPath=points.map((p,i)=>`${i===0?'M':'L'}${xScale(i).toFixed(1)},${yScale(p.comm).toFixed(1)}`).join(' ');
-  const gmvArea=gmvPath+` L${xScale(points.length-1).toFixed(1)},${H} L${xScale(0).toFixed(1)},${H} Z`;
-  const lastDate=points[points.length-1].date.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  const firstDate=points[0].date.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  const totalGMV=points[points.length-1].gmv;
-  const totalComm=points[points.length-1].comm;
+  const totalG=days.reduce((s,d)=>s+d.gmv,0);
+  const totalC=days.reduce((s,d)=>s+d.comm,0);
+  const showG=mode==='gmv'||mode==='both';
+  const showC=mode==='comm'||mode==='both';
+  const vals=[];if(showG)days.forEach(d=>vals.push(d.gmv));if(showC)days.forEach(d=>vals.push(d.comm));
+  const maxVal=Math.max(...vals,1);
+  const W=340,H=160,PAD_L=4,PAD_R=42,PAD_T=8,PAD_B=20;
+  const innerW=W-PAD_L-PAD_R,innerH=H-PAD_T-PAD_B;
+  const xScale=(i)=>days.length===1?PAD_L+innerW/2:PAD_L+(i/(days.length-1))*innerW;
+  const yScale=(v)=>PAD_T+innerH-(v/maxVal)*innerH;
+  const smooth=(pts,getY)=>{
+    if(pts.length===0)return'';
+    if(pts.length===1)return`M${xScale(0).toFixed(1)},${getY(pts[0]).toFixed(1)}`;
+    let d=`M${xScale(0).toFixed(1)},${getY(pts[0]).toFixed(1)}`;
+    for(let i=0;i<pts.length-1;i++){
+      const i0=Math.max(0,i-1),i3=Math.min(pts.length-1,i+2);
+      const x0=xScale(i0),y0=getY(pts[i0]);
+      const x1=xScale(i),y1=getY(pts[i]);
+      const x2=xScale(i+1),y2=getY(pts[i+1]);
+      const x3=xScale(i3),y3=getY(pts[i3]);
+      const cp1x=x1+(x2-x0)/6,cp1y=y1+(y2-y0)/6;
+      const cp2x=x2-(x3-x1)/6,cp2y=y2-(y3-y1)/6;
+      d+=` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+    }
+    return d;
+  };
+  const gmvPath=smooth(days,d=>yScale(d.gmv));
+  const commPath=smooth(days,d=>yScale(d.comm));
+  const baseY=(PAD_T+innerH).toFixed(1);
+  const gmvArea=gmvPath+` L${xScale(days.length-1).toFixed(1)},${baseY} L${xScale(0).toFixed(1)},${baseY} Z`;
+  const commArea=commPath+` L${xScale(days.length-1).toFixed(1)},${baseY} L${xScale(0).toFixed(1)},${baseY} Z`;
+  const yTicks=[1,0.66,0.33,0].map(p=>({y:yScale(maxVal*p),val:maxVal*p}));
+  const labelCount=Math.min(5,days.length);
+  const xLabels=[];
+  for(let i=0;i<labelCount;i++){const idx=labelCount===1?0:Math.round(i*(days.length-1)/(labelCount-1));xLabels.push({x:xScale(idx),text:new Date(days[idx].date+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})});}
+  const fmtK=v=>v>=10000?`£${Math.round(v/1000)}k`:v>=1000?`£${(v/1000).toFixed(1)}k`:`£${Math.round(v)}`;
   return(
     <div style={{borderRadius:14,overflow:'hidden',marginBottom:10}}>
       <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4)'}}/>
-      <div style={{background:'var(--card)',padding:'12px 14px'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-        <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1}}>GMV &amp; Commission</div>
-        <div style={{display:'flex',gap:10}}>
-          <span style={{fontSize:11,color:'var(--gr)',fontWeight:600}}>● {fmtGBP(totalGMV)}</span>
-          <span style={{fontSize:11,color:'var(--go)',fontWeight:600}}>● {fmtGBP(totalComm)}</span>
+      <div style={{background:'var(--card)',padding:'14px 16px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11,gap:10}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:600,marginBottom:2}}>LOOPHOLE</div>
+            <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',lineHeight:1.2}}>GMV &amp; Commission</div>
+            <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{days.length} day{days.length===1?'':'s'}</div>
+          </div>
+          <div style={{display:'flex',gap:16,textAlign:'right',flexShrink:0}}>
+            <div>
+              <div style={{fontSize:8,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:600}}>GMV</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--gr)',letterSpacing:.5,lineHeight:1.1,marginTop:1}}>{fmtGBP(totalG)}</div>
+            </div>
+            <div>
+              <div style={{fontSize:8,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:600}}>COMMISSION</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--go)',letterSpacing:.5,lineHeight:1.1,marginTop:1}}>{fmtGBP(totalC)}</div>
+            </div>
+          </div>
         </div>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',height:90,overflow:'visible'}}>
-        <defs>
-          <linearGradient id="gmvgrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.2"/>
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
-        <path d={gmvArea} fill="url(#gmvgrad)"/>
-        <path d={gmvPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d={commPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 3"/>
-        <circle cx={xScale(points.length-1)} cy={yScale(totalGMV)} r="3" fill="#10b981"/>
-        <circle cx={xScale(points.length-1)} cy={yScale(totalComm)} r="3" fill="#f59e0b"/>
-      </svg>
-      <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)',marginTop:2}}>
-        <span>{firstDate}</span><span>{lastDate}</span>
-      </div>
+        <div style={{display:'flex',background:'var(--bg2)',borderRadius:99,padding:3,marginBottom:10,gap:0,width:'fit-content'}}>
+          {[['gmv','GMV'],['comm','Commission'],['both','Both']].map(([val,label])=>(
+            <button key={val} onClick={()=>setMode(val)} style={{padding:'5px 13px',border:'none',borderRadius:99,background:mode===val?'var(--pu)':'transparent',color:mode===val?'#fff':'var(--tx3)',fontSize:11,fontWeight:600,cursor:'pointer',transition:'all .15s',fontFamily:'var(--fb)'}}>{label}</button>
+          ))}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{width:'100%',height:160,overflow:'visible'}}>
+          <defs>
+            <linearGradient id="mc-gmv" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.28"/>
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
+            </linearGradient>
+            <linearGradient id="mc-comm" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.18"/>
+              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          {yTicks.map((t,i)=>(<g key={i}>
+            <line x1={PAD_L} y1={t.y} x2={W-PAD_R} y2={t.y} stroke="rgba(255,255,255,.06)" strokeDasharray="2 3"/>
+            <text x={W-PAD_R+3} y={t.y+3} fill="rgba(238,238,248,.35)" fontSize="8" fontFamily="var(--fb)" textAnchor="start">{fmtK(t.val)}</text>
+          </g>))}
+          {showG&&<path d={gmvArea} fill="url(#mc-gmv)"/>}
+          {showC&&mode==='comm'&&<path d={commArea} fill="url(#mc-comm)"/>}
+          {showG&&<path d={gmvPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
+          {showC&&<path d={commPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={mode==='comm'?'0':'4 3'}/>}
+          {showG&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].gmv)} r="2.8" fill="#10b981"/>}
+          {showC&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].comm)} r="2.8" fill="#f59e0b"/>}
+          {xLabels.map((l,i)=>(<text key={i} x={l.x} y={H-5} fill="rgba(238,238,248,.35)" fontSize="8" fontFamily="var(--fb)" textAnchor="middle">{l.text}</text>))}
+        </svg>
       </div>
     </div>
   );
