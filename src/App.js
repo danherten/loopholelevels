@@ -1458,36 +1458,41 @@ body,html{margin:0;padding:0;background:#070710;}
             {/* TOP 3 PODIUM */}
             {lb.length>=3&&(()=>{
               const [first,second,third]=lb;
-              const PodCard=({u,rank,height})=>{
+              const PodCard=({u,rank,minH})=>{
                 const col=avc(u.username);
                 const isMe=u.id===profile?.id;
                 const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
                 const glow=rank===1?'rgba(245,158,11,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)';
                 const border=rank===1?'rgba(245,158,11,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)';
                 const bg=rank===1?'rgba(245,158,11,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)';
+                const avSize=rank===1?54:44;
                 return(
-                  <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end'}}>
-                    <div style={{fontSize:11,fontWeight:700,color:isMe?'var(--pu2)':'var(--tx2)',marginBottom:5,textAlign:'center',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 2px'}}>{u.username}</div>
-                    <div style={{position:'relative'}}>
-                      <div style={{width:rank===1?52:44,height:rank===1?52:44,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?17:14,color:'#fff',border:`2px solid ${border}`,boxShadow:`0 0 18px ${glow}`,overflow:'hidden',flexShrink:0}}>
+                  <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',minWidth:0}}>
+                    <div style={{fontSize:11,fontWeight:700,color:isMe?'var(--pu2)':'var(--tx2)',marginBottom:6,textAlign:'center',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 2px',lineHeight:1.2,width:'100%'}}>{u.username}</div>
+                    <div style={{position:'relative',marginBottom:8}}>
+                      <div style={{width:avSize,height:avSize,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?18:14,color:'#fff',border:`2px solid ${border}`,boxShadow:`0 0 18px ${glow}`,overflow:'hidden',flexShrink:0,lineHeight:1}}>
                         {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
                       </div>
-                      <div style={{position:'absolute',bottom:-6,left:'50%',transform:'translateX(-50%)',fontSize:16}}>{medal}</div>
+                      <div style={{position:'absolute',bottom:-4,right:-6,fontSize:18,lineHeight:1,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.45))',pointerEvents:'none'}}>{medal}</div>
                     </div>
-                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'14px 6px 12px',textAlign:'center',marginTop:12,height}}>
-                      <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--tx)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()}</div>
-                      <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:6}}>{isWeekly?'XP this week':'XP'}</div>
-                      <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--gr)'}}>{fmtGBP(u.total_gmv||0)}</div>
-                      <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7}}>{isWeekly?'GMV this week':'GMV'}</div>
+                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'12px 6px 14px',textAlign:'center',minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'center',gap:10}}>
+                      <div>
+                        <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--tx)',letterSpacing:.5,lineHeight:1}}>{(u.xp||0).toLocaleString()}</div>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isWeekly?'XP this week':'XP'}</div>
+                      </div>
+                      <div>
+                        <div style={{fontFamily:'var(--fh)',fontSize:15,color:'var(--gr)',letterSpacing:.3,lineHeight:1}}>{fmtGBP(u.total_gmv||0)}</div>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isWeekly?'GMV this week':'GMV'}</div>
+                      </div>
                     </div>
                   </div>
                 );
               };
               return(
                 <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:16,padding:'10px 0 0'}}>
-                  <PodCard u={second} rank={2} height={95}/>
-                  <PodCard u={first} rank={1} height={125}/>
-                  <PodCard u={third} rank={3} height={80}/>
+                  <PodCard u={second} rank={2} minH={108}/>
+                  <PodCard u={first} rank={1} minH={140}/>
+                  <PodCard u={third} rank={3} minH={92}/>
                 </div>
               );
             })()}
