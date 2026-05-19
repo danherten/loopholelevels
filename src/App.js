@@ -181,9 +181,11 @@ function splitLine(l,dl){const r=[];let cur='';let inQ=false;for(const c of l){i
 const CSS=`
 :root{--bg:#070710;--bg2:#0e0e1c;--card:#12121f;--card2:#1a1a2e;--card3:#22223d;--bo:rgba(255,255,255,.07);--bo2:rgba(255,255,255,.13);--tx:#eeeef8;--tx2:rgba(238,238,248,.55);--tx3:rgba(238,238,248,.3);--pu:#8b5cf6;--pu2:#a78bfa;--pu3:#c4b5fd;--go:#f59e0b;--gr:#10b981;--re:#f43f5e;--cy:#06b6d4;--r:14px;--rsm:10px;--rxs:7px;--nav:52px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Bebas Neue',sans-serif;--fb:'Space Grotesk',sans-serif;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;margin:0}#root{min-height:100%;background:#030308;color:var(--tx);font-family:var(--fb)}
+html{height:100%}
+body{margin:0;height:100vh;height:100svh;height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:auto}
+#root{height:100%;display:flex;flex-direction:column;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
-.app{display:flex;flex-direction:column;height:100vh;height:100svh;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
+.app{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;position:relative;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
 .topbar.no-st{padding-top:9px}
@@ -196,7 +198,7 @@ input,button{font-family:var(--fb)}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(64px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{position:fixed;left:0;right:0;bottom:0;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:9px 2px;padding-bottom:max(9px,var(--sb));z-index:50;}
+.bnav{position:fixed;top:auto;left:0;right:0;bottom:0;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:9px 2px;padding-bottom:max(9px,var(--sb));z-index:50;will-change:auto;}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 2px;cursor:pointer;border:none;background:none;min-width:0;}
 .ni.on .nicon{transform:scale(1.15)}
 .nicon{font-size:17px;line-height:1;transition:transform .18s}
@@ -513,6 +515,27 @@ export default function App(){
   const profileRef=React.useRef(null);
   useEffect(()=>{profileRef.current=profile;},[profile]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
+  // Force iOS WKWebView to do a fresh layout pass after first paint. The user
+  // reported that the bottom nav floats above the screen on initial load and
+  // "scrolling fixes it" — which means iOS isn't running layout for our fixed
+  // children until a user gesture. We synthesise that by reading offsetHeight
+  // (a sync layout flush) and firing a synthetic resize on the next frame.
+  useEffect(()=>{
+    const kick=()=>{
+      try{
+        // Read forces sync layout
+        void document.body.offsetHeight;
+        // Re-dispatch resize so any window.matchMedia / vv listeners refire
+        window.dispatchEvent(new Event('resize'));
+      }catch(e){}
+    };
+    // Several attempts: rAF for first paint, then 100/300/700ms for stragglers
+    requestAnimationFrame(kick);
+    const t1=setTimeout(kick,100);
+    const t2=setTimeout(kick,300);
+    const t3=setTimeout(kick,700);
+    return()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);};
+  },[]);
   // Silent diagnostics for the bottom-nav-floats-too-high bug. Logs to console
   // only — invisible to consumers. Open Safari Web Inspector via Mac → Develop
   // → iPhone → App to read. Logs on mount, on focus/visibility change, and
