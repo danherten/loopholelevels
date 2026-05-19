@@ -1111,7 +1111,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{background:'var(--bg2)',border:'1px solid var(--bo)',borderRadius:10,padding:'4px 12px',marginBottom:18,fontSize:12}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0'}}>
                     <span style={{color:'var(--tx2)'}}>Gross GMV</span>
-                    <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5}}>{fmtGBP(grossGMV)}</span>{isFiltered&&renderDelta(filteredGMVGross,prevGMVGross,fmtGBP)}</span>
+                    <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,color:'var(--gr)'}}>{fmtGBP(grossGMV)}</span>{isFiltered&&renderDelta(filteredGMVGross,prevGMVGross,fmtGBP)}</span>
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderTop:'1px solid var(--bo)'}}>
                     <span style={{color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {retUnits} unit{retUnits===1?'':'s'}</span></span>
