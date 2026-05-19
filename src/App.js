@@ -458,6 +458,8 @@ export default function App(){
   const [newExclusionProduct,setNewExclusionProduct]=useState('');
   const [newExclusionStart,setNewExclusionStart]=useState('');
   const [newExclusionEnd,setNewExclusionEnd]=useState('');
+  const [editingProfile,setEditingProfile]=useState(null);
+  const [editForm,setEditForm]=useState({});
 
 
   useEffect(()=>{
@@ -742,6 +744,65 @@ export default function App(){
     toast(subtract?`✅ -${amount} XP → ${p.username}`:`✅ +${amount} XP → ${p.username}`,'ok');
     const newLv=getLv(newXP).level;if(!subtract&&newLv>prevLv)setTimeout(()=>toast(`🎉 ${p.username} hit Level ${newLv}!`,'ok'),400);
     if(profile?.id===profileId)setProfile({...profile,xp:newXP});loadAllProfiles();
+  }
+  function openEditAffiliate(p){
+    setEditingProfile(p.id);
+    setEditForm({
+      total_gmv:p.total_gmv||0,total_commission:p.total_commission||0,total_orders:p.total_orders||0,total_sales:p.total_sales||0,
+      total_cancelled:p.total_cancelled||0,total_cancelled_gmv:p.total_cancelled_gmv||0,total_live_streams:p.total_live_streams||0,
+      streak:p.streak||0,referral_earnings:p.referral_earnings||0
+    });
+  }
+  async function saveEditAffiliate(){
+    if(!editingProfile)return;
+    const p=allProfiles.find(x=>x.id===editingProfile);if(!p)return;
+    const f=editForm;
+    const num=(v)=>{const n=parseFloat(v);return Number.isFinite(n)?n:0;};
+    const intN=(v)=>{const n=parseInt(v);return Number.isFinite(n)?n:0;};
+    const newGMV=num(f.total_gmv);
+    const newComm=num(f.total_commission);
+    const newOrders=intN(f.total_orders);
+    const newSales=intN(f.total_sales);
+    const newCancelled=intN(f.total_cancelled);
+    const newCancelledGMV=num(f.total_cancelled_gmv);
+    const newLiveStreams=intN(f.total_live_streams);
+    const newStreak=intN(f.streak);
+    const newReferralEarnings=num(f.referral_earnings);
+    const dGMV=newGMV-(p.total_gmv||0);
+    const dComm=newComm-(p.total_commission||0);
+    const dOrders=newOrders-(p.total_orders||0);
+    const dSales=newSales-(p.total_sales||0);
+    const dCancelled=newCancelled-(p.total_cancelled||0);
+    const dCancelledGMV=newCancelledGMV-(p.total_cancelled_gmv||0);
+    const dLiveStreams=newLiveStreams-(p.total_live_streams||0);
+    const netOrders=newOrders-newCancelled;
+    const newAOV=netOrders>0?parseFloat(((newGMV-newCancelledGMV)/netOrders).toFixed(2)):0;
+    const anyDelta=[dGMV,dComm,dOrders,dSales,dCancelled,dCancelledGMV,dLiveStreams].some(x=>Math.abs(x)>0.005);
+    if(anyDelta){
+      const parts=[];
+      if(Math.abs(dGMV)>0.005)parts.push(`GMV ${dGMV>=0?'+':''}${dGMV.toFixed(2)}`);
+      if(Math.abs(dComm)>0.005)parts.push(`Comm ${dComm>=0?'+':''}${dComm.toFixed(2)}`);
+      if(dOrders!==0)parts.push(`Orders ${dOrders>=0?'+':''}${dOrders}`);
+      if(dSales!==0)parts.push(`Units ${dSales>=0?'+':''}${dSales}`);
+      if(dCancelled!==0)parts.push(`Ret ${dCancelled>=0?'+':''}${dCancelled}`);
+      if(Math.abs(dCancelledGMV)>0.005)parts.push(`RetGMV ${dCancelledGMV>=0?'+':''}${dCancelledGMV.toFixed(2)}`);
+      if(dLiveStreams!==0)parts.push(`Lives ${dLiveStreams>=0?'+':''}${dLiveStreams}`);
+      await supabase.from('xp_events').insert({
+        profile_id:p.id,amount:0,reason:'manual',note:`Admin adjustment: ${parts.join(', ')}`,
+        gmv:dGMV,commission:dComm,orders:dOrders,sales:dSales,cancelled:dCancelled,cancelled_gmv:dCancelledGMV,
+        live_streams:dLiveStreams,aov:0,product_name:null
+      });
+    }
+    const{error}=await supabase.from('profiles').update({
+      total_gmv:newGMV,total_commission:newComm,total_orders:newOrders,total_sales:newSales,
+      total_cancelled:newCancelled,total_cancelled_gmv:newCancelledGMV,total_live_streams:newLiveStreams,
+      total_aov:newAOV,streak:newStreak,referral_earnings:newReferralEarnings
+    }).eq('id',p.id);
+    if(error){toast('Save failed: '+error.message,'wn');return;}
+    toast(`✅ Updated ${p.username}`,'ok');
+    setEditingProfile(null);
+    loadAllProfiles();
+    if(profile?.id===p.id)loadProfile(p.id);
   }
   async function saveReward(r){
     const updates={name:r.name,description:r.description,xp_required:Number(r.xp_required),image_url:r.image_url};
@@ -1754,10 +1815,11 @@ body,html{margin:0;padding:0;background:#070710;}
                       </div>
                     ))}
                   </div>
-                  <div style={{display:'flex',gap:5,alignItems:'center'}}>
-                    <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1}}/>
+                  <div style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
+                    <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1,minWidth:60}}/>
                     <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
                     <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
+                    <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)'}} onClick={()=>openEditAffiliate(p)}>✏️ Edit</button>
                   </div>
                 </div>);
               })}
@@ -2054,6 +2116,40 @@ body,html{margin:0;padding:0;background:#070710;}
     </div>)}
 
     {/* ADMIN GATE */}
+    {editingProfile&&(()=>{
+      const p=allProfiles.find(x=>x.id===editingProfile);
+      if(!p)return null;
+      const fields=[
+        ['total_gmv','Total GMV (£)','0.01'],
+        ['total_commission','Commission (£)','0.01'],
+        ['total_orders','Orders','1'],
+        ['total_sales','Units Sold','1'],
+        ['total_cancelled','Returns Count','1'],
+        ['total_cancelled_gmv','Returns GMV (£)','0.01'],
+        ['total_live_streams','Live Streams','1'],
+        ['streak','Streak (days)','1'],
+        ['referral_earnings','Referral Earnings (£)','0.01'],
+      ];
+      return(
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditingProfile(null)}>
+          <div className="sheet" style={{maxHeight:'85dvh',overflowY:'auto'}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>EDIT {p.username.toUpperCase()}</div>
+            <div style={{fontSize:11,color:'var(--tx3)',marginBottom:14,lineHeight:1.45}}>Manually adjust totals for this affiliate. Deltas are logged to <code style={{color:'var(--tx2)'}}>xp_events</code> with reason <code style={{color:'var(--tx2)'}}>'manual'</code> for audit. XP is edited via the row's <strong style={{color:'var(--pu2)'}}>+XP</strong>/<strong style={{color:'var(--re)'}}>-XP</strong> buttons.</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:14}}>
+              {fields.map(([key,label,step])=>(
+                <div key={key}>
+                  <label className="lbl">{label}</label>
+                  <input className="inp" type="number" step={step} min="0" value={editForm[key]??''} onChange={e=>setEditForm({...editForm,[key]:e.target.value})}/>
+                </div>
+              ))}
+            </div>
+            <button className="clmbtn" onClick={saveEditAffiliate}>SAVE</button>
+            <button className="shcan" onClick={()=>setEditingProfile(null)}>Cancel</button>
+          </div>
+        </div>
+      );
+    })()}
+
     {showAdminGate&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdminGate(false)}>
       <div className="sheet">
         <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>🔐 ADMIN</div>
