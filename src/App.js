@@ -1715,6 +1715,18 @@ body,html{margin:0;padding:0;background:#070710;}
           <div className="pst"><div className="pstv">{profile.streak||0}</div><div className="pstl">Streak</div></div>
         </div>
 
+        <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:'linear-gradient(135deg,#5865F2 0%,#7c3aed 100%)',borderRadius:'var(--r)',color:'#fff',textDecoration:'none',marginBottom:6,boxShadow:'0 4px 18px rgba(88,101,242,.3)'}}>
+          <span style={{fontSize:24,filter:'drop-shadow(0 1px 3px rgba(0,0,0,.25))'}}>💬</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.5,lineHeight:1.1}}>JOIN THE LOOPHOLE DISCORD</div>
+            <div style={{fontSize:10,opacity:.85,marginTop:3,letterSpacing:.3}}>Rewards · payouts · training · announcements</div>
+          </div>
+          <span style={{fontSize:18,opacity:.7}}>›</span>
+        </a>
+        <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,padding:'0 4px',lineHeight:1.4}}>
+          Trouble joining? <a href="https://wa.me/447498435748" target="_blank" rel="noopener noreferrer" style={{color:'var(--pu2)',textDecoration:'underline',fontWeight:600,whiteSpace:'nowrap'}}>WhatsApp +44 7498 435748</a>
+        </div>
+
         <div className="asec" style={{marginBottom:9}}><div className="asect">TikTok Handles</div><ProfileHandles profile={profile} setProfile={setProfile} toast={toast}/></div>
         <div className="mcard">
           <div className="mi" onClick={()=>navTo('products')}><div className="mil"><span className="mii">📦</span>Products</div><span className="mich">›</span></div>
@@ -2203,6 +2215,9 @@ body,html{margin:0;padding:0;background:#070710;}
             </div>
             <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" onClick={dismiss} style={{display:'block',width:'100%',padding:'14px',background:'#fff',color:'#5865F2',borderRadius:12,fontFamily:'var(--fh)',fontSize:19,letterSpacing:2,textDecoration:'none',fontWeight:600,boxShadow:'0 6px 18px rgba(0,0,0,.18)'}}>💬 JOIN DISCORD</a>
             <div style={{fontSize:10,opacity:.55,marginTop:11,letterSpacing:.5}}>discord.gg/eR4eJAhcVG</div>
+            <div style={{fontSize:11,opacity:.85,marginTop:14,padding:'10px 12px',background:'rgba(0,0,0,.18)',borderRadius:10,lineHeight:1.4}}>
+              Trouble joining? <a href="https://wa.me/447498435748" target="_blank" rel="noopener noreferrer" style={{color:'#fff',textDecoration:'underline',fontWeight:700,whiteSpace:'nowrap'}}>WhatsApp +44 7498 435748</a>
+            </div>
           </div>
         </div>
       );
