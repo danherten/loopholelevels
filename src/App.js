@@ -1715,6 +1715,15 @@ body,html{margin:0;padding:0;background:#070710;}
           <div className="pst"><div className="pstv">{profile.streak||0}</div><div className="pstl">Streak</div></div>
         </div>
 
+        <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:'linear-gradient(135deg,#5865F2 0%,#7c3aed 100%)',borderRadius:'var(--r)',color:'#fff',textDecoration:'none',marginBottom:9,boxShadow:'0 4px 18px rgba(88,101,242,.3)'}}>
+          <span style={{fontSize:24,filter:'drop-shadow(0 1px 3px rgba(0,0,0,.25))'}}>💬</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.5,lineHeight:1.1}}>JOIN THE LOOPHOLE DISCORD</div>
+            <div style={{fontSize:10,opacity:.85,marginTop:3,letterSpacing:.3}}>Rewards · payouts · training · announcements</div>
+          </div>
+          <span style={{fontSize:18,opacity:.7}}>›</span>
+        </a>
+
         <div className="asec" style={{marginBottom:9}}><div className="asect">TikTok Handles</div><ProfileHandles profile={profile} setProfile={setProfile} toast={toast}/></div>
         <div className="mcard">
           <div className="mi" onClick={()=>navTo('products')}><div className="mil"><span className="mii">📦</span>Products</div><span className="mich">›</span></div>
