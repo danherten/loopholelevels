@@ -183,7 +183,7 @@ const CSS=`
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}#root{min-height:100%;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
-.app{display:flex;flex-direction:column;height:100vh;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
+.app{display:flex;flex-direction:column;height:var(--vh-real,100dvh);width:100%;position:relative;overflow:hidden;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
 .topbar.no-st{padding-top:9px}
@@ -481,6 +481,25 @@ export default function App(){
     return()=>{if(sub)sub.unsubscribe();clearTimeout(t);};
   },[]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
+  // Track the actual visible viewport so the bottom nav stays glued to the screen edge
+  // even on iOS where 100dvh / 100vh report stale values during initial paint or while
+  // the URL bar / soft keyboard / standalone-PWA chrome animates.
+  useEffect(()=>{
+    const update=()=>{
+      const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||0;
+      if(h>0)document.documentElement.style.setProperty('--vh-real',h+'px');
+    };
+    update();
+    const vv=window.visualViewport;
+    if(vv){vv.addEventListener('resize',update);vv.addEventListener('scroll',update);}
+    window.addEventListener('resize',update);
+    window.addEventListener('orientationchange',update);
+    return()=>{
+      if(vv){vv.removeEventListener('resize',update);vv.removeEventListener('scroll',update);}
+      window.removeEventListener('resize',update);
+      window.removeEventListener('orientationchange',update);
+    };
+  },[]);
 
   async function loadProfile(id){const {data}=await supabase.from('profiles').select('*').eq('id',id).single();if(data){setProfile(data);await loadXpEvents(id);}}
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
