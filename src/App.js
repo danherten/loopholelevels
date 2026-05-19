@@ -466,25 +466,52 @@ export default function App(){
 
   useEffect(()=>{
     let sub=null;
+    const logAuth=(...a)=>{try{console.log('[ll-auth]',new Date().toISOString(),...a);}catch(e){}};
     const init=async()=>{
       try{
-        const {data:{session}}=await supabase.auth.getSession();
+        const {data:{session},error}=await supabase.auth.getSession();
+        if(error)logAuth('getSession error',error.message);
+        logAuth('init',session?.user?'restored '+session.user.email:'no session');
         if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();loadXpExclusions();loadLastUpdated();}
         else{loadRewards();loadProducts();loadProductMappings();loadLastUpdated();}
-      }catch(e){console.error('init error:',e);}
+      }catch(e){console.error('[ll-auth] init error:',e);}
       setLoading(false);
       try{
         const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+          logAuth('event',event,session?.user?.email||'(no user)');
           if(event==='SIGNED_IN'&&session?.user){loadProfile(session.user.id).then(()=>{loadRewards();loadLeaderboard();loadMilestones();});}
           else if(event==='SIGNED_OUT'){setProfile(null);}
         });
         sub=subscription;
-      }catch(e){console.error('auth sub error:',e);}
+      }catch(e){console.error('[ll-auth] sub error:',e);}
     };
     init();
     const t=setTimeout(()=>setLoading(false),3000);
-    return()=>{if(sub)sub.unsubscribe();clearTimeout(t);};
+    // Re-check session when the PWA / tab regains focus. iOS can suspend WKWebView and
+    // sometimes resumes with a stale React state that thinks the user is logged out
+    // when the underlying session is actually still valid.
+    const onVisible=async()=>{
+      if(document.visibilityState!=='visible')return;
+      try{
+        const {data:{session}}=await supabase.auth.getSession();
+        if(session?.user){
+          if(!profileRef.current){
+            logAuth('visibility recovery — re-loading profile for',session.user.email);
+            await loadProfile(session.user.id);
+          }
+        }else{
+          logAuth('visibility check — no session');
+        }
+      }catch(e){console.error('[ll-auth] visibility check error:',e);}
+    };
+    document.addEventListener('visibilitychange',onVisible);
+    window.addEventListener('focus',onVisible);
+    return()=>{if(sub)sub.unsubscribe();clearTimeout(t);document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('focus',onVisible);};
   },[]);
+  // Keep a ref to current profile so the visibility handler can read it without
+  // re-subscribing every time profile changes.
+  const profileRef=React.useRef(null);
+  useEffect(()=>{profileRef.current=profile;},[profile]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
   // Track the actual visible viewport so the bottom nav stays glued to the screen edge
   // even on iOS where 100dvh / 100vh report stale values during initial paint or while
