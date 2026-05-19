@@ -866,6 +866,25 @@ export default function App(){
     loadAllProfiles();
     if(profile?.id===p.id)loadProfile(p.id);
   }
+  async function deleteAffiliate(profileId){
+    const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
+    try{
+      // Detach anyone whose referred_by points at this profile so they aren't orphaned.
+      await supabase.from('profiles').update({referred_by:null}).eq('referred_by',profileId);
+      // Wipe per-affiliate rows from every related table. live_sessions cascades via FK;
+      // the rest are explicit so the delete works regardless of FK ON DELETE behaviour.
+      await supabase.from('xp_events').delete().eq('profile_id',profileId);
+      await supabase.from('affiliate_product_stats').delete().eq('profile_id',profileId);
+      await supabase.from('xp_exclusions').delete().eq('profile_id',profileId);
+      await supabase.from('payouts').delete().eq('profile_id',profileId);
+      await supabase.from('live_sessions').delete().eq('profile_id',profileId);
+      const{error}=await supabase.from('profiles').delete().eq('id',profileId);
+      if(error){toast('Delete failed: '+error.message,'wn');return;}
+      toast(`🗑️ Deleted ${p.username}`,'ok');
+      setDeleteConfirm(null);
+      loadAllProfiles();loadLeaderboard();
+    }catch(e){toast('Delete failed: '+(e.message||''),'wn');}
+  }
   async function saveReward(r){
     const updates={name:r.name,description:r.description,xp_required:Number(r.xp_required),image_url:r.image_url};
     const {error}=await supabase.from('rewards').update(updates).eq('id',r.id);
@@ -1923,6 +1942,10 @@ body,html{margin:0;padding:0;background:#070710;}
                     <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
                     <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
                     <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)'}} onClick={()=>openEditAffiliate(p)}>✏️ Edit</button>
+                    {deleteConfirm===`profile-${p.id}`?(<>
+                      <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700}} onClick={()=>deleteAffiliate(p.id)}>✓ Delete forever</button>
+                      <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)'}} onClick={()=>setDeleteConfirm(null)}>Cancel</button>
+                    </>):(<button className="xbtn" style={{background:'rgba(244,63,94,.08)',borderColor:'rgba(244,63,94,.2)',color:'var(--re)'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
                   </div>
                 </div>);
               })}
