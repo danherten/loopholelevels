@@ -439,6 +439,8 @@ export default function App(){
   const [customEnd,setCustomEnd]=useState('');
   const [selectedMonth,setSelectedMonth]=useState(()=>{const n=new Date();const y=n.getFullYear();const m=String(n.getMonth()+1).padStart(2,'0');return y+'-'+m;});
   const [isDesktop,setIsDesktop]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
+  const [debugMode,setDebugMode]=useState(()=>typeof window!=='undefined'&&(new URLSearchParams(window.location.search).get('debug')==='1'||localStorage.getItem('ll-debug')==='1'));
+  const [debugInfo,setDebugInfo]=useState({});
   const [products,setProducts]=useState([]);
   const [showPE,setShowPE]=useState(false);
   const [productMappings,setProductMappings]=useState({});
@@ -486,6 +488,33 @@ export default function App(){
     return()=>{if(sub)sub.unsubscribe();clearTimeout(t);};
   },[]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
+  useEffect(()=>{
+    if(!debugMode)return;
+    const tick=()=>{
+      const bnav=document.querySelector('.bnav');
+      const rect=bnav?bnav.getBoundingClientRect():null;
+      const cs=getComputedStyle(document.documentElement);
+      setDebugInfo({
+        innerH:window.innerHeight,
+        innerW:window.innerWidth,
+        vvH:window.visualViewport?Math.round(window.visualViewport.height):null,
+        vvW:window.visualViewport?Math.round(window.visualViewport.width):null,
+        vvOffsetTop:window.visualViewport?Math.round(window.visualViewport.offsetTop):null,
+        docClientH:document.documentElement.clientHeight,
+        bodyClientH:document.body?document.body.clientHeight:null,
+        vhReal:cs.getPropertyValue('--vh-real').trim()||'(unset)',
+        sb:cs.getPropertyValue('--sb').trim()||'(unset)',
+        navTop:rect?Math.round(rect.top):null,
+        navBottom:rect?Math.round(rect.bottom):null,
+        navHeight:rect?Math.round(rect.height):null,
+        standalone:window.matchMedia('(display-mode: standalone)').matches,
+        ua:(navigator.userAgent||'').slice(0,60)
+      });
+    };
+    tick();
+    const id=setInterval(tick,400);
+    return()=>clearInterval(id);
+  },[debugMode]);
   // Track the actual visible viewport so the bottom nav stays glued to the screen edge
   // even on iOS where 100dvh / 100vh report stale values during initial paint or while
   // the URL bar / soft keyboard / standalone-PWA chrome animates.
@@ -2252,6 +2281,12 @@ body,html{margin:0;padding:0;background:#070710;}
   {/* BOTTOM NAV - mobile only. Placed OUTSIDE .app so it has no overflow:hidden
       ancestor — iOS WebKit can pin position:fixed children inside overflow:hidden
       to a stale viewport-bottom value during initial paint. */}
+  {debugMode&&(
+    <div style={{position:'fixed',top:0,left:0,right:0,zIndex:9999,background:'rgba(244,63,94,.95)',color:'#fff',padding:'6px 10px',fontFamily:'monospace',fontSize:9,lineHeight:1.4,pointerEvents:'none',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+      <span style={{pointerEvents:'auto',cursor:'pointer',background:'#000',padding:'1px 5px',borderRadius:3,marginRight:6}} onClick={()=>{localStorage.removeItem('ll-debug');setDebugMode(false);}}>X</span>
+      iw:{debugInfo.innerH}×{debugInfo.innerW} vv:{debugInfo.vvH}×{debugInfo.vvW}@y{debugInfo.vvOffsetTop} docH:{debugInfo.docClientH} bodyH:{debugInfo.bodyClientH} | --vh-real:{debugInfo.vhReal} --sb:{debugInfo.sb} | nav.top:{debugInfo.navTop} nav.bottom:{debugInfo.navBottom} nav.h:{debugInfo.navHeight} | standalone:{String(debugInfo.standalone)} | gap below nav:{debugInfo.navBottom!=null?(debugInfo.innerH-debugInfo.navBottom):'?'}px
+    </div>
+  )}
   {!isDesktop&&<div className="bnav">
     {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['profile','👤','Profile',['profile','products','referrals']]].map(([pg,icon,label,activeOn])=>{
       const on=(activeOn||[pg]).includes(page);
