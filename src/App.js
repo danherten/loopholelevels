@@ -2034,16 +2034,7 @@ body,html{margin:0;padding:0;background:#070710;}
       </div>
     </div>
 
-    {/* BOTTOM NAV - mobile only */}
-    {!isDesktop&&<div className="bnav">
-      {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['profile','👤','Profile',['profile','products','referrals']]].map(([pg,icon,label,activeOn])=>{
-        const on=(activeOn||[pg]).includes(page);
-        return(<button key={pg} className={`ni${on?' on':''}`} onClick={()=>navTo(pg)}>
-          <div className="nicon">{icon}</div><div className="nlbl">{label}</div>
-        </button>);
-      })}
-      {adminUnlocked&&(<button className={`ni${page==='admin'?' on':''}`} onClick={()=>navTo('admin')}><div className="nicon">👑</div><div className="nlbl">Admin</div></button>)}
-    </div>}
+    {/* Bottom nav moved out of .app below — see end of return */}
 
     {/* DAILY STREAK FULL PAGE */}
     {showDaily&&(()=>{
@@ -2257,5 +2248,18 @@ body,html{margin:0;padding:0;background:#070710;}
     })()}
 
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
-  </div></>);
+  </div>
+  {/* BOTTOM NAV - mobile only. Placed OUTSIDE .app so it has no overflow:hidden
+      ancestor — iOS WebKit can pin position:fixed children inside overflow:hidden
+      to a stale viewport-bottom value during initial paint. */}
+  {!isDesktop&&<div className="bnav">
+    {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['profile','👤','Profile',['profile','products','referrals']]].map(([pg,icon,label,activeOn])=>{
+      const on=(activeOn||[pg]).includes(page);
+      return(<button key={pg} className={`ni${on?' on':''}`} onClick={()=>navTo(pg)}>
+        <div className="nicon">{icon}</div><div className="nlbl">{label}</div>
+      </button>);
+    })}
+    {adminUnlocked&&(<button className={`ni${page==='admin'?' on':''}`} onClick={()=>navTo('admin')}><div className="nicon">👑</div><div className="nlbl">Admin</div></button>)}
+  </div>}
+  </>);
 }
