@@ -460,6 +460,8 @@ export default function App(){
   const [newExclusionEnd,setNewExclusionEnd]=useState('');
   const [editingProfile,setEditingProfile]=useState(null);
   const [editForm,setEditForm]=useState({});
+  const [showDiscordCta,setShowDiscordCta]=useState(false);
+  const [discordCountdown,setDiscordCountdown]=useState(5);
 
 
   useEffect(()=>{
@@ -503,6 +505,20 @@ export default function App(){
       window.removeEventListener('orientationchange',update);
     };
   },[]);
+  // Show the Discord CTA once per profile on this device. The localStorage key is
+  // scoped to the profile id so different accounts on the same device each see it once.
+  useEffect(()=>{
+    if(!profile?.id)return;
+    const key=`ll-discord-cta-${profile.id}`;
+    if(localStorage.getItem(key)==='1')return;
+    setDiscordCountdown(5);
+    setShowDiscordCta(true);
+  },[profile?.id]);
+  useEffect(()=>{
+    if(!showDiscordCta||discordCountdown<=0)return;
+    const t=setTimeout(()=>setDiscordCountdown(n=>n-1),1000);
+    return()=>clearTimeout(t);
+  },[showDiscordCta,discordCountdown]);
 
   async function loadProfile(id){const {data}=await supabase.from('profiles').select('*').eq('id',id).single();if(data){setProfile(data);await loadXpEvents(id);}}
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
@@ -2171,6 +2187,26 @@ body,html{margin:0;padding:0;background:#070710;}
         <button onClick={()=>setLevelUpAnim(null)} style={{marginTop:20,padding:'9px 26px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:17,letterSpacing:2,cursor:'pointer'}}>KEEP GOING</button>
       </div>
     </div>)}
+
+    {showDiscordCta&&(()=>{
+      const canClose=discordCountdown<=0;
+      const dismiss=()=>{if(profile?.id)localStorage.setItem(`ll-discord-cta-${profile.id}`,'1');setShowDiscordCta(false);};
+      return(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:600,display:'flex',alignItems:'center',justifyContent:'center',padding:'18px',backdropFilter:'blur(4px)',animation:'fi .25s ease'}}>
+          <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#5865F2 0%,#7c3aed 55%,#8b5cf6 100%)',borderRadius:22,padding:'30px 22px 22px',color:'#fff',boxShadow:'0 0 60px rgba(88,101,242,.45),0 20px 50px rgba(0,0,0,.55)',textAlign:'center'}}>
+            <button onClick={canClose?dismiss:undefined} disabled={!canClose} aria-label={canClose?'Close':`Wait ${discordCountdown}s`} style={{position:'absolute',top:12,right:12,width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.18)',border:'none',color:'#fff',fontSize:canClose?15:13,cursor:canClose?'pointer':'not-allowed',opacity:canClose?1:.55,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontFamily:'var(--fb)',transition:'opacity .2s'}}>{canClose?'✕':discordCountdown}</button>
+            <div style={{fontSize:36,marginBottom:6,filter:'drop-shadow(0 2px 6px rgba(0,0,0,.3))'}}>⚠️</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:26,letterSpacing:1.8,lineHeight:1.05,marginBottom:8}}>JOIN THE LOOPHOLE DISCORD</div>
+            <div style={{fontSize:10,textTransform:'uppercase',letterSpacing:2.4,fontWeight:800,opacity:.9,marginBottom:14,color:'#fff'}}>Required to use this app</div>
+            <div style={{fontSize:13,lineHeight:1.55,opacity:.94,marginBottom:22}}>
+              Loophole Levels works <strong>alongside</strong> our Discord. Without joining, you'll miss reward drops, payouts, training, and product announcements.<br/><br/>This app is built on top of the Discord community — <strong>it is not optional</strong>.
+            </div>
+            <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" onClick={dismiss} style={{display:'block',width:'100%',padding:'14px',background:'#fff',color:'#5865F2',borderRadius:12,fontFamily:'var(--fh)',fontSize:19,letterSpacing:2,textDecoration:'none',fontWeight:600,boxShadow:'0 6px 18px rgba(0,0,0,.18)'}}>💬 JOIN DISCORD</a>
+            <div style={{fontSize:10,opacity:.55,marginTop:11,letterSpacing:.5}}>discord.gg/eR4eJAhcVG</div>
+          </div>
+        </div>
+      );
+    })()}
 
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
   </div></>);
