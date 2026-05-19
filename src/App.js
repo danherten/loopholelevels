@@ -402,6 +402,7 @@ export default function App(){
   const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('ll-admin')==='true');
   const [levelUpAnim,setLevelUpAnim]=useState(null);
   const [showDaily,setShowDaily]=useState(false);
+  const [grossOpen,setGrossOpen]=useState(false);
   const [showReward,setShowReward]=useState(null);
   const [showAdminGate,setShowAdminGate]=useState(false);
   const [authTab,setAuthTab]=useState('login');
@@ -1092,11 +1093,33 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{borderRadius:16,overflow:'hidden',marginBottom:10}}>
           <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4,#8b5cf6)'}}/>
           <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
-            <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Net GMV</div>
-            <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:20}}>
-              <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
-              {isFiltered&&renderDelta(filteredGMV,prevGMV,fmtGBP)}
-            </div>
+            <button onClick={()=>setGrossOpen(!grossOpen)} style={{display:'block',background:'none',border:'none',padding:0,width:'100%',textAlign:'left',cursor:'pointer',color:'inherit',font:'inherit'}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500,display:'flex',alignItems:'center',gap:6}}>
+                <span>Net GMV</span>
+                <span style={{fontSize:9,opacity:.55,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
+              </div>
+              <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:grossOpen?12:20}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
+                {isFiltered&&renderDelta(filteredGMV,prevGMV,fmtGBP)}
+              </div>
+            </button>
+            {grossOpen&&(()=>{
+              const grossGMV=isFiltered?filteredGMVGross:(profile.total_gmv||0);
+              const retGMV=isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0);
+              const retUnits=isFiltered?filteredCancelled:(profile.total_cancelled||0);
+              return(
+                <div style={{background:'var(--bg2)',border:'1px solid var(--bo)',borderRadius:10,padding:'4px 12px',marginBottom:18,fontSize:12}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0'}}>
+                    <span style={{color:'var(--tx2)'}}>Gross GMV</span>
+                    <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5}}>{fmtGBP(grossGMV)}</span>{isFiltered&&renderDelta(filteredGMVGross,prevGMVGross,fmtGBP)}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderTop:'1px solid var(--bo)'}}>
+                    <span style={{color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {retUnits} unit{retUnits===1?'':'s'}</span></span>
+                    <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,color:'var(--re)'}}>−{fmtGBP(retGMV)}</span>{isFiltered&&renderDelta(filteredCancelledGMV,prevCancelledGMV,fmtGBP,true)}</span>
+                  </div>
+                </div>
+              );
+            })()}
             <div style={{display:'flex',gap:0}}>
               {[
                 {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
@@ -1143,8 +1166,6 @@ body,html{margin:0;padding:0;background:#070710;}
           {[
             {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
             {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
-            {label:'Returns',val:`${isFiltered?filteredCancelled:(profile.total_cancelled||0)} units`,icon:'↩️',accent:'#f43f5e',chip:isFiltered?renderDelta(filteredCancelled,prevCancelled,v=>`${Math.round(v).toLocaleString()} u`,true):null},
-            {label:'Returns GMV',val:fmtGBP(isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0)),icon:'💸',accent:'#f43f5e',chip:isFiltered?renderDelta(filteredCancelledGMV,prevCancelledGMV,fmtGBP,true):null},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
               <div style={{width:3,background:s.accent,flexShrink:0}}/>
