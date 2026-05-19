@@ -575,7 +575,7 @@ export default function App(){
     if(!evts||!evts.length)return;
     const byProfile={};
     evts.forEach(e=>{
-      if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0,cancelled:0,cancelled_gmv:0,orders:0,sales:0,live_streams:0};
+      if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,comm:0,cancelled:0,cancelled_gmv:0,orders:0,sales:0,live_streams:0,netGMVForReferral:0};
       byProfile[e.profile_id].xp+=(e.amount||0);
       byProfile[e.profile_id].gmv+=(e.gmv||0);
       byProfile[e.profile_id].comm+=(e.commission||0);
@@ -584,8 +584,19 @@ export default function App(){
       byProfile[e.profile_id].orders+=(e.orders||0);
       byProfile[e.profile_id].sales+=(e.sales||0);
       byProfile[e.profile_id].live_streams+=(e.live_streams||0);
+      byProfile[e.profile_id].netGMVForReferral+=Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0));
     });
-    // Subtract values from each profile
+    // Look up referred_by for each affected profile so we can reverse referral_earnings.
+    const affectedProfileIds=Object.keys(byProfile);
+    const {data:refMap}=await supabase.from('profiles').select('id,referred_by').in('id',affectedProfileIds);
+    const referralRefunds={};
+    (refMap||[]).forEach(r=>{
+      if(!r.referred_by)return;
+      const refund=parseFloat((byProfile[r.id].netGMVForReferral*0.01).toFixed(2));
+      if(refund>0)referralRefunds[r.referred_by]=(referralRefunds[r.referred_by]||0)+refund;
+    });
+    // Subtract values from each affected profile. Streak is reset since the deleted day
+    // breaks continuity — next import rebuilds it cleanly.
     for(const [pid,vals] of Object.entries(byProfile)){
       const {data:p}=await supabase.from('profiles').select('*').eq('id',pid).single();
       if(p){
@@ -601,8 +612,15 @@ export default function App(){
         await supabase.from('profiles').update({
           xp:newXP,total_gmv:newGMV,total_commission:newComm,total_orders:newOrders,
           total_sales:newSales,total_cancelled:newCancelled,total_cancelled_gmv:newCancelledGMV,
-          total_live_streams:newLS,total_aov:newAOV
+          total_live_streams:newLS,total_aov:newAOV,streak:0,last_claim:null
         }).eq('id',pid);
+      }
+    }
+    // Reverse referral earnings on the referrers of affected affiliates.
+    for(const [referrerId,amount] of Object.entries(referralRefunds)){
+      const {data:refP}=await supabase.from('profiles').select('referral_earnings').eq('id',referrerId).maybeSingle();
+      if(refP){
+        await supabase.from('profiles').update({referral_earnings:Math.max(0,(refP.referral_earnings||0)-amount)}).eq('id',referrerId);
       }
     }
     // Delete the xp_events
@@ -657,8 +675,20 @@ export default function App(){
     setAuthErr('');setAuthLoading(true);
     const email=loginUser.trim().toLowerCase();
     if(!email.includes('@')){setAuthErr('Use your email address.');setAuthLoading(false);return;}
-    const {error}=await supabase.auth.signInWithPassword({email,password:loginPass});
+    const {data:signInData,error}=await supabase.auth.signInWithPassword({email,password:loginPass});
     if(error){setAuthErr('Wrong email or password.');setAuthLoading(false);return;}
+    // Recover orphaned auth users: if signup got partway and the profiles row was never
+    // created, build a minimal one so the user isn't permanently locked out.
+    if(signInData?.user){
+      const {data:existing}=await supabase.from('profiles').select('id').eq('id',signInData.user.id).maybeSingle();
+      if(!existing){
+        const baseUsername=(email.split('@')[0]||'user').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,20)||'user';
+        const refCode=Math.random().toString(36).slice(2,10).toUpperCase();
+        let {error:pErr}=await supabase.from('profiles').insert({id:signInData.user.id,username:baseUsername,tiktok_handles:[],referral_code:refCode,xp:0});
+        if(pErr){await supabase.from('profiles').insert({id:signInData.user.id,username:baseUsername+Math.random().toString(36).slice(2,6),tiktok_handles:[],referral_code:refCode,xp:0});}
+        toast('Welcome! Add your TikTok @handles in Profile to start earning.','info');
+      }
+    }
     setAuthLoading(false);
   }
   async function doLogout(){await supabase.auth.signOut();setAdminUnlocked(false);localStorage.removeItem('ll-admin');setPage('home');}
@@ -753,12 +783,13 @@ export default function App(){
         });
         const xpToRemove=returnExcluded?0:Math.floor(rawCanG/10)*XP_PER_10_GMV;
         const newXP=Math.max(0,(p.xp||0)-xpToRemove);
-        await supabase.from('profiles').update({
-          xp:newXP,
-          total_cancelled:(p.total_cancelled||0)+rawCan,
-          total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG
-        }).eq('id',p.id);
+        const newTotalCancelled=(p.total_cancelled||0)+rawCan;
+        const newTotalCancelledGMV=(p.total_cancelled_gmv||0)+rawCanG;
+        // xp_events FIRST as canonical source of truth.
         await supabase.from('xp_events').insert({profile_id:p.id,amount:xpToRemove>0?-xpToRemove:0,reason:'import',note:`Return: ${rawCan} item${rawCan!==1?'s':''}  (${fmtGBP(rawCanG)})${xpToRemove>0?' → -'+xpToRemove+' XP':''}${returnExcluded?' (XP excluded)':''}`,gmv:0,commission:0,aov:0,orders:0,sales:0,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:returnProdName,created_at:new Date(importDate+'T12:00:00').toISOString()});
+        await supabase.from('profiles').update({xp:newXP,total_cancelled:newTotalCancelled,total_cancelled_gmv:newTotalCancelledGMV}).eq('id',p.id);
+        // Mutate local p so subsequent rows for the same profile see fresh values.
+        p.xp=newXP;p.total_cancelled=newTotalCancelled;p.total_cancelled_gmv=newTotalCancelledGMV;
         logs.push(`↩️ ${p.username}: return — ${rawCan} item${rawCan!==1?'s':''} (${fmtGBP(rawCanG)})${xpToRemove>0?' → -'+xpToRemove+' XP':''}${returnExcluded?' (XP excluded)':''}`);
         matched++;continue;
       }
@@ -787,46 +818,67 @@ export default function App(){
       if(isExcluded){
         // Still record the sale data but zero out XP
         const profileUpdateNoXP={total_sales:(p.total_sales||0)+sales,total_gmv:(p.total_gmv||0)+rawG,total_orders:(p.total_orders||0)+(rawO||sales),total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
-        await supabase.from('profiles').update(profileUpdateNoXP).eq('id',p.id);
-        await supabase.from('profiles').update({total_aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id);
-        const xpInsertNoXP={profile_id:p.id,amount:0,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV — XP excluded (${prodName})`,gmv:rawG,commission:rawC,aov:rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0),orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName,created_at:new Date(importDate+'T12:00:00').toISOString()};
+        const exclTotalAOV=rawAOV||(rawO>0?parseFloat((rawG/rawO).toFixed(2)):0);
+        const exclTotalCancelled=(p.total_cancelled||0)+rawCan;
+        const exclTotalCancelledGMV=(p.total_cancelled_gmv||0)+rawCanG;
+        const xpInsertNoXP={profile_id:p.id,amount:0,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV — XP excluded (${prodName})`,gmv:rawG,commission:rawC,aov:exclTotalAOV,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName,created_at:new Date(importDate+'T12:00:00').toISOString()};
+        // xp_events FIRST as canonical source of truth.
         await supabase.from('xp_events').insert(xpInsertNoXP);
+        await supabase.from('profiles').update(profileUpdateNoXP).eq('id',p.id);
+        await supabase.from('profiles').update({total_aov:exclTotalAOV,total_cancelled:exclTotalCancelled,total_cancelled_gmv:exclTotalCancelledGMV}).eq('id',p.id);
+        // Mutate local p so subsequent rows for the same profile see fresh values.
+        Object.assign(p,profileUpdateNoXP,{total_aov:exclTotalAOV,total_cancelled:exclTotalCancelled,total_cancelled_gmv:exclTotalCancelledGMV});
         if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
         logs.push(`⊘ ${p.username}: ${prodName} — XP excluded | GMV: ${fmtGBP(rawG)}`);
         matched++;continue;
       }
       const prevLv=getLv(p.xp,LEVELS).level;const xpGain=Math.floor(netGMVForXP/10)*XP_PER_10_GMV;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
       const newOrders=(p.total_orders||0)+(rawO||sales);const newGMV=(p.total_gmv||0)+rawG;const aov=rawAOV||( rawO>0?parseFloat((rawG/rawO).toFixed(2)):0);const newAOV=rawAOV||( newOrders>0?parseFloat((newGMV/newOrders).toFixed(2)):0);
-      // Streak calculation (must be before profileUpdate)
+      // Streak — only update when this import is NOT backdated (importDate >= last_claim).
       const lastClaim=p.last_claim;
       const prevDate=lastClaim?new Date(lastClaim):null;
       const importDateObj=new Date(importDate);
       const diffDays=prevDate?Math.round((importDateObj-prevDate)/(1000*60*60*24)):null;
+      const isBackdated=diffDays!==null&&diffDays<0;
       let newStreak=p.streak||0;
       let streakXP=0;
-      if(diffDays===null||diffDays<0){newStreak=1;}
-      else if(diffDays===1){newStreak=(p.streak||0)+1;}
-      else if(diffDays===0){newStreak=p.streak||1;}
-      else{newStreak=1;}
-      const hitMilestone=milestones.find(m=>m.days===newStreak);
-      if(hitMilestone&&diffDays!==0){streakXP=hitMilestone.xp_bonus;}
+      if(!isBackdated){
+        if(diffDays===null){newStreak=1;}
+        else if(diffDays===1){newStreak=(p.streak||0)+1;}
+        else if(diffDays===0){newStreak=p.streak||1;}
+        else{newStreak=1;}
+        const hitMilestone=milestones.find(m=>m.days===newStreak);
+        if(hitMilestone&&diffDays!==0){streakXP=hitMilestone.xp_bonus;}
+      }
       const finalXP=newXP+streakXP;
-      const profileUpdate={xp:finalXP,total_sales:(p.total_sales||0)+sales,total_gmv:newGMV,total_orders:newOrders,total_commission:(p.total_commission||0)+rawC,streak:newStreak,last_claim:importDate,total_live_streams:(p.total_live_streams||0)+rawLS};
-      const {error:puErr}=await supabase.from('profiles').update(profileUpdate).eq('id',p.id);
-      if(!puErr){await supabase.from('profiles').update({total_aov:newAOV,total_cancelled:(p.total_cancelled||0)+rawCan,total_cancelled_gmv:(p.total_cancelled_gmv||0)+rawCanG}).eq('id',p.id).then(()=>{});}
       const xpGainTotal=xpGain+streakXP;
-      const streakNote=streakXP>0?` | Day ${newStreak} streak +${streakXP} XP`:(diffDays!==0&&diffDays!==null&&diffDays>1?` | Streak reset (${diffDays}d gap)`:` | Day ${newStreak} streak`);
+      const streakNote=isBackdated?` | Backdated — streak unchanged`:(streakXP>0?` | Day ${newStreak} streak +${streakXP} XP`:(diffDays!==0&&diffDays!==null&&diffDays>1?` | Streak reset (${diffDays}d gap)`:` | Day ${newStreak} streak`));
       const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
+      // xp_events FIRST so it is the canonical source of truth — if the profile update
+      // then fails, totals can be re-derived from events.
       await supabase.from('xp_events').insert(xpInsert);
+      const profileUpdate={xp:finalXP,total_sales:(p.total_sales||0)+sales,total_gmv:newGMV,total_orders:newOrders,total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
+      if(!isBackdated){profileUpdate.streak=newStreak;profileUpdate.last_claim=importDate;}
+      const newTotalCancelled=(p.total_cancelled||0)+rawCan;
+      const newTotalCancelledGMV=(p.total_cancelled_gmv||0)+rawCanG;
+      const {error:puErr}=await supabase.from('profiles').update(profileUpdate).eq('id',p.id);
+      if(!puErr){await supabase.from('profiles').update({total_aov:newAOV,total_cancelled:newTotalCancelled,total_cancelled_gmv:newTotalCancelledGMV}).eq('id',p.id);}
+      // Mutate local p so subsequent rows for the same profile see fresh values.
+      Object.assign(p,profileUpdate,{total_aov:newAOV,total_cancelled:newTotalCancelled,total_cancelled_gmv:newTotalCancelledGMV});
       if(prodName){const {data:existing}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',p.id).eq('product_name',prodName).maybeSingle();if(existing){await supabase.from('affiliate_product_stats').update({gmv:(existing.gmv||0)+rawG,commission:(existing.commission||0)+rawC,sales:(existing.sales||0)+sales}).eq('id',existing.id);}else{await supabase.from('affiliate_product_stats').insert({profile_id:p.id,product_name:prodName,gmv:rawG,commission:rawC,sales});}}
-      // Credit referrer 1% of GMV minus cancellations
+      // Credit referrer 1% of net GMV — mutate refP in-place so subsequent rows for the
+      // same referrer (e.g. a referred creator with multiple products) accumulate correctly.
       const netGMV=Math.max(0,rawG-rawCanG);
       if(p.referred_by&&netGMV>0){
         const refBonus=parseFloat((netGMV*0.01).toFixed(2));
         const refP=(profiles||[]).find(x=>x.id===p.referred_by);
-        if(refP)await supabase.from('profiles').update({referral_earnings:(refP.referral_earnings||0)+refBonus}).eq('id',p.referred_by);
+        if(refP){
+          const newRefEarnings=(refP.referral_earnings||0)+refBonus;
+          await supabase.from('profiles').update({referral_earnings:newRefEarnings}).eq('id',p.referred_by);
+          refP.referral_earnings=newRefEarnings;
+        }
       }
-      logs.push(`✓ ${p.username}: ${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${rawG>0?` | GMV: ${fmtGBP(rawG)}`:''}${rawCanG>0?` | Returns: -${fmtGBP(rawCanG)}`:''}${newLv>prevLv?` 🎉 Level ${newLv}!`:''}`);
+      logs.push(`✓ ${p.username}: ${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${rawG>0?` | GMV: ${fmtGBP(rawG)}`:''}${rawCanG>0?` | Returns: -${fmtGBP(rawCanG)}`:''}${isBackdated?' (backdated)':''}${newLv>prevLv?` 🎉 Level ${newLv}!`:''}`);
       matched++;
     }
     logs.push('─────────────',`Done: ${matched} updated · ${unmatched} unmatched · ${skipped} skipped`);
@@ -1568,11 +1620,11 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
         <div className="asec">
           <div className="asect">Import TikTok Shop Data</div>
-          <div className={`dz${dragOver?' drag':''}`} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}}>
-            <input type="file" accept=".csv,.xlsx,.xls" onChange={e=>{if(e.target.files?.[0])handleFile(e.target.files[0]);}}/>
+          <div className={`dz${dragOver?' drag':''}`} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={async e=>{e.preventDefault();setDragOver(false);const fs=Array.from(e.dataTransfer.files);for(const f of fs){await handleFile(f);}if(fs.length>1)toast(`✅ Imported ${fs.length} files`,'ok');}}>
+            <input type="file" accept=".csv,.xlsx,.xls" multiple onChange={async e=>{const fs=Array.from(e.target.files||[]);for(const f of fs){await handleFile(f);}if(fs.length>1)toast(`✅ Imported ${fs.length} files`,'ok');e.target.value='';}}/>
             <div style={{fontSize:24,marginBottom:5}}>📂</div>
-            <div style={{fontSize:12,fontWeight:500,marginBottom:2}}>Drop file or tap to browse</div>
-            <div style={{fontSize:10,color:'var(--tx3)'}}>TikTok Shop Affiliate Center · .csv or .xlsx</div>
+            <div style={{fontSize:12,fontWeight:500,marginBottom:2}}>Drop files or tap to browse</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>TikTok Shop Affiliate Center · .csv or .xlsx · drop multiple at once</div>
           </div>
           {importLog.length>0&&<div className="ilog">{importLog.map((l,i)=><div key={i} className={l.startsWith('✓')?'logo':l.startsWith('⚠')?'logw':l.startsWith('ERROR')?'loge':''}>{l}</div>)}</div>}
         </div>
