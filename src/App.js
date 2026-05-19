@@ -183,7 +183,7 @@ const CSS=`
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}#root{min-height:100%;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
-.app{display:flex;flex-direction:column;height:var(--vh-real,100dvh);width:100%;position:relative;overflow:hidden;max-width:100%}
+.app{display:flex;flex-direction:column;height:100vh;height:100svh;height:100dvh;width:100%;position:relative;overflow:hidden;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
 .topbar.no-st{padding-top:9px}
@@ -486,23 +486,42 @@ export default function App(){
     return()=>{if(sub)sub.unsubscribe();clearTimeout(t);};
   },[]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
-  // Track the actual visible viewport so the bottom nav stays glued to the screen edge
-  // even on iOS where 100dvh / 100vh report stale values during initial paint or while
-  // the URL bar / soft keyboard / standalone-PWA chrome animates.
+  // Silent diagnostics for the bottom-nav-floats-too-high bug. Logs to console
+  // only — invisible to consumers. Open Safari Web Inspector via Mac → Develop
+  // → iPhone → App to read. Logs on mount, on focus/visibility change, and
+  // every 1.5s for the first ~6s to catch any layout settle that happens after
+  // first paint.
   useEffect(()=>{
-    const update=()=>{
-      const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||0;
-      if(h>0)document.documentElement.style.setProperty('--vh-real',h+'px');
+    const snapshot=(tag)=>{
+      try{
+        const nav=document.querySelector('.bnav');
+        const r=nav?nav.getBoundingClientRect():null;
+        const info={
+          tag,
+          innerH:window.innerHeight,
+          vvH:window.visualViewport?Math.round(window.visualViewport.height):null,
+          vvTop:window.visualViewport?Math.round(window.visualViewport.offsetTop):null,
+          docH:document.documentElement.clientHeight,
+          bodyH:document.body?document.body.clientHeight:null,
+          standalone:window.matchMedia('(display-mode: standalone)').matches,
+          navTop:r?Math.round(r.top):null,
+          navBottom:r?Math.round(r.bottom):null,
+          navHeight:r?Math.round(r.height):null,
+          gapBelow:r?(window.innerHeight-Math.round(r.bottom)):null,
+        };
+        console.log('[ll-bnav]',new Date().toISOString().slice(11,23),JSON.stringify(info));
+      }catch(e){}
     };
-    update();
-    const vv=window.visualViewport;
-    if(vv){vv.addEventListener('resize',update);vv.addEventListener('scroll',update);}
-    window.addEventListener('resize',update);
-    window.addEventListener('orientationchange',update);
+    snapshot('mount');
+    const timers=[300,800,1500,3000,5000].map(d=>setTimeout(()=>snapshot('t+'+d),d));
+    const onVis=()=>document.visibilityState==='visible'&&snapshot('visible');
+    const onFocus=()=>snapshot('focus');
+    document.addEventListener('visibilitychange',onVis);
+    window.addEventListener('focus',onFocus);
     return()=>{
-      if(vv){vv.removeEventListener('resize',update);vv.removeEventListener('scroll',update);}
-      window.removeEventListener('resize',update);
-      window.removeEventListener('orientationchange',update);
+      timers.forEach(clearTimeout);
+      document.removeEventListener('visibilitychange',onVis);
+      window.removeEventListener('focus',onFocus);
     };
   },[]);
   // Show the Discord CTA once per profile on this device. The localStorage key is
