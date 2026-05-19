@@ -517,14 +517,28 @@ export default function App(){
   const profileRef=React.useRef(null);
   useEffect(()=>{profileRef.current=profile;},[profile]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
-  // Keep body height in lockstep with window.innerHeight. iOS standalone PWAs
-  // can return dvh/svh/lvh values that disagree with the actually-visible
-  // viewport, which leaves the bottom nav (position:fixed bottom:0 relative
-  // to body) floating above the real screen edge. Sourcing the height from
-  // innerHeight directly is the only thing that's reliably correct here.
+  // Keep body height in lockstep with the actual visible viewport. On iOS
+  // standalone PWAs, window.innerHeight returns a stale Safari-toolbar-visible
+  // value even though the PWA has no toolbar, leaving a black gap below the
+  // bottom nav. In standalone mode we therefore also consider screen.height
+  // (orientation-aware) as a candidate and use the largest measurement.
   useEffect(()=>{
+    const computeH=()=>{
+      const isStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||(window.navigator&&window.navigator.standalone===true);
+      const cands=[
+        window.visualViewport&&window.visualViewport.height,
+        window.innerHeight,
+        document.documentElement&&document.documentElement.clientHeight,
+      ];
+      if(isStandalone&&window.screen){
+        const portrait=window.matchMedia&&window.matchMedia('(orientation: portrait)').matches;
+        const scH=portrait?Math.max(window.screen.height||0,window.screen.width||0):Math.min(window.screen.height||0,window.screen.width||0);
+        cands.push(scH);
+      }
+      return Math.max(0,...cands.filter(x=>typeof x==='number'&&x>0));
+    };
     const setBodyHeight=()=>{
-      const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||0;
+      const h=computeH();
       if(h>0)document.body.style.height=h+'px';
     };
     setBodyHeight();
