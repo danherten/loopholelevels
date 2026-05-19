@@ -1620,11 +1620,11 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>
         <div className="asec">
           <div className="asect">Import TikTok Shop Data</div>
-          <div className={`dz${dragOver?' drag':''}`} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}}>
-            <input type="file" accept=".csv,.xlsx,.xls" onChange={e=>{if(e.target.files?.[0])handleFile(e.target.files[0]);}}/>
+          <div className={`dz${dragOver?' drag':''}`} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={async e=>{e.preventDefault();setDragOver(false);const fs=Array.from(e.dataTransfer.files);for(const f of fs){await handleFile(f);}if(fs.length>1)toast(`✅ Imported ${fs.length} files`,'ok');}}>
+            <input type="file" accept=".csv,.xlsx,.xls" multiple onChange={async e=>{const fs=Array.from(e.target.files||[]);for(const f of fs){await handleFile(f);}if(fs.length>1)toast(`✅ Imported ${fs.length} files`,'ok');e.target.value='';}}/>
             <div style={{fontSize:24,marginBottom:5}}>📂</div>
-            <div style={{fontSize:12,fontWeight:500,marginBottom:2}}>Drop file or tap to browse</div>
-            <div style={{fontSize:10,color:'var(--tx3)'}}>TikTok Shop Affiliate Center · .csv or .xlsx</div>
+            <div style={{fontSize:12,fontWeight:500,marginBottom:2}}>Drop files or tap to browse</div>
+            <div style={{fontSize:10,color:'var(--tx3)'}}>TikTok Shop Affiliate Center · .csv or .xlsx · drop multiple at once</div>
           </div>
           {importLog.length>0&&<div className="ilog">{importLog.map((l,i)=><div key={i} className={l.startsWith('✓')?'logo':l.startsWith('⚠')?'logw':l.startsWith('ERROR')?'loge':''}>{l}</div>)}</div>}
         </div>
