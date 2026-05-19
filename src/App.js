@@ -1557,30 +1557,22 @@ body,html{margin:0;padding:0;background:#070710;}
       </div>)}
 
       {page==='referrals'&&(<div className="pg">
-        <div className="sh" style={{marginBottom:9}}>REFERRALS</div>
-        {/* Referral link card */}
-        <div className="ref-card" style={{marginBottom:11}}>
-          <div style={{fontSize:13,fontWeight:600,marginBottom:3}}>Your Referral Link</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:7}}>Share this — when they sign up and make sales, you earn 1% of their GMV forever.</div>
-          <div className="ref-code" onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}}>{profile.referral_code||'...'}</div>
-          <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{width:'100%',padding:'9px',background:'var(--pu)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1,cursor:'pointer'}}>COPY REFERRAL LINK</button>
-        </div>
+        <div className="sh" style={{marginBottom:11}}>REFERRALS</div>
 
         {/* DATE FILTER */}
         <div style={{display:'flex',gap:5,marginBottom:11,flexWrap:'wrap',alignItems:'center'}}>
           {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
-            <button key={val} onClick={()=>setRefDateRange(val)} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${refDateRange===val?'var(--pu)':'var(--bo)'}`,background:refDateRange===val?'rgba(139,92,246,.18)':'var(--card)',color:refDateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
+            <button key={val} onClick={()=>setRefDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:refDateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
           ))}
-          {refDateRange==='month'&&<input type='month' value={refSelectedMonth} onChange={e=>setRefSelectedMonth(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
-          <button onClick={()=>setRefDateRange('custom')} style={{padding:'5px 11px',borderRadius:99,border:`1px solid ${refDateRange==='custom'?'var(--pu)':'var(--bo)'}`,background:refDateRange==='custom'?'rgba(139,92,246,.18)':'var(--card)',color:refDateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
+          {refDateRange==='month'&&<input type='month' value={refSelectedMonth} onChange={e=>setRefSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
+          <button onClick={()=>setRefDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange==='custom'?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:refDateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
           {refDateRange==='custom'&&(<>
-            <input type="date" value={refCustomStart} onChange={e=>setRefCustomStart(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
+            <input type="date" value={refCustomStart} onChange={e=>setRefCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
             <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
-            <input type="date" value={refCustomEnd} onChange={e=>setRefCustomEnd(e.target.value)} style={{padding:'4px 7px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
+            <input type="date" value={refCustomEnd} onChange={e=>setRefCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
           </>)}
         </div>
 
-        {/* Stats grid - filtered */}
         {(()=>{
           let filteredRefEvts=referralEvents;
           if(refDateRange!=='all'){
@@ -1596,7 +1588,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const netRefGMV=Math.max(0,refGMV-refCancelledGMV);
           const refEarnings=parseFloat((netRefGMV*0.01).toFixed(2));
           const isRefFiltered=refDateRange!=='all';
-          // Group by referred user for the filtered period
+          const lifetimeNetGMV=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
           const byUser={};
           filteredRefEvts.forEach(e=>{
             if(!byUser[e.profile_id])byUser[e.profile_id]={gmv:0,cancelled_gmv:0};
@@ -1604,16 +1596,44 @@ body,html{margin:0;padding:0;background:#070710;}
             byUser[e.profile_id].cancelled_gmv+=(e.cancelled_gmv||0);
           });
           return(<>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:7,marginBottom:11}}>
-              <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
-                <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Your Earnings{isRefFiltered?' (filtered)':''}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--gr)'}}>{fmtGBP(isRefFiltered?refEarnings:(profile.referral_earnings||0))}</div>
-                <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>{referralStats.length} affiliate{referralStats.length!==1?'s':''} referred · 1% of net GMV</div>
+            {/* HERO EARNINGS CARD — matches the home Net GMV layout */}
+            <div style={{borderRadius:16,overflow:'hidden',marginBottom:10}}>
+              <div style={{height:3,background:'linear-gradient(90deg,#8b5cf6,#06b6d4,#10b981)'}}/>
+              <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Referral Earnings{isRefFiltered?'':' · All Time'}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1,marginBottom:20}}>{fmtGBP(isRefFiltered?refEarnings:(profile.referral_earnings||0))}</div>
+                <div style={{display:'flex',gap:0}}>
+                  {[
+                    {label:'Their Net GMV',val:fmtGBP(isRefFiltered?netRefGMV:lifetimeNetGMV),color:'#10b981',bg:'rgba(16,185,129,.08)'},
+                    {label:'Affiliates',val:referralStats.length.toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)'},
+                    {label:'Bonus XP',val:(referralStats.length*100).toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)'},
+                  ].map((s,i)=>(
+                    <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
+                      <div style={{fontSize:9,color:'var(--tx3)',marginTop:4,textTransform:'uppercase',letterSpacing:.8,fontWeight:500}}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'11px 12px'}}>
-                <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginBottom:4}}>Their Net GMV{isRefFiltered?' (filtered)':''}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--go)'}}>{fmtGBP(isRefFiltered?netRefGMV:Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0)))}</div>
-                <div style={{fontSize:10,color:'var(--tx3)',marginTop:3}}>combined net GMV generated</div>
+            </div>
+
+            {/* XP INCENTIVE BANNER */}
+            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11,background:'linear-gradient(135deg,rgba(139,92,246,.16) 0%,rgba(245,158,11,.1) 100%)',border:'1px solid rgba(139,92,246,.35)',padding:'13px 15px',display:'flex',alignItems:'center',gap:12}}>
+              <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 4px rgba(139,92,246,.4))'}}>⚡</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.3,marginBottom:2,color:'#fff'}}>+100 XP — BOTH SIDES</div>
+                <div style={{fontSize:11,color:'var(--tx2)',lineHeight:1.45}}>You get <strong style={{color:'var(--pu2)'}}>+100 XP</strong> for every creator who signs up with your code. They also get <strong style={{color:'var(--pu2)'}}>+100 XP</strong> to kickstart their journey.</div>
+              </div>
+            </div>
+
+            {/* REFERRAL CODE / LINK */}
+            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
+              <div style={{height:3,background:'linear-gradient(90deg,#f59e0b,#f97316,#ef4444)'}}/>
+              <div style={{background:'var(--card)',padding:'14px 16px'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Your Referral Code</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.45}}>Share this — they get +100 XP, you get +100 XP, then <strong style={{color:'var(--gr)'}}>1% of their net GMV forever</strong>.</div>
+                <div className="ref-code" onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{margin:0,marginBottom:9}}>{profile.referral_code||'...'}</div>
+                <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{width:'100%',padding:'11px',background:'linear-gradient(135deg,var(--pu) 0%,#7c3aed 100%)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:16,letterSpacing:1.5,cursor:'pointer'}}>📋 COPY REFERRAL LINK</button>
               </div>
             </div>
             {/* Referred affiliates list */}
@@ -1672,9 +1692,9 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* How it works */}
         <div className="asec">
           <div className="asect">How It Works</div>
-          <div className="howto-item"><span className="howto-icon">1️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>Share your link with another creator</div></div>
-          <div className="howto-item"><span className="howto-icon">2️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>They sign up using your referral code</div></div>
-          <div className="howto-item"><span className="howto-icon">3️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>You earn 1% of all their net GMV — forever</div></div>
+          <div className="howto-item"><span className="howto-icon">1️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>Share your code or link with another creator</div></div>
+          <div className="howto-item"><span className="howto-icon">2️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>They sign up using your code — <strong style={{color:'var(--pu2)'}}>both of you get +100 XP instantly</strong></div></div>
+          <div className="howto-item"><span className="howto-icon">3️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>You earn <strong style={{color:'var(--gr)'}}>1% of all their net GMV</strong> — forever</div></div>
         </div>
       </div>)}
 
