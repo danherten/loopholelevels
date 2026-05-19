@@ -182,7 +182,9 @@ const CSS=`
 :root{--bg:#070710;--bg2:#0e0e1c;--card:#12121f;--card2:#1a1a2e;--card3:#22223d;--bo:rgba(255,255,255,.07);--bo2:rgba(255,255,255,.13);--tx:#eeeef8;--tx2:rgba(238,238,248,.55);--tx3:rgba(238,238,248,.3);--pu:#8b5cf6;--pu2:#a78bfa;--pu3:#c4b5fd;--go:#f59e0b;--gr:#10b981;--re:#f43f5e;--cy:#06b6d4;--r:14px;--rsm:10px;--rxs:7px;--nav:52px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Bebas Neue',sans-serif;--fb:'Space Grotesk',sans-serif;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{height:100%}
-body{margin:0;height:100vh;height:100svh;height:100dvh;overflow:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:auto}
+/* body height is set in JS from window.innerHeight to bypass iOS dvh/svh/lvh
+   inconsistency in standalone PWAs. Fallback to 100% if JS hasn't run yet. */
+body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:auto}
 #root{height:100%;display:flex;flex-direction:column;background:#030308;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
 .app{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;position:relative;max-width:100%}
@@ -515,6 +517,27 @@ export default function App(){
   const profileRef=React.useRef(null);
   useEffect(()=>{profileRef.current=profile;},[profile]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
+  // Keep body height in lockstep with window.innerHeight. iOS standalone PWAs
+  // can return dvh/svh/lvh values that disagree with the actually-visible
+  // viewport, which leaves the bottom nav (position:fixed bottom:0 relative
+  // to body) floating above the real screen edge. Sourcing the height from
+  // innerHeight directly is the only thing that's reliably correct here.
+  useEffect(()=>{
+    const setBodyHeight=()=>{
+      const h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||0;
+      if(h>0)document.body.style.height=h+'px';
+    };
+    setBodyHeight();
+    window.addEventListener('resize',setBodyHeight);
+    window.addEventListener('orientationchange',setBodyHeight);
+    const vv=window.visualViewport;
+    if(vv){vv.addEventListener('resize',setBodyHeight);}
+    return()=>{
+      window.removeEventListener('resize',setBodyHeight);
+      window.removeEventListener('orientationchange',setBodyHeight);
+      if(vv)vv.removeEventListener('resize',setBodyHeight);
+    };
+  },[]);
   // Force iOS WKWebView to do a fresh layout pass after first paint. The user
   // reported that the bottom nav floats above the screen on initial load and
   // "scrolling fixes it" — which means iOS isn't running layout for our fixed
