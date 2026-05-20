@@ -470,24 +470,20 @@ export default function App(){
 
   useEffect(()=>{
     let sub=null;
-    const logAuth=(...a)=>{try{console.log('[ll-auth]',new Date().toISOString(),...a);}catch(e){}};
     const init=async()=>{
       try{
-        const {data:{session},error}=await supabase.auth.getSession();
-        if(error)logAuth('getSession error',error.message);
-        logAuth('init',session?.user?'restored '+session.user.email:'no session');
+        const {data:{session}}=await supabase.auth.getSession();
         if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();loadXpExclusions();loadLastUpdated();}
         else{loadRewards();loadProducts();loadProductMappings();loadLastUpdated();}
-      }catch(e){console.error('[ll-auth] init error:',e);}
+      }catch(e){console.error('init error:',e);}
       setLoading(false);
       try{
         const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
-          logAuth('event',event,session?.user?.email||'(no user)');
           if(event==='SIGNED_IN'&&session?.user){loadProfile(session.user.id).then(()=>{loadRewards();loadLeaderboard();loadMilestones();});}
           else if(event==='SIGNED_OUT'){setProfile(null);}
         });
         sub=subscription;
-      }catch(e){console.error('[ll-auth] sub error:',e);}
+      }catch(e){console.error('auth sub error:',e);}
     };
     init();
     const t=setTimeout(()=>setLoading(false),3000);
@@ -498,15 +494,10 @@ export default function App(){
       if(document.visibilityState!=='visible')return;
       try{
         const {data:{session}}=await supabase.auth.getSession();
-        if(session?.user){
-          if(!profileRef.current){
-            logAuth('visibility recovery — re-loading profile for',session.user.email);
-            await loadProfile(session.user.id);
-          }
-        }else{
-          logAuth('visibility check — no session');
+        if(session?.user&&!profileRef.current){
+          await loadProfile(session.user.id);
         }
-      }catch(e){console.error('[ll-auth] visibility check error:',e);}
+      }catch(e){}
     };
     document.addEventListener('visibilitychange',onVisible);
     window.addEventListener('focus',onVisible);
@@ -572,44 +563,6 @@ export default function App(){
     const t2=setTimeout(kick,300);
     const t3=setTimeout(kick,700);
     return()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);};
-  },[]);
-  // Silent diagnostics for the bottom-nav-floats-too-high bug. Logs to console
-  // only — invisible to consumers. Open Safari Web Inspector via Mac → Develop
-  // → iPhone → App to read. Logs on mount, on focus/visibility change, and
-  // every 1.5s for the first ~6s to catch any layout settle that happens after
-  // first paint.
-  useEffect(()=>{
-    const snapshot=(tag)=>{
-      try{
-        const nav=document.querySelector('.bnav');
-        const r=nav?nav.getBoundingClientRect():null;
-        const info={
-          tag,
-          innerH:window.innerHeight,
-          vvH:window.visualViewport?Math.round(window.visualViewport.height):null,
-          vvTop:window.visualViewport?Math.round(window.visualViewport.offsetTop):null,
-          docH:document.documentElement.clientHeight,
-          bodyH:document.body?document.body.clientHeight:null,
-          standalone:window.matchMedia('(display-mode: standalone)').matches,
-          navTop:r?Math.round(r.top):null,
-          navBottom:r?Math.round(r.bottom):null,
-          navHeight:r?Math.round(r.height):null,
-          gapBelow:r?(window.innerHeight-Math.round(r.bottom)):null,
-        };
-        console.log('[ll-bnav]',new Date().toISOString().slice(11,23),JSON.stringify(info));
-      }catch(e){}
-    };
-    snapshot('mount');
-    const timers=[300,800,1500,3000,5000].map(d=>setTimeout(()=>snapshot('t+'+d),d));
-    const onVis=()=>document.visibilityState==='visible'&&snapshot('visible');
-    const onFocus=()=>snapshot('focus');
-    document.addEventListener('visibilitychange',onVis);
-    window.addEventListener('focus',onFocus);
-    return()=>{
-      timers.forEach(clearTimeout);
-      document.removeEventListener('visibilitychange',onVis);
-      window.removeEventListener('focus',onFocus);
-    };
   },[]);
   // Show the Discord CTA once per profile on this device. The localStorage key is
   // scoped to the profile id so different accounts on the same device each see it once.
