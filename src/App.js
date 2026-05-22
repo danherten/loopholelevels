@@ -457,7 +457,8 @@ export default function App(){
   const [adminSearch,setAdminSearch]=useState('');
   const [adminLevelFilter,setAdminLevelFilter]=useState('');
   const [adminSort,setAdminSort]=useState('gmv');
-  const [showReferralTree,setShowReferralTree]=useState(false);
+  const [showReferralTree,setShowReferralTree]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
+  const [expandedAdminRow,setExpandedAdminRow]=useState(null);
   const [xpExclusions,setXpExclusions]=useState([]);
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
@@ -1248,7 +1249,7 @@ body,html{margin:0;padding:0;background:#070710;}
     </div>}
 
     <div className="pages" style={isDesktop?{flex:1,overflowY:'auto',paddingBottom:0,minWidth:0}:{}}>
-      <div style={isDesktop?{maxWidth:700,margin:'0 auto'}:{}}>
+      <div style={isDesktop?{maxWidth:page==='admin'?1140:700,margin:'0 auto'}:{}}>
       {/* HOME */}
       {page==='home'&&(<div className="pg">
         {/* DATE RANGE FILTER */}
@@ -1871,15 +1872,80 @@ body,html{margin:0;padding:0;background:#070710;}
 
       {/* ADMIN */}
       {page==='admin'&&adminUnlocked&&(<div className="pg">
-        <div className="admb"><span style={{fontSize:22}}>👑</span><div><div style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:'1.5px'}}>ADMIN PANEL</div><div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>Loophole Levels Control Centre</div></div></div>
-        <div className="admstats">
-          <div className="admstat"><div className="admsv">{allProfiles.length}</div><div className="admsl">Affiliates</div></div>
-          <div className="admstat"><div className="admsv">{allProfiles.reduce((s,p)=>s+(p.xp||0),0).toLocaleString()}</div><div className="admsl">XP Awarded</div></div>
-        </div>
-        <div className="admstats">
-          <div className="admstat"><div className="admsv" style={{fontSize:15,color:'var(--gr)'}}>{fmtGBP(allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0))}</div><div className="admsl">Total GMV</div></div>
-          <div className="admstat"><div className="admsv" style={{fontSize:15}}>{allProfiles.reduce((s,p)=>s+(p.total_orders||0),0)}</div><div className="admsl">Total Orders</div></div>
-        </div>
+        {(()=>{
+          const totalGross=allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0);
+          const totalCancGMV=allProfiles.reduce((s,p)=>s+(p.total_cancelled_gmv||0),0);
+          const totalNet=Math.max(0,totalGross-totalCancGMV);
+          const totalComm=allProfiles.reduce((s,p)=>s+(p.total_commission||0),0);
+          const totalOrders=allProfiles.reduce((s,p)=>s+(p.total_orders||0),0);
+          const totalUnits=allProfiles.reduce((s,p)=>s+(p.total_sales||0),0);
+          const totalCanc=allProfiles.reduce((s,p)=>s+(p.total_cancelled||0),0);
+          const totalXP=allProfiles.reduce((s,p)=>s+(p.xp||0),0);
+          const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
+          const avgLevel=allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0';
+          const stats=[
+            {label:'Affiliates',val:allProfiles.length.toLocaleString(),color:'var(--pu2)'},
+            {label:'Total Net GMV',val:fmtGBP(totalNet),color:'var(--gr)',big:true},
+            {label:'Commission',val:fmtGBP(totalComm),color:'var(--go)'},
+            {label:'Orders',val:totalOrders.toLocaleString(),color:'var(--cy)'},
+            {label:'Units Sold',val:totalUnits.toLocaleString(),color:'var(--cy)'},
+            {label:'Returns',val:`${totalCanc} · ${fmtGBP(totalCancGMV)}`,color:'var(--re)'},
+            {label:'XP Awarded',val:totalXP.toLocaleString(),color:'var(--pu2)'},
+            {label:'Referrals',val:totalReferred.toLocaleString(),color:'var(--gr)'},
+            {label:'Avg Level',val:avgLevel,color:'var(--tx)'},
+          ];
+          return(
+            <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.14) 0%,rgba(6,182,212,.06) 60%,rgba(245,158,11,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'22px 24px 20px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:isDesktop?20:14,position:'relative'}}>
+                <span style={{fontSize:isDesktop?32:24,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.3))'}}>👑</span>
+                <div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?24:18,letterSpacing:isDesktop?3:1.8,lineHeight:1}}>ADMIN OVERVIEW</div>
+                  <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>Loophole Levels · control centre</div>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(9, 1fr)':'repeat(3, 1fr)',gap:isDesktop?10:6,position:'relative'}}>
+                {stats.map((s,i)=>(
+                  <div key={i} style={{background:'rgba(7,7,16,.45)',border:'1px solid var(--bo)',borderRadius:10,padding:isDesktop?'12px 14px':'9px 10px'}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?(s.big?26:20):15,color:s.color,lineHeight:1,letterSpacing:.5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{s.val}</div>
+                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:isDesktop?7:4,fontWeight:600}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+        {/* TOP PERFORMERS + TOP REFERRERS — side-by-side on desktop */}
+        {allProfiles.length>0&&(()=>{
+          const byGMV=[...allProfiles].sort((a,b)=>(Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0)))-(Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0)))).slice(0,5);
+          const byRef=[...allProfiles].map(p=>({...p,_refs:(referralsByReferrer[p.id]||[]).length})).filter(p=>p._refs>0).sort((a,b)=>b._refs-a._refs).slice(0,5);
+          const PodRow=({p,i,right,rightLabel,rightColor})=>{const net=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));return(
+            <div style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:i<4?'1px solid var(--bo)':'none'}}>
+              <span style={{fontFamily:'var(--fh)',fontSize:16,width:22,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+              <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
+                <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,1).join('')||'—'} · {fmtGBP(net)} net GMV</div>
+              </div>
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:15,color:rightColor,lineHeight:1}}>{right}</div>
+                <div style={{fontSize:9,color:'var(--tx3)',marginTop:2,textTransform:'uppercase',letterSpacing:.5}}>{rightLabel}</div>
+              </div>
+            </div>
+          );};
+          return(
+            <div style={{display:'grid',gridTemplateColumns:isDesktop?'1fr 1fr':'1fr',gap:10,marginBottom:11}}>
+              <div className="asec" style={{marginBottom:0}}>
+                <div className="asect">🏆 Top by GMV</div>
+                {byGMV.length===0?(<div style={{fontSize:11,color:'var(--tx3)',padding:'10px 0'}}>No data yet.</div>):byGMV.map((p,i)=><PodRow key={p.id} p={p} i={i} right={fmtGBP(Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0)))} rightLabel="Net GMV" rightColor="var(--gr)"/>)}
+              </div>
+              <div className="asec" style={{marginBottom:0}}>
+                <div className="asect">👥 Top Referrers</div>
+                {byRef.length===0?(<div style={{fontSize:11,color:'var(--tx3)',padding:'10px 0'}}>No referrals yet.</div>):byRef.map((p,i)=><PodRow key={p.id} p={p} i={i} right={p._refs.toString()} rightLabel="Referred" rightColor="var(--pu2)"/>)}
+              </div>
+            </div>
+          );
+        })()}
         <div className="asec">
           <div className="asect">Import TikTok Shop Data</div>
           <div className={`dz${dragOver?' drag':''}`} onDragOver={e=>{e.preventDefault();setDragOver(true);}} onDragLeave={()=>setDragOver(false)} onDrop={async e=>{e.preventDefault();setDragOver(false);const fs=Array.from(e.dataTransfer.files);for(const f of fs){await handleFile(f);}if(fs.length>1)toast(`✅ Imported ${fs.length} files`,'ok');}}>
@@ -1891,30 +1957,8 @@ body,html{margin:0;padding:0;background:#070710;}
           {importLog.length>0&&<div className="ilog">{importLog.map((l,i)=><div key={i} className={l.startsWith('✓')?'logo':l.startsWith('⚠')?'logw':l.startsWith('ERROR')?'loge':''}>{l}</div>)}</div>}
         </div>
         <div className="asec">
-          <div className="asect">Affiliate Overview</div>
-          {/* TOTALS CARD */}
-          {allProfiles.length>0&&(<div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:12}}>
-            <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:10,fontWeight:500}}>All Affiliates — Totals</div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:6}}>
-              {[
-                {label:'Affiliates',val:allProfiles.length,color:'var(--pu2)'},
-                {label:'Total Net GMV',val:fmtGBP(Math.max(0,allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0)-allProfiles.reduce((s,p)=>s+(p.total_cancelled_gmv||0),0))),color:'var(--gr)'},
-                {label:'Total Commission',val:fmtGBP(allProfiles.reduce((s,p)=>s+(p.total_commission||0),0)),color:'var(--go)'},
-                {label:'Total Orders',val:allProfiles.reduce((s,p)=>s+(p.total_orders||0),0).toLocaleString(),color:'var(--tx)'},
-                {label:'Total Units',val:allProfiles.reduce((s,p)=>s+(p.total_sales||0),0).toLocaleString(),color:'var(--tx)'},
-                {label:'Total Returns',val:`${allProfiles.reduce((s,p)=>s+(p.total_cancelled||0),0)} (${fmtGBP(allProfiles.reduce((s,p)=>s+(p.total_cancelled_gmv||0),0))})`,color:'var(--re)'},
-                {label:'Total XP',val:allProfiles.reduce((s,p)=>s+(p.xp||0),0).toLocaleString(),color:'var(--pu2)'},
-                {label:'Avg GMV / Affiliate',val:fmtGBP(allProfiles.length>0?allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0)/allProfiles.length:0),color:'var(--cy)'},
-                {label:'Avg Level',val:(allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0'),color:'var(--cy)'},
-              ].map((s,i)=>(
-                <div key={i} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
-                  <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>)}
-          {/* REFERRAL TREE — collapsible */}
+          <div className="asect">Affiliates</div>
+          {/* REFERRAL TREE — collapsible (default open on desktop) */}
           {allProfiles.length>0&&(()=>{
             const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
             const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
@@ -1978,74 +2022,134 @@ body,html{margin:0;padding:0;background:#070710;}
               return 0;
             });
             const hasSearch=adminSearch.trim()||adminLevelFilter!=='';
+            const cols=isDesktop?'36px minmax(190px, 1fr) 56px 90px 100px 100px 70px 70px 60px 130px 200px':null;
+            const headers=[
+              {label:'#',align:'left'},
+              {label:'Affiliate',align:'left'},
+              {label:'Lv',align:'left'},
+              {label:'XP',align:'right'},
+              {label:'Net GMV',align:'right'},
+              {label:'Commission',align:'right'},
+              {label:'Orders',align:'right'},
+              {label:'Units',align:'right'},
+              {label:'Streak',align:'right'},
+              {label:'Referrals',align:'left'},
+              {label:'Actions',align:'right'},
+            ];
             return(<>
               <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{sorted.length} affiliate{sorted.length!==1?'s':''}{hasSearch?' found':''} · sorted by {adminSort==='gmv'?'Net GMV':adminSort==='xp'?'XP':adminSort==='referrals'?'referrals':'name'}</div>
-              {sorted.map(p=>{
-                const plv=getLv(p.xp,LEVELS);
-                const pnx=getNx(p.xp,LEVELS);
-                const ppct=xpPct(p.xp,LEVELS);
-                const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
-                const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
-                const referredBy=p.referred_by?profileById[p.referred_by]:null;
-                const referralCount=(referralsByReferrer[p.id]||[]).length;
-                return(<div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:10}}>
-                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
-                    <div style={{width:38,height:38,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:14,fontWeight:600}}>{p.username}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(p.tiktok_handles||[]).join(' · ')}</div>
-                    </div>
-                    <div style={{textAlign:'right'}}>
-                      <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--pu2)'}}>{(p.xp||0).toLocaleString()} XP</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>Level {plv.level}</div>
-                    </div>
+              {isDesktop?(
+                <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden'}}>
+                  {/* header row */}
+                  <div style={{display:'grid',gridTemplateColumns:cols,gap:8,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center'}}>
+                    {headers.map((h,i)=><span key={i} style={{textAlign:h.align}}>{h.label}</span>)}
                   </div>
-                  {(referredBy||referralCount>0)&&(
-                    <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:12}}>
-                      {referredBy&&(
-                        <span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.22)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--pu2)',fontWeight:600}}>↩ Referred by <strong style={{color:'#fff',fontWeight:700,marginLeft:3}}>{referredBy.username}</strong></span>
-                      )}
-                      {referralCount>0&&(
-                        <span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.25)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--gr)',fontWeight:700}}>👥 Referred {referralCount}</span>
-                      )}
-                    </div>
-                  )}
-                  <div style={{marginBottom:12}}>
-                    <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
-                      <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${ppct}%`,transition:'width .5s'}}/>
-                    </div>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--tx3)',marginTop:3}}>
-                      <span>Lvl {plv.level}</span>
-                      <span>{pnx?`${(pnx.min-(p.xp||0)).toLocaleString()} XP to Lvl ${pnx.level}`:'MAX'}</span>
-                    </div>
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
-                    {[
-                      {label:'Net GMV',val:fmtGBP(netGMV),color:'var(--gr)'},
-                      {label:'Commission',val:fmtGBP(netComm),color:'var(--go)'},
-                      {label:'Orders',val:(p.total_orders||0).toLocaleString(),color:'var(--tx)'},
-                      {label:'Units Sold',val:(p.total_sales||0).toLocaleString(),color:'var(--tx)'},
-                      {label:'Returns',val:`${p.total_cancelled||0} (${fmtGBP(p.total_cancelled_gmv||0)})`,color:'var(--re)'},
-                      {label:'Streak',val:`🔥 ${p.streak||0} days`,color:'var(--go)'},
-                    ].map((s,si)=>(
-                      <div key={si} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
-                        <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
-                        <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
+                  {/* data rows */}
+                  {sorted.map((p,i)=>{
+                    const plv=getLv(p.xp,LEVELS);
+                    const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+                    const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
+                    const referredBy=p.referred_by?profileById[p.referred_by]:null;
+                    const referralCount=(referralsByReferrer[p.id]||[]).length;
+                    return(<div key={p.id} style={{display:'grid',gridTemplateColumns:cols,gap:8,padding:'11px 14px',borderBottom:i<sorted.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12}}>
+                      <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                      <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
+                        <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
+                          <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,2).join(' · ')||'—'}</div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <div style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
-                    <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1,minWidth:60}}/>
-                    <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
-                    <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
-                    <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)'}} onClick={()=>openEditAffiliate(p)}>✏️ Edit</button>
-                    {deleteConfirm===`profile-${p.id}`?(<>
-                      <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700}} onClick={()=>deleteAffiliate(p.id)}>✓ Delete forever</button>
-                      <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)'}} onClick={()=>setDeleteConfirm(null)}>Cancel</button>
-                    </>):(<button className="xbtn" style={{background:'rgba(244,63,94,.08)',borderColor:'rgba(244,63,94,.2)',color:'var(--re)'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
-                  </div>
-                </div>);
-              })}
+                      <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)'}}>L{plv.level}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)'}}>{(p.xp||0).toLocaleString()}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBP(netGMV)}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBP(netComm)}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13}}>{(p.total_orders||0).toLocaleString()}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13}}>{(p.total_sales||0).toLocaleString()}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>🔥{p.streak||0}</span>
+                      <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}>
+                        {referralCount>0&&<span style={{fontSize:10,color:'var(--gr)',fontWeight:600,whiteSpace:'nowrap'}}>👥 Referred {referralCount}</span>}
+                        {referredBy&&<span style={{fontSize:10,color:'var(--pu2)',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>↩ {referredBy.username}</span>}
+                        {!referralCount&&!referredBy&&<span style={{fontSize:10,color:'var(--tx3)'}}>—</span>}
+                      </div>
+                      <div style={{display:'flex',gap:4,justifyContent:'flex-end',alignItems:'center',flexWrap:'wrap'}}>
+                        <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{width:40,padding:'3px 4px'}}/>
+                        <button className="xbtn" style={{padding:'4px 6px'}} onClick={()=>admAwardXP(p.id)}>+</button>
+                        <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)',padding:'4px 6px'}} onClick={()=>admAwardXP(p.id,true)}>−</button>
+                        <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)',padding:'4px 6px'}} onClick={()=>openEditAffiliate(p)} title="Edit all fields">✏️</button>
+                        {deleteConfirm===`profile-${p.id}`?(<>
+                          <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>deleteAffiliate(p.id)}>✓</button>
+                          <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(null)}>×</button>
+                        </>):(<button className="xbtn" style={{background:'rgba(244,63,94,.08)',borderColor:'rgba(244,63,94,.2)',color:'var(--re)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
+                      </div>
+                    </div>);
+                  })}
+                </div>
+              ):(
+                /* MOBILE — per-card layout */
+                sorted.map(p=>{
+                  const plv=getLv(p.xp,LEVELS);
+                  const pnx=getNx(p.xp,LEVELS);
+                  const ppct=xpPct(p.xp,LEVELS);
+                  const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+                  const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
+                  const referredBy=p.referred_by?profileById[p.referred_by]:null;
+                  const referralCount=(referralsByReferrer[p.id]||[]).length;
+                  return(<div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                      <div style={{width:38,height:38,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600}}>{p.username}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(p.tiktok_handles||[]).join(' · ')}</div>
+                      </div>
+                      <div style={{textAlign:'right'}}>
+                        <div style={{fontFamily:'var(--fh)',fontSize:16,color:'var(--pu2)'}}>{(p.xp||0).toLocaleString()} XP</div>
+                        <div style={{fontSize:10,color:'var(--tx3)'}}>Level {plv.level}</div>
+                      </div>
+                    </div>
+                    {(referredBy||referralCount>0)&&(
+                      <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:12}}>
+                        {referredBy&&(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.22)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--pu2)',fontWeight:600}}>↩ Referred by <strong style={{color:'#fff',fontWeight:700,marginLeft:3}}>{referredBy.username}</strong></span>)}
+                        {referralCount>0&&(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.25)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--gr)',fontWeight:700}}>👥 Referred {referralCount}</span>)}
+                      </div>
+                    )}
+                    <div style={{marginBottom:12}}>
+                      <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${ppct}%`,transition:'width .5s'}}/>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'var(--tx3)',marginTop:3}}>
+                        <span>Lvl {plv.level}</span>
+                        <span>{pnx?`${(pnx.min-(p.xp||0)).toLocaleString()} XP to Lvl ${pnx.level}`:'MAX'}</span>
+                      </div>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:12}}>
+                      {[
+                        {label:'Net GMV',val:fmtGBP(netGMV),color:'var(--gr)'},
+                        {label:'Commission',val:fmtGBP(netComm),color:'var(--go)'},
+                        {label:'Orders',val:(p.total_orders||0).toLocaleString(),color:'var(--tx)'},
+                        {label:'Units Sold',val:(p.total_sales||0).toLocaleString(),color:'var(--tx)'},
+                        {label:'Returns',val:`${p.total_cancelled||0} (${fmtGBP(p.total_cancelled_gmv||0)})`,color:'var(--re)'},
+                        {label:'Streak',val:`🔥 ${p.streak||0} days`,color:'var(--go)'},
+                      ].map((s,si)=>(
+                        <div key={si} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
+                          <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
+                          <div style={{fontSize:8,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.5}}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
+                      <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1,minWidth:60}}/>
+                      <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
+                      <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
+                      <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)'}} onClick={()=>openEditAffiliate(p)}>✏️ Edit</button>
+                      {deleteConfirm===`profile-${p.id}`?(<>
+                        <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700}} onClick={()=>deleteAffiliate(p.id)}>✓ Delete forever</button>
+                        <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)'}} onClick={()=>setDeleteConfirm(null)}>Cancel</button>
+                      </>):(<button className="xbtn" style={{background:'rgba(244,63,94,.08)',borderColor:'rgba(244,63,94,.2)',color:'var(--re)'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
+                    </div>
+                  </div>);
+                })
+              )}
             </>);
           })()}
         </div>
