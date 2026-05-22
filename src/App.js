@@ -456,6 +456,8 @@ export default function App(){
   const [deleteConfirm,setDeleteConfirm]=useState(null);
   const [adminSearch,setAdminSearch]=useState('');
   const [adminLevelFilter,setAdminLevelFilter]=useState('');
+  const [adminSort,setAdminSort]=useState('gmv');
+  const [showReferralTree,setShowReferralTree]=useState(false);
   const [xpExclusions,setXpExclusions]=useState([]);
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
@@ -1144,6 +1146,25 @@ export default function App(){
     return Object.values(byProd).sort((a,b)=>b.commission-a.commission);
   },[importEvts]);
   const isFiltered=dateRange!=='all';
+
+  // Map: referrer profile_id -> array of profiles they've referred. Built from
+  // allProfiles so the admin panel can show "Referred N creators" at a glance
+  // without a separate query.
+  const referralsByReferrer=React.useMemo(()=>{
+    const m={};
+    allProfiles.forEach(p=>{
+      if(p.referred_by){
+        if(!m[p.referred_by])m[p.referred_by]=[];
+        m[p.referred_by].push(p);
+      }
+    });
+    return m;
+  },[allProfiles]);
+  const profileById=React.useMemo(()=>{
+    const m={};
+    allProfiles.forEach(p=>{m[p.id]=p;});
+    return m;
+  },[allProfiles]);
 
   // Build LEVELS dynamically from rewards table
   const LEVELS=React.useMemo(()=>{
@@ -1893,34 +1914,82 @@ body,html{margin:0;padding:0;background:#070710;}
               ))}
             </div>
           </div>)}
-          {/* SEARCH & FILTER */}
-          <div style={{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}}>
+          {/* REFERRAL TREE — collapsible */}
+          {allProfiles.length>0&&(()=>{
+            const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
+            const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
+            const RefNode=({p,depth})=>{
+              const kids=referralsByReferrer[p.id]||[];
+              const myNetGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+              return(
+                <div style={{marginLeft:depth*16,paddingLeft:depth>0?10:0,borderLeft:depth>0?'1px dashed var(--bo)':'none',marginBottom:4}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0'}}>
+                    <div style={{width:24,height:24,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:10,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}{kids.length>0&&<span style={{fontSize:10,color:'var(--pu2)',marginLeft:6,fontWeight:500}}>referred {kids.length}</span>}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)'}}>{(p.xp||0).toLocaleString()} XP · {fmtGBP(myNetGMV)} net GMV</div>
+                    </div>
+                  </div>
+                  {kids.length>0&&kids.map(k=><RefNode key={k.id} p={k} depth={depth+1}/>)}
+                </div>
+              );
+            };
+            return(<div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',marginBottom:10,overflow:'hidden'}}>
+              <button onClick={()=>setShowReferralTree(!showReferralTree)} style={{width:'100%',background:'none',border:'none',padding:'10px 13px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:12,display:'inline-block',transform:showReferralTree?'rotate(90deg)':'none',transition:'transform .15s'}}>▶</span>
+                  <span style={{fontSize:11,fontWeight:700,letterSpacing:.6,textTransform:'uppercase'}}>👥 Referral Tree</span>
+                </div>
+                <span style={{fontSize:10,color:'var(--tx3)'}}>{totalReferred} referred · {roots.length} root{roots.length===1?'':'s'}</span>
+              </button>
+              {showReferralTree&&(
+                <div style={{padding:'4px 13px 12px',borderTop:'1px solid var(--bo)',maxHeight:340,overflowY:'auto'}}>
+                  {roots.length===0?(<div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'10px 0'}}>No affiliates yet.</div>):roots.sort((a,b)=>(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0)).map(r=><RefNode key={r.id} p={r} depth={0}/>)}
+                </div>
+              )}
+            </div>);
+          })()}
+          {/* SEARCH, FILTER & SORT */}
+          <div style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap'}}>
             <input value={adminSearch} onChange={e=>setAdminSearch(e.target.value)} placeholder="Search affiliates..." style={{flex:1,minWidth:150,padding:'8px 12px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:13,outline:'none',fontFamily:'var(--fb)'}}/>
             <select value={adminLevelFilter} onChange={e=>setAdminLevelFilter(e.target.value)} style={{padding:'8px 10px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:12,outline:'none'}}>
-              <option value="">Filter by Level</option>
-              <option value="all">All Levels</option>
+              <option value="">All Levels</option>
               {LEVELS.map(l=><option key={l.level} value={l.level}>Level {l.level}</option>)}
             </select>
           </div>
-          {/* FILTERED AFFILIATE CARDS */}
+          <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap',alignItems:'center'}}>
+            <span style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginRight:3}}>Sort:</span>
+            {[['gmv','Net GMV'],['xp','XP'],['referrals','Referrals'],['name','Name']].map(([val,label])=>(
+              <button key={val} onClick={()=>setAdminSort(val)} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${adminSort===val?'var(--pu)':'var(--bo)'}`,background:adminSort===val?'rgba(139,92,246,.18)':'var(--card)',color:adminSort===val?'var(--pu2)':'var(--tx3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)'}}>{label}</button>
+            ))}
+          </div>
+          {/* AFFILIATE CARDS - sorted, with search/level filters applied */}
           {(()=>{
-            const hasFilter=adminSearch.trim()||adminLevelFilter!=='';
-            if(!hasFilter)return <div style={{fontSize:12,color:'var(--tx3)',textAlign:'center',padding:'16px 0'}}>Search or filter by level to view individual affiliates</div>;
             const filtered=allProfiles.filter(p=>{
               const matchSearch=!adminSearch||p.username.toLowerCase().includes(adminSearch.toLowerCase())||(p.tiktok_handles||[]).some(h=>h.toLowerCase().includes(adminSearch.toLowerCase()));
-              const matchLevel=adminLevelFilter===''||adminLevelFilter==='all'||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
+              const matchLevel=adminLevelFilter===''||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
               return matchSearch&&matchLevel;
             });
+            const sorted=[...filtered].sort((a,b)=>{
+              if(adminSort==='gmv'){const aN=Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0));const bN=Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0));return bN-aN;}
+              if(adminSort==='xp')return(b.xp||0)-(a.xp||0);
+              if(adminSort==='referrals')return(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0);
+              if(adminSort==='name')return a.username.localeCompare(b.username);
+              return 0;
+            });
+            const hasSearch=adminSearch.trim()||adminLevelFilter!=='';
             return(<>
-              <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{filtered.length} affiliate{filtered.length!==1?'s':''}{adminSearch||adminLevelFilter!=='all'?' found':''}</div>
-              {filtered.map(p=>{
+              <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{sorted.length} affiliate{sorted.length!==1?'s':''}{hasSearch?' found':''} · sorted by {adminSort==='gmv'?'Net GMV':adminSort==='xp'?'XP':adminSort==='referrals'?'referrals':'name'}</div>
+              {sorted.map(p=>{
                 const plv=getLv(p.xp,LEVELS);
                 const pnx=getNx(p.xp,LEVELS);
                 const ppct=xpPct(p.xp,LEVELS);
                 const netGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
                 const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
+                const referredBy=p.referred_by?profileById[p.referred_by]:null;
+                const referralCount=(referralsByReferrer[p.id]||[]).length;
                 return(<div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:'14px',marginBottom:10}}>
-                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
                     <div style={{width:38,height:38,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:14,fontWeight:600}}>{p.username}</div>
@@ -1931,6 +2000,16 @@ body,html{margin:0;padding:0;background:#070710;}
                       <div style={{fontSize:10,color:'var(--tx3)'}}>Level {plv.level}</div>
                     </div>
                   </div>
+                  {(referredBy||referralCount>0)&&(
+                    <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:12}}>
+                      {referredBy&&(
+                        <span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.22)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--pu2)',fontWeight:600}}>↩ Referred by <strong style={{color:'#fff',fontWeight:700,marginLeft:3}}>{referredBy.username}</strong></span>
+                      )}
+                      {referralCount>0&&(
+                        <span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.25)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--gr)',fontWeight:700}}>👥 Referred {referralCount}</span>
+                      )}
+                    </div>
+                  )}
                   <div style={{marginBottom:12}}>
                     <div style={{height:6,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
                       <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${ppct}%`,transition:'width .5s'}}/>
