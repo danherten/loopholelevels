@@ -882,6 +882,44 @@ export default function App(){
     loadAllProfiles();
     if(profile?.id===p.id)loadProfile(p.id);
   }
+  async function revertReferral(profileId){
+    const p=allProfiles.find(x=>x.id===profileId);
+    if(!p||!p.referred_by){setDeleteConfirm(null);return;}
+    const referrer=allProfiles.find(x=>x.id===p.referred_by);
+    try{
+      // Sum the referral_earnings that were credited to the referrer based on this
+      // affiliate's import history. 1% of net GMV per import event.
+      const {data:events}=await supabase.from('xp_events').select('gmv,cancelled_gmv').eq('profile_id',profileId).eq('reason','import');
+      let totalRefEarnings=0;
+      (events||[]).forEach(e=>{
+        const netGMV=Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0));
+        totalRefEarnings+=netGMV*0.01;
+      });
+      totalRefEarnings=parseFloat(totalRefEarnings.toFixed(2));
+      // Referred user: subtract the +100 signup bonus, clear referred_by.
+      const referredNewXP=Math.max(0,(p.xp||0)-100);
+      await supabase.from('profiles').update({referred_by:null,xp:referredNewXP}).eq('id',profileId);
+      await supabase.from('xp_events').insert({
+        profile_id:profileId,amount:-100,reason:'manual',
+        note:`Referral reverted by admin (was referred by ${referrer?referrer.username:'unknown'})`
+      });
+      // Referrer: subtract the +100 referral bonus and the accumulated 1% earnings.
+      if(referrer){
+        const refNewXP=Math.max(0,(referrer.xp||0)-100);
+        const refNewEarnings=Math.max(0,(referrer.referral_earnings||0)-totalRefEarnings);
+        await supabase.from('profiles').update({xp:refNewXP,referral_earnings:refNewEarnings}).eq('id',referrer.id);
+        await supabase.from('xp_events').insert({
+          profile_id:referrer.id,amount:-100,reason:'manual',
+          note:`Referral of ${p.username} reverted by admin (−${fmtGBP(totalRefEarnings)} earnings)`
+        });
+      }
+      toast(`↩ Referral reverted for ${p.username}${totalRefEarnings>0?` · −${fmtGBP(totalRefEarnings)} from referrer`:''}`,'ok');
+      setDeleteConfirm(null);
+      loadAllProfiles();
+      if(profile?.id===profileId)loadProfile(profileId);
+      if(profile?.id===referrer?.id)loadProfile(referrer.id);
+    }catch(e){toast('Revert failed: '+(e.message||''),'wn');}
+  }
   async function deleteAffiliate(profileId){
     const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
     try{
@@ -2022,7 +2060,7 @@ body,html{margin:0;padding:0;background:#070710;}
               return 0;
             });
             const hasSearch=adminSearch.trim()||adminLevelFilter!=='';
-            const cols=isDesktop?'36px minmax(190px, 1fr) 56px 90px 100px 100px 70px 70px 60px 130px 200px':null;
+            const cols=isDesktop?'36px minmax(170px, 1fr) 46px 80px 92px 92px 60px 60px 56px 130px 250px':null;
             const headers=[
               {label:'#',align:'left'},
               {label:'Affiliate',align:'left'},
@@ -2072,11 +2110,15 @@ body,html{margin:0;padding:0;background:#070710;}
                         {referredBy&&<span style={{fontSize:10,color:'var(--pu2)',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>↩ {referredBy.username}</span>}
                         {!referralCount&&!referredBy&&<span style={{fontSize:10,color:'var(--tx3)'}}>—</span>}
                       </div>
-                      <div style={{display:'flex',gap:4,justifyContent:'flex-end',alignItems:'center',flexWrap:'wrap'}}>
-                        <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{width:40,padding:'3px 4px'}}/>
-                        <button className="xbtn" style={{padding:'4px 6px'}} onClick={()=>admAwardXP(p.id)}>+</button>
-                        <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)',padding:'4px 6px'}} onClick={()=>admAwardXP(p.id,true)}>−</button>
+                      <div style={{display:'flex',gap:4,justifyContent:'flex-end',alignItems:'center',flexWrap:'nowrap'}}>
+                        <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{width:54,padding:'4px 6px',fontSize:11}}/>
+                        <button className="xbtn" style={{padding:'4px 7px'}} onClick={()=>admAwardXP(p.id)} title="Add XP">+</button>
+                        <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)',padding:'4px 7px'}} onClick={()=>admAwardXP(p.id,true)} title="Subtract XP">−</button>
                         <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)',padding:'4px 6px'}} onClick={()=>openEditAffiliate(p)} title="Edit all fields">✏️</button>
+                        {referredBy&&(deleteConfirm===`revertref-${p.id}`?(<>
+                          <button className="xbtn" style={{background:'rgba(245,158,11,.22)',borderColor:'rgba(245,158,11,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>revertReferral(p.id)} title="Confirm revert">✓</button>
+                          <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(null)} title="Cancel">×</button>
+                        </>):(<button className="xbtn" style={{background:'rgba(245,158,11,.1)',borderColor:'rgba(245,158,11,.25)',color:'var(--go)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(`revertref-${p.id}`)} title={`Revert referral by ${referredBy.username} (foul play)`}>↩</button>))}
                         {deleteConfirm===`profile-${p.id}`?(<>
                           <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>deleteAffiliate(p.id)}>✓</button>
                           <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(null)}>×</button>
