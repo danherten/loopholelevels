@@ -2041,7 +2041,7 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
           <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap',alignItems:'center'}}>
             <span style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginRight:3}}>Sort:</span>
-            {[['gmv','Net GMV'],['xp','XP'],['referrals','Referrals'],['name','Name']].map(([val,label])=>(
+            {[['gmv','Net GMV'],['xp','XP'],['referrals','Referrals'],['newest','Newest'],['name','Name']].map(([val,label])=>(
               <button key={val} onClick={()=>setAdminSort(val)} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${adminSort===val?'var(--pu)':'var(--bo)'}`,background:adminSort===val?'rgba(139,92,246,.18)':'var(--card)',color:adminSort===val?'var(--pu2)':'var(--tx3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)'}}>{label}</button>
             ))}
           </div>
@@ -2056,6 +2056,7 @@ body,html{margin:0;padding:0;background:#070710;}
               if(adminSort==='gmv'){const aN=Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0));const bN=Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0));return bN-aN;}
               if(adminSort==='xp')return(b.xp||0)-(a.xp||0);
               if(adminSort==='referrals')return(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0);
+              if(adminSort==='newest')return new Date(b.created_at||0)-new Date(a.created_at||0);
               if(adminSort==='name')return a.username.localeCompare(b.username);
               return 0;
             });
@@ -2075,7 +2076,7 @@ body,html{margin:0;padding:0;background:#070710;}
               {label:'Actions',align:'right'},
             ];
             return(<>
-              <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{sorted.length} affiliate{sorted.length!==1?'s':''}{hasSearch?' found':''} · sorted by {adminSort==='gmv'?'Net GMV':adminSort==='xp'?'XP':adminSort==='referrals'?'referrals':'name'}</div>
+              <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{sorted.length} affiliate{sorted.length!==1?'s':''}{hasSearch?' found':''} · sorted by {adminSort==='gmv'?'Net GMV':adminSort==='xp'?'XP':adminSort==='referrals'?'referrals':adminSort==='newest'?'newest first':'name'}</div>
               {isDesktop?(
                 <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,overflowX:'auto',overflowY:'hidden'}}>
                   {/* header row */}
