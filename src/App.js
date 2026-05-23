@@ -1287,7 +1287,7 @@ body,html{margin:0;padding:0;background:#070710;}
     </div>}
 
     <div className="pages" style={isDesktop?{flex:1,overflowY:'auto',paddingBottom:0,minWidth:0}:{}}>
-      <div style={isDesktop?{maxWidth:page==='admin'?1140:700,margin:'0 auto'}:{}}>
+      <div style={isDesktop?{maxWidth:page==='admin'?1320:700,margin:'0 auto'}:{}}>
       {/* HOME */}
       {page==='home'&&(<div className="pg">
         {/* DATE RANGE FILTER */}
@@ -2060,7 +2060,7 @@ body,html{margin:0;padding:0;background:#070710;}
               return 0;
             });
             const hasSearch=adminSearch.trim()||adminLevelFilter!=='';
-            const cols=isDesktop?'36px minmax(170px, 1fr) 46px 80px 92px 92px 60px 60px 56px 130px 250px':null;
+            const cols=isDesktop?'34px minmax(150px, 1fr) 40px 80px 96px 96px 60px 60px 56px 124px 264px':null;
             const headers=[
               {label:'#',align:'left'},
               {label:'Affiliate',align:'left'},
@@ -2077,9 +2077,9 @@ body,html{margin:0;padding:0;background:#070710;}
             return(<>
               <div style={{fontSize:10,color:'var(--tx3)',marginBottom:8}}>{sorted.length} affiliate{sorted.length!==1?'s':''}{hasSearch?' found':''} · sorted by {adminSort==='gmv'?'Net GMV':adminSort==='xp'?'XP':adminSort==='referrals'?'referrals':'name'}</div>
               {isDesktop?(
-                <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden'}}>
+                <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,overflowX:'auto',overflowY:'hidden'}}>
                   {/* header row */}
-                  <div style={{display:'grid',gridTemplateColumns:cols,gap:8,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center'}}>
+                  <div style={{display:'grid',gridTemplateColumns:cols,gap:6,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center',minWidth:1100}}>
                     {headers.map((h,i)=><span key={i} style={{textAlign:h.align}}>{h.label}</span>)}
                   </div>
                   {/* data rows */}
@@ -2089,7 +2089,7 @@ body,html{margin:0;padding:0;background:#070710;}
                     const netComm=Math.max(0,(p.total_commission||0)-((p.total_gmv||0)>0?(p.total_commission||0)*((p.total_cancelled_gmv||0)/(p.total_gmv||1)):0));
                     const referredBy=p.referred_by?profileById[p.referred_by]:null;
                     const referralCount=(referralsByReferrer[p.id]||[]).length;
-                    return(<div key={p.id} style={{display:'grid',gridTemplateColumns:cols,gap:8,padding:'11px 14px',borderBottom:i<sorted.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12}}>
+                    return(<div key={p.id} style={{display:'grid',gridTemplateColumns:cols,gap:6,padding:'11px 14px',borderBottom:i<sorted.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:1100}}>
                       <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
                         <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
