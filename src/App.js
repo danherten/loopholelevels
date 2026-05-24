@@ -1921,6 +1921,8 @@ body,html{margin:0;padding:0;background:#070710;}
           const totalXP=allProfiles.reduce((s,p)=>s+(p.xp||0),0);
           const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
           const avgLevel=allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0';
+          const totalOwed=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
+          const totalPaidOut=adminPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0);
           const stats=[
             {label:'Affiliates',val:allProfiles.length.toLocaleString(),color:'var(--pu2)'},
             {label:'Total Net GMV',val:fmtGBP(totalNet),color:'var(--gr)',big:true},
@@ -1930,6 +1932,8 @@ body,html{margin:0;padding:0;background:#070710;}
             {label:'Returns',val:`${totalCanc} · ${fmtGBP(totalCancGMV)}`,color:'var(--re)'},
             {label:'XP Awarded',val:totalXP.toLocaleString(),color:'var(--pu2)'},
             {label:'Referrals',val:totalReferred.toLocaleString(),color:'var(--gr)'},
+            {label:'Owed',val:fmtGBP(totalOwed),color:'var(--go)'},
+            {label:'Paid Out',val:fmtGBP(totalPaidOut),color:'var(--gr)'},
             {label:'Avg Level',val:avgLevel,color:'var(--tx)'},
           ];
           return(
@@ -1942,7 +1946,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>Loophole Levels · control centre</div>
                 </div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(9, 1fr)':'repeat(3, 1fr)',gap:isDesktop?10:6,position:'relative'}}>
+              <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(11, 1fr)':'repeat(3, 1fr)',gap:isDesktop?8:6,position:'relative'}}>
                 {stats.map((s,i)=>(
                   <div key={i} style={{background:'rgba(7,7,16,.45)',border:'1px solid var(--bo)',borderRadius:10,padding:isDesktop?'12px 14px':'9px 10px'}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?(s.big?26:20):15,color:s.color,lineHeight:1,letterSpacing:.5,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{s.val}</div>
@@ -1971,8 +1975,17 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
             </div>
           );};
+          // Payouts due: group unpaid payouts by referrer profile, top 5 by amount.
+          const owedByProfile={};
+          adminPayouts.filter(po=>!po.paid).forEach(po=>{
+            if(!owedByProfile[po.profile_id])owedByProfile[po.profile_id]={amount:0,months:0};
+            owedByProfile[po.profile_id].amount+=(po.amount||0);
+            owedByProfile[po.profile_id].months++;
+          });
+          const byOwed=Object.entries(owedByProfile).map(([pid,v])=>{const pp=profileById[pid];return pp?{...pp,_owed:v.amount,_months:v.months}:null;}).filter(Boolean).sort((a,b)=>b._owed-a._owed).slice(0,5);
+          const totalOwedAll=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
           return(
-            <div style={{display:'grid',gridTemplateColumns:isDesktop?'1fr 1fr':'1fr',gap:10,marginBottom:11}}>
+            <div style={{display:'grid',gridTemplateColumns:isDesktop?'1fr 1fr 1fr':'1fr',gap:10,marginBottom:11}}>
               <div className="asec" style={{marginBottom:0}}>
                 <div className="asect">🏆 Top by GMV</div>
                 {byGMV.length===0?(<div style={{fontSize:11,color:'var(--tx3)',padding:'10px 0'}}>No data yet.</div>):byGMV.map((p,i)=><PodRow key={p.id} p={p} i={i} right={fmtGBP(Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0)))} rightLabel="Net GMV" rightColor="var(--gr)"/>)}
@@ -1980,6 +1993,28 @@ body,html{margin:0;padding:0;background:#070710;}
               <div className="asec" style={{marginBottom:0}}>
                 <div className="asect">👥 Top Referrers</div>
                 {byRef.length===0?(<div style={{fontSize:11,color:'var(--tx3)',padding:'10px 0'}}>No referrals yet.</div>):byRef.map((p,i)=><PodRow key={p.id} p={p} i={i} right={p._refs.toString()} rightLabel="Referred" rightColor="var(--pu2)"/>)}
+              </div>
+              <div className="asec" style={{marginBottom:0}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:9}}>
+                  <div className="asect" style={{marginBottom:0}}>💷 Payouts Due</div>
+                  {totalOwedAll>0&&<div style={{fontSize:10,color:'var(--go)',fontWeight:700}}>{fmtGBP(totalOwedAll)} owed</div>}
+                </div>
+                {byOwed.length===0?(
+                  <div style={{fontSize:11,color:'var(--tx3)',padding:'10px 0',lineHeight:1.5}}>{adminPayouts.length===0?<>No payout records yet. Hit <strong style={{color:'var(--tx2)'}}>💷 Generate Payout Records</strong> in Actions to create them from imports.</>:'All payouts are marked paid 🎉'}</div>
+                ):byOwed.map((p,i)=>(
+                  <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:i<byOwed.length-1?'1px solid var(--bo)':'none'}}>
+                    <span style={{fontFamily:'var(--fh)',fontSize:16,width:22,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                    <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,1).join('')||'—'} · {p._months} month{p._months===1?'':'s'}</div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:15,color:'var(--go)',lineHeight:1}}>{fmtGBP(p._owed)}</div>
+                      <div style={{fontSize:9,color:'var(--tx3)',marginTop:2,textTransform:'uppercase',letterSpacing:.5}}>Owed</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           );
