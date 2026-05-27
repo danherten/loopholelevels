@@ -427,6 +427,16 @@ export default function App(){
   const [payouts,setPayouts]=useState([]);
   const [adminPayouts,setAdminPayouts]=useState([]);
   const [authLoading,setAuthLoading]=useState(false);
+  // Password reset flow. `showResetPw` opens when Supabase fires PASSWORD_RECOVERY
+  // after the user clicks the email link; `showForgotPw` is the in-app trigger
+  // that emails the reset link via supabase.auth.resetPasswordForEmail.
+  const [showResetPw,setShowResetPw]=useState(false);
+  const [resetPw,setResetPw]=useState('');
+  const [resetPw2,setResetPw2]=useState('');
+  const [resetBusy,setResetBusy]=useState(false);
+  const [showForgotPw,setShowForgotPw]=useState(false);
+  const [forgotEmail,setForgotEmail]=useState('');
+  const [forgotBusy,setForgotBusy]=useState(false);
   const [adminPass,setAdminPass]=useState('');
   const [adminErr,setAdminErr]=useState('');
   const [allProfiles,setAllProfiles]=useState([]);
@@ -484,6 +494,11 @@ export default function App(){
         const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
           if(event==='SIGNED_IN'&&session?.user){loadProfile(session.user.id).then(()=>{loadRewards();loadLeaderboard();loadMilestones();});}
           else if(event==='SIGNED_OUT'){setProfile(null);}
+          // Triggered when the user clicks the reset-password email link.
+          // Supabase has already exchanged the token for a temporary session,
+          // so the user is technically signed in — open the "set new password"
+          // modal so they finish the flow before doing anything else.
+          else if(event==='PASSWORD_RECOVERY'){setResetPw('');setResetPw2('');setShowResetPw(true);}
         });
         sub=subscription;
       }catch(e){console.error('auth sub error:',e);}
@@ -792,6 +807,28 @@ export default function App(){
     setAuthLoading(false);
   }
   async function doLogout(){await supabase.auth.signOut();setAdminUnlocked(false);localStorage.removeItem('ll-admin');setPage('home');}
+  // Submit handler for the "Set new password" modal opened by PASSWORD_RECOVERY.
+  async function submitResetPw(){
+    if(resetPw.length<6){toast('Password must be at least 6 characters','wn');return;}
+    if(resetPw!==resetPw2){toast('Passwords don\'t match','wn');return;}
+    setResetBusy(true);
+    const {error}=await supabase.auth.updateUser({password:resetPw});
+    setResetBusy(false);
+    if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
+    setShowResetPw(false);setResetPw('');setResetPw2('');
+    toast('Password updated ✓','ok');
+  }
+  // "Forgot password?" flow — sends the recovery email via Supabase.
+  async function submitForgotPw(){
+    const email=forgotEmail.trim().toLowerCase();
+    if(!email.includes('@')){toast('Enter your email address','wn');return;}
+    setForgotBusy(true);
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+    setForgotBusy(false);
+    if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
+    setShowForgotPw(false);setForgotEmail('');
+    toast('Reset link sent — check your email','ok');
+  }
 
   async function claimDaily(){
     if(!profile||profile.last_claim===tdy())return;
@@ -1238,7 +1275,35 @@ body,html{margin:0;padding:0;background:#070710;}
 @keyframes sp{to{transform:rotate(360deg)}}
 `}</style><div style={{background:"#070710",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><img src="/logo.png" alt="Loophole" style={{width:180,opacity:.9}}/><div className="spin-el"/></div></>);
 
-  if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/logo.png" alt="Loophole Levels" style={{width:230,marginBottom:5}}/><div className="asub">Affiliate Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><div><label className="lbl">Referral code (optional)</label><input className="inp" value={signupRef} onChange={e=>setSignupRef(e.target.value.toUpperCase())} placeholder="e.g. ABC12345"/></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div></div></>);
+  // Password reset modals — rendered in both the auth screen (when not signed in)
+  // and the main app (when signed in via PASSWORD_RECOVERY) so the user always sees
+  // the prompt regardless of which side of the auth gate they're on.
+  const PwModals=(<>
+    {showResetPw&&(
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.78)',zIndex:700,display:'flex',alignItems:'center',justifyContent:'center',padding:'18px',backdropFilter:'blur(4px)'}}>
+        <div style={{width:'100%',maxWidth:380,background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:16,padding:'24px 22px',position:'relative'}}>
+          <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>🔐 SET A NEW PASSWORD</div>
+          <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Pick a new password for your account. You'll stay signed in after saving.</div>
+          <div style={{marginBottom:10}}><label className="lbl">New password</label><input className="inp" type="password" value={resetPw} onChange={e=>setResetPw(e.target.value)} placeholder="••••••••" autoFocus/></div>
+          <div style={{marginBottom:14}}><label className="lbl">Confirm password</label><input className="inp" type="password" value={resetPw2} onChange={e=>setResetPw2(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&submitResetPw()}/></div>
+          <button className="btn btnpu" onClick={submitResetPw} disabled={resetBusy}>{resetBusy?'SAVING...':'SAVE PASSWORD'}</button>
+        </div>
+      </div>
+    )}
+    {showForgotPw&&(
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.78)',zIndex:700,display:'flex',alignItems:'center',justifyContent:'center',padding:'18px',backdropFilter:'blur(4px)'}}>
+        <div style={{width:'100%',maxWidth:380,background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:16,padding:'24px 22px',position:'relative'}}>
+          <button onClick={()=>setShowForgotPw(false)} style={{position:'absolute',top:12,right:12,width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:14,cursor:'pointer'}}>✕</button>
+          <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>📧 FORGOT PASSWORD</div>
+          <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Enter the email you used to sign up — we'll send a reset link.</div>
+          <div style={{marginBottom:14}}><label className="lbl">Email</label><input className="inp" type="email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} placeholder="your@email.com" autoFocus onKeyDown={e=>e.key==='Enter'&&submitForgotPw()}/></div>
+          <button className="btn btnpu" onClick={submitForgotPw} disabled={forgotBusy}>{forgotBusy?'SENDING...':'SEND RESET LINK'}</button>
+        </div>
+      </div>
+    )}
+  </>);
+
+  if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/logo.png" alt="Loophole Levels" style={{width:230,marginBottom:5}}/><div className="asub">Affiliate Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div><button onClick={()=>{setForgotEmail(loginUser);setShowForgotPw(true);}} style={{background:'none',border:'none',color:'var(--pu2)',fontSize:12,cursor:'pointer',padding:'6px 4px 0',fontFamily:'var(--fb)',textDecoration:'underline',alignSelf:'center'}}>Forgot password?</button></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><div><label className="lbl">Referral code (optional)</label><input className="inp" value={signupRef} onChange={e=>setSignupRef(e.target.value.toUpperCase())} placeholder="e.g. ABC12345"/></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>{PwModals}</div></>);
 
   return(<><style>{CSS}</style><div className="app" style={isDesktop?{flexDirection:'row'}:{}}>
     {/* DESKTOP SIDEBAR */}
@@ -2595,6 +2660,7 @@ body,html{margin:0;padding:0;background:#070710;}
       );
     })()}
 
+    {PwModals}
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
   </div>
   {/* BOTTOM NAV - mobile only. Placed OUTSIDE .app so it has no overflow:hidden
