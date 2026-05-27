@@ -1346,7 +1346,8 @@ body,html{margin:0;padding:0;background:#070710;}
     {showResetPw&&(
       <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.78)',zIndex:700,display:'flex',alignItems:'center',justifyContent:'center',padding:'18px',backdropFilter:'blur(4px)'}}>
         <div style={{width:'100%',maxWidth:380,background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:16,padding:'24px 22px',position:'relative'}}>
-          <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>🔐 SET A NEW PASSWORD</div>
+          <button onClick={()=>{setShowResetPw(false);setResetPw('');setResetPw2('');}} style={{position:'absolute',top:12,right:12,width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:14,cursor:'pointer'}}>✕</button>
+          <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>🔐 CHANGE PASSWORD</div>
           <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Pick a new password for your account. You'll stay signed in after saving.</div>
           <div style={{marginBottom:10}}><label className="lbl">New password</label><input className="inp" type="password" value={resetPw} onChange={e=>setResetPw(e.target.value)} placeholder="••••••••" autoFocus/></div>
           <div style={{marginBottom:14}}><label className="lbl">Confirm password</label><input className="inp" type="password" value={resetPw2} onChange={e=>setResetPw2(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&submitResetPw()}/></div>
@@ -2045,6 +2046,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div className="mcard">
           <div className="mi" onClick={()=>navTo('products')}><div className="mil"><span className="mii">📦</span>Products</div><span className="mich">›</span></div>
           <div className="mi" onClick={()=>navTo('referrals')}><div className="mil"><span className="mii">👥</span>Refer &amp; Earn</div><span className="mich">›</span></div>
+          <div className="mi" onClick={()=>{setResetPw('');setResetPw2('');setShowResetPw(true);}}><div className="mil"><span className="mii">🔑</span>Change Password</div><span className="mich">›</span></div>
           <div className="mi" onClick={openAdminGate}><div className="mil"><span className="mii">🔐</span>Admin Panel</div><span className="mich">›</span></div>
         </div>
         <button className="btn btnre" onClick={doLogout}>Sign Out</button>
