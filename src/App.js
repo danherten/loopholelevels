@@ -1952,7 +1952,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* TAB STRIP */}
         <div style={{display:'flex',gap:7,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
           <span style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2.5,marginRight:8,color:'var(--tx2)'}}>👑 ADMIN</span>
-          {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
+          {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
             <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}><span>{ic}</span><span>{lb}</span></button>
           ))}
         </div>
@@ -2005,7 +2005,13 @@ body,html{margin:0;padding:0;background:#070710;}
           if(allProfiles.length===0)tasks.push({k:'info',e:'🎯',t:'No affiliates yet',n:'Share the signup link to get started',cta:'',fn:()=>{}});
           // === Top performers (top 3 each) ===
           const byGMV=[...allProfiles].sort((a,b)=>(Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0)))-(Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0)))).slice(0,3);
-          const byRef=[...allProfiles].map(p=>({...p,_refs:(referralsByReferrer[p.id]||[]).length})).filter(p=>p._refs>0).sort((a,b)=>b._refs-a._refs).slice(0,3);
+          // For each referrer compute (a) count of people they referred and (b) sum of
+          // net GMV from those referred users — the latter is what drives their 1% earnings.
+          const byRef=[...allProfiles].map(p=>{
+            const kids=referralsByReferrer[p.id]||[];
+            const refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
+            return {...p,_refs:kids.length,_refGMV:refGMV};
+          }).filter(p=>p._refs>0).sort((a,b)=>b._refGMV-a._refGMV).slice(0,3);
           const owedByProfile={};
           unpaid.forEach(po=>{if(!owedByProfile[po.profile_id])owedByProfile[po.profile_id]={amount:0,months:0};owedByProfile[po.profile_id].amount+=(po.amount||0);owedByProfile[po.profile_id].months++;});
           const byOwed=Object.entries(owedByProfile).map(([pid,v])=>{const pp=profileById[pid];return pp?{...pp,_owed:v.amount,_months:v.months}:null;}).filter(Boolean).sort((a,b)=>b._owed-a._owed).slice(0,3);
@@ -2113,7 +2119,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 </div>
                 <div>
                   <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.9,fontWeight:700,marginBottom:6}}>Top Referrers</div>
-                  {byRef.length===0?<div style={{fontSize:11,color:'var(--tx3)',padding:'14px 4px'}}>No referrals yet.</div>:byRef.map((p,i)=><PodRow key={p.id} p={p} i={i} right={p._refs.toString()} rightLabel="Referred" rightColor="var(--pu2)"/>)}
+                  {byRef.length===0?<div style={{fontSize:11,color:'var(--tx3)',padding:'14px 4px'}}>No referrals yet.</div>:byRef.map((p,i)=><PodRow key={p.id} p={p} i={i} right={fmtGBPc(p._refGMV)} rightLabel={`${p._refs} REFERRED`} rightColor="var(--pu2)"/>)}
                 </div>
                 <div>
                   <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.9,fontWeight:700,marginBottom:6}}>Payouts Due</div>
@@ -2153,41 +2159,7 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>)}
         {adminTab==='affiliates'&&(<div className="asec">
           <div className="asect">Affiliates</div>
-          {/* REFERRAL TREE — collapsible (default open on desktop) */}
-          {allProfiles.length>0&&(()=>{
-            const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
-            const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
-            const RefNode=({p,depth})=>{
-              const kids=referralsByReferrer[p.id]||[];
-              const myNetGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
-              return(
-                <div style={{marginLeft:depth*16,paddingLeft:depth>0?10:0,borderLeft:depth>0?'1px dashed var(--bo)':'none',marginBottom:4}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0'}}>
-                    <div style={{width:24,height:24,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:10,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}{kids.length>0&&<span style={{fontSize:10,color:'var(--pu2)',marginLeft:6,fontWeight:500}}>referred {kids.length}</span>}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>{(p.xp||0).toLocaleString()} XP · {fmtGBP(myNetGMV)} net GMV</div>
-                    </div>
-                  </div>
-                  {kids.length>0&&kids.map(k=><RefNode key={k.id} p={k} depth={depth+1}/>)}
-                </div>
-              );
-            };
-            return(<div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',marginBottom:10,overflow:'hidden'}}>
-              <button onClick={()=>setShowReferralTree(!showReferralTree)} style={{width:'100%',background:'none',border:'none',padding:'10px 13px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:12,display:'inline-block',transform:showReferralTree?'rotate(90deg)':'none',transition:'transform .15s'}}>▶</span>
-                  <span style={{fontSize:11,fontWeight:700,letterSpacing:.6,textTransform:'uppercase'}}>👥 Referral Tree</span>
-                </div>
-                <span style={{fontSize:10,color:'var(--tx3)'}}>{totalReferred} referred · {roots.length} root{roots.length===1?'':'s'}</span>
-              </button>
-              {showReferralTree&&(
-                <div style={{padding:'4px 13px 12px',borderTop:'1px solid var(--bo)',maxHeight:340,overflowY:'auto'}}>
-                  {roots.length===0?(<div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'10px 0'}}>No affiliates yet.</div>):roots.sort((a,b)=>(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0)).map(r=><RefNode key={r.id} p={r} depth={0}/>)}
-                </div>
-              )}
-            </div>);
-          })()}
+          {/* Referral tree moved to dedicated Referrals tab — see adminTab==='referrals' below */}
           {/* SEARCH, FILTER & SORT */}
           <div style={{display:'flex',gap:6,marginBottom:8,flexWrap:'wrap'}}>
             <input value={adminSearch} onChange={e=>setAdminSearch(e.target.value)} placeholder="Search affiliates..." style={{flex:1,minWidth:150,padding:'8px 12px',background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:10,color:'var(--tx)',fontSize:13,outline:'none',fontFamily:'var(--fb)'}}/>
@@ -2353,6 +2325,160 @@ body,html{margin:0;padding:0;background:#070710;}
             </>);
           })()}
         </div>)}
+        {/* REFERRALS — dedicated dashboard for the referral programme */}
+        {adminTab==='referrals'&&(()=>{
+          const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
+          // Roll up per-referrer stats: count of kids, kids' net GMV, kids' orders,
+          // the 1% commission the referrer accrued (referral_earnings), and their
+          // paid / owed split derived from `payouts`.
+          const referrers=[...allProfiles].map(p=>{
+            const kids=referralsByReferrer[p.id]||[];
+            const refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
+            const refOrders=kids.reduce((s,k)=>s+(k.total_orders||0),0);
+            const myPayouts=adminPayouts.filter(po=>po.profile_id===p.id);
+            return{...p,_refs:kids.length,_kids:kids,_refGMV:refGMV,_refOrders:refOrders,_earned:p.referral_earnings||0,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
+          }).filter(p=>p._refs>0).sort((a,b)=>b._refGMV-a._refGMV);
+          const totalReferrers=referrers.length;
+          const totalReferred=referrers.reduce((s,r)=>s+r._refs,0);
+          const totalReferredGMV=referrers.reduce((s,r)=>s+r._refGMV,0);
+          const totalEarned=referrers.reduce((s,r)=>s+r._earned,0);
+          const totalPaid=referrers.reduce((s,r)=>s+r._paid,0);
+          const totalOwed=referrers.reduce((s,r)=>s+r._owed,0);
+          // Recent signups via referral, newest first.
+          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
+          // Referral tree (collapsible at the bottom of the page).
+          const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
+          const RefNode=({p,depth})=>{
+            const kids=referralsByReferrer[p.id]||[];
+            const myNetGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+            return(
+              <div style={{marginLeft:depth*16,paddingLeft:depth>0?10:0,borderLeft:depth>0?'1px dashed var(--bo)':'none',marginBottom:4}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0'}}>
+                  <div style={{width:24,height:24,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:10,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}{kids.length>0&&<span style={{fontSize:10,color:'var(--pu2)',marginLeft:6,fontWeight:500}}>referred {kids.length}</span>}</div>
+                    <div style={{fontSize:10,color:'var(--tx3)'}}>{(p.xp||0).toLocaleString()} XP · {fmtGBP(myNetGMV)} net GMV</div>
+                  </div>
+                </div>
+                {kids.length>0&&kids.map(k=><RefNode key={k.id} p={k} depth={depth+1}/>)}
+              </div>
+            );
+          };
+          return(<>
+            {/* HERO STRIP */}
+            <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.14) 0%,rgba(6,182,212,.06) 60%,rgba(245,158,11,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,position:'relative'}}>
+                <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
+                <div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
+                  <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>1% of every referred creator's net GMV</div>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(6, 1fr)':'1fr 1fr',gap:10,position:'relative'}}>
+                <div className="ahk"><div className="ahkl">Active Referrers</div><div className="ahkv" style={{color:'var(--pu2)'}}>{totalReferrers}</div><div className="ahkd"><span className="vs">creators sharing</span></div></div>
+                <div className="ahk"><div className="ahkl">Referred Users</div><div className="ahkv" style={{color:'var(--cy)'}}>{totalReferred}</div><div className="ahkd"><span className="vs">signed up via link</span></div></div>
+                <div className="ahk"><div className="ahkl">Referred Net GMV</div><div className="ahkv" style={{color:'var(--gr)'}}>{fmtGBPc(totalReferredGMV)}</div><div className="ahkd"><span className="vs">from referred sales</span></div></div>
+                <div className="ahk"><div className="ahkl">Earned (1%)</div><div className="ahkv" style={{color:'var(--go)'}}>{fmtGBPc(totalEarned)}</div><div className="ahkd"><span className="vs">total accrued</span></div></div>
+                <div className="ahk"><div className="ahkl">Paid Out</div><div className="ahkv" style={{color:'var(--gr)'}}>{fmtGBPc(totalPaid)}</div><div className="ahkd"><span className="vs">marked as paid</span></div></div>
+                <div className="ahk"><div className="ahkl">Owed</div><div className="ahkv" style={{color:'var(--go)'}}>{fmtGBPc(totalOwed)}</div><div className="ahkd"><span className="vs">pending payouts</span></div></div>
+              </div>
+            </div>
+            {/* REFERRERS LEADERBOARD TABLE */}
+            <div className="asec">
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11}}>
+                <span style={{fontSize:14}}>🏆</span>
+                <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>TOP REFERRERS</span>
+                <span style={{marginLeft:'auto',fontSize:10,color:'var(--pu2)',fontWeight:600,letterSpacing:.3,cursor:'pointer'}} onClick={()=>setAdminTab('payouts')}>Manage payouts →</span>
+              </div>
+              {referrers.length===0?(
+                <div style={{padding:'18px 8px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No referrals yet — share your link to start earning 1%.</div>
+              ):isDesktop?(
+                <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,overflowX:'auto'}}>
+                  <div style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center',minWidth:780}}>
+                    <span>#</span><span>Referrer</span><span style={{textAlign:'right'}}>Refs</span><span style={{textAlign:'right'}}>Referred GMV</span><span style={{textAlign:'right'}}>Orders</span><span style={{textAlign:'right'}}>Earned 1%</span><span style={{textAlign:'right'}}>Paid</span><span style={{textAlign:'right'}}>Owed</span>
+                  </div>
+                  {referrers.map((p,i)=>(
+                    <div key={p.id} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:i<referrers.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780}}>
+                      <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                      <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
+                        <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
+                          <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,1).join('')||'—'}</div>
+                        </div>
+                      </div>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)'}}>{p._refs}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBPc(p._refGMV)}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--cy)'}}>{p._refOrders.toLocaleString()}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBPc(p._earned)}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBPc(p._paid)}</span>
+                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:p._owed>0?'var(--go)':'var(--tx3)'}}>{fmtGBPc(p._owed)}</span>
+                    </div>
+                  ))}
+                </div>
+              ):(
+                /* Mobile — stacked cards */
+                referrers.map((p,i)=>(
+                  <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:12,marginBottom:8}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                      <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                      <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:600}}>{p.username}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)'}}>{(p.tiktok_handles||[]).slice(0,1).join('')||'—'} · {p._refs} referred</div>
+                      </div>
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
+                      <div className="asub"><div className="asubl">Ref GMV</div><div className="asubv" style={{color:'var(--gr)'}}>{fmtGBPc(p._refGMV)}</div></div>
+                      <div className="asub"><div className="asubl">Earned</div><div className="asubv" style={{color:'var(--go)'}}>{fmtGBPc(p._earned)}</div></div>
+                      <div className="asub"><div className="asubl">Owed</div><div className="asubv" style={{color:p._owed>0?'var(--go)':'var(--tx3)'}}>{fmtGBPc(p._owed)}</div></div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            {/* RECENT REFERRAL SIGNUPS */}
+            {recentReferred.length>0&&(
+              <div className="asec">
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11}}>
+                  <span style={{fontSize:14}}>📋</span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>RECENT SIGNUPS</span>
+                  <span style={{marginLeft:'auto',fontSize:10,color:'var(--tx3)',letterSpacing:.3}}>Newest first</span>
+                </div>
+                {recentReferred.map((p,i)=>{
+                  const refBy=profileById[p.referred_by];
+                  const myNetGMV=Math.max(0,(p.total_gmv||0)-(p.total_cancelled_gmv||0));
+                  const when=p.created_at?new Date(p.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
+                  return(
+                    <div key={p.id} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:i<recentReferred.length-1?'1px solid var(--bo)':'none'}}>
+                      <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12.5,fontWeight:600}}>{p.username} <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>joined via</span> <span style={{color:'var(--pu2)',fontWeight:600}}>{refBy?.username||'—'}</span></div>
+                        <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{when} · {fmtGBPc(myNetGMV)} net GMV since</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* REFERRAL TREE (collapsible) */}
+            <div className="asec" style={{padding:0,overflow:'hidden'}}>
+              <button onClick={()=>setShowReferralTree(!showReferralTree)} style={{width:'100%',background:'none',border:'none',padding:'13px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:12,display:'inline-block',transform:showReferralTree?'rotate(90deg)':'none',transition:'transform .15s'}}>▶</span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>🌳 REFERRAL TREE</span>
+                </div>
+                <span style={{fontSize:10,color:'var(--tx3)'}}>{totalReferred} referred · {roots.length} root{roots.length===1?'':'s'}</span>
+              </button>
+              {showReferralTree&&(
+                <div style={{padding:'4px 16px 14px',borderTop:'1px solid var(--bo)',maxHeight:420,overflowY:'auto'}}>
+                  {roots.length===0?(<div style={{fontSize:11,color:'var(--tx3)',textAlign:'center',padding:'10px 0'}}>No affiliates yet.</div>):roots.sort((a,b)=>(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0)).map(r=><RefNode key={r.id} p={r} depth={0}/>)}
+                </div>
+              )}
+            </div>
+          </>);
+        })()}
         {/* XP EXCLUSIONS — accessible via Imports tab + Quick Actions */}
         {adminTab==='imports'&&showExclusions&&(<div className="asec">
           <div className="asect">XP Exclusions</div>
