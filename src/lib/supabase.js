@@ -7,7 +7,10 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      // Enable URL token parsing so Supabase picks up the recovery token from
+      // password-reset email links (fires a PASSWORD_RECOVERY auth event).
+      // Required for the in-app password reset flow.
+      detectSessionInUrl: true,
       storageKey: 'll-auth',
     }
   }
