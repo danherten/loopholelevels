@@ -437,6 +437,13 @@ export default function App(){
   const [showForgotPw,setShowForgotPw]=useState(false);
   const [forgotEmail,setForgotEmail]=useState('');
   const [forgotBusy,setForgotBusy]=useState(false);
+  // Forgot-password is a 2-step flow: 'email' (collect email + trigger send) →
+  // 'code' (enter the 6-digit OTP from email + new password). Using an OTP rather
+  // than a magic link makes the flow resistant to Microsoft SafeLinks (and
+  // similar email security tools) which pre-click every URL in incoming emails,
+  // consuming the single-use Supabase recovery token before the human ever clicks.
+  const [forgotStep,setForgotStep]=useState('email');
+  const [forgotCode,setForgotCode]=useState('');
   const [adminPass,setAdminPass]=useState('');
   const [adminErr,setAdminErr]=useState('');
   const [allProfiles,setAllProfiles]=useState([]);
@@ -494,11 +501,14 @@ export default function App(){
         const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
           if(event==='SIGNED_IN'&&session?.user){loadProfile(session.user.id).then(()=>{loadRewards();loadLeaderboard();loadMilestones();});}
           else if(event==='SIGNED_OUT'){setProfile(null);}
-          // Triggered when the user clicks the reset-password email link.
-          // Supabase has already exchanged the token for a temporary session,
-          // so the user is technically signed in — open the "set new password"
-          // modal so they finish the flow before doing anything else.
-          else if(event==='PASSWORD_RECOVERY'){setResetPw('');setResetPw2('');setShowResetPw(true);}
+          // Triggered when (a) the user clicks the magic-link reset email
+          // OR (b) we manually call verifyOtp during the OTP forgot-password
+          // flow. In case (b) we suppress this handler via the ref because
+          // the forgot flow is already collecting + applying the new password.
+          else if(event==='PASSWORD_RECOVERY'){
+            if(inForgotPwFlowRef.current)return;
+            setResetPw('');setResetPw2('');setShowResetPw(true);
+          }
         });
         sub=subscription;
       }catch(e){console.error('auth sub error:',e);}
@@ -524,6 +534,10 @@ export default function App(){
   // Keep a ref to current profile so the visibility handler can read it without
   // re-subscribing every time profile changes.
   const profileRef=React.useRef(null);
+  // When true, the PASSWORD_RECOVERY auth event is suppressed because the
+  // forgot-password OTP flow is handling the password update itself and we
+  // don't want the standalone "Change Password" modal to also open on top.
+  const inForgotPwFlowRef=React.useRef(false);
   useEffect(()=>{profileRef.current=profile;},[profile]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
   // Surface Supabase auth errors that arrive in the URL hash so they don't get
@@ -840,7 +854,11 @@ export default function App(){
     setShowResetPw(false);setResetPw('');setResetPw2('');
     toast('Password updated ✓','ok');
   }
-  // "Forgot password?" flow — sends the recovery email via Supabase.
+  // "Forgot password?" step 1 — send the recovery email. The Supabase email
+  // template should surface {{ .Token }} (6-digit OTP) so the user can complete
+  // the flow even if SafeLinks / similar pre-clicks the magic link. We keep the
+  // magic-link path working too via redirectTo for users on email providers
+  // that don't pre-click.
   async function submitForgotPw(){
     const email=forgotEmail.trim().toLowerCase();
     if(!email.includes('@')){toast('Enter your email address','wn');return;}
@@ -848,8 +866,32 @@ export default function App(){
     const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
     setForgotBusy(false);
     if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
-    setShowForgotPw(false);setForgotEmail('');
-    toast('Reset link sent — check your email','ok');
+    setForgotStep('code');setForgotCode('');setResetPw('');setResetPw2('');
+    toast('Code sent — check your email','ok');
+  }
+  // "Forgot password?" step 2 — verify the 6-digit OTP from the email and
+  // update the password in one shot. We set inForgotPwFlowRef to suppress
+  // the PASSWORD_RECOVERY auto-modal so it doesn't pop up on top of the
+  // forgot flow.
+  async function submitForgotCode(){
+    const email=forgotEmail.trim().toLowerCase();
+    const code=forgotCode.trim();
+    if(code.length<6){toast('Enter the 6-digit code from your email','wn');return;}
+    if(resetPw.length<6){toast('Password must be at least 6 characters','wn');return;}
+    if(resetPw!==resetPw2){toast('Passwords don\'t match','wn');return;}
+    setForgotBusy(true);
+    inForgotPwFlowRef.current=true;
+    try{
+      const {error:verifyErr}=await supabase.auth.verifyOtp({email,token:code,type:'recovery'});
+      if(verifyErr){toast('Code invalid or expired — request a new one','wn');return;}
+      const {error:updateErr}=await supabase.auth.updateUser({password:resetPw});
+      if(updateErr){toast('Failed: '+(updateErr.message||'unknown'),'wn');return;}
+      setShowForgotPw(false);setForgotEmail('');setForgotCode('');setResetPw('');setResetPw2('');setForgotStep('email');
+      toast('Password updated ✓','ok');
+    }finally{
+      inForgotPwFlowRef.current=false;
+      setForgotBusy(false);
+    }
   }
 
   async function claimDaily(){
@@ -1315,11 +1357,24 @@ body,html{margin:0;padding:0;background:#070710;}
     {showForgotPw&&(
       <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.78)',zIndex:700,display:'flex',alignItems:'center',justifyContent:'center',padding:'18px',backdropFilter:'blur(4px)'}}>
         <div style={{width:'100%',maxWidth:380,background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:16,padding:'24px 22px',position:'relative'}}>
-          <button onClick={()=>setShowForgotPw(false)} style={{position:'absolute',top:12,right:12,width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:14,cursor:'pointer'}}>✕</button>
-          <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>📧 FORGOT PASSWORD</div>
-          <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Enter the email you used to sign up — we'll send a reset link.</div>
-          <div style={{marginBottom:14}}><label className="lbl">Email</label><input className="inp" type="email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} placeholder="your@email.com" autoFocus onKeyDown={e=>e.key==='Enter'&&submitForgotPw()}/></div>
-          <button className="btn btnpu" onClick={submitForgotPw} disabled={forgotBusy}>{forgotBusy?'SENDING...':'SEND RESET LINK'}</button>
+          <button onClick={()=>{setShowForgotPw(false);setForgotStep('email');setForgotCode('');setResetPw('');setResetPw2('');}} style={{position:'absolute',top:12,right:12,width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:14,cursor:'pointer'}}>✕</button>
+          {forgotStep==='email'?(<>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>📧 FORGOT PASSWORD</div>
+            <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Enter the email you used to sign up — we'll email you a 6-digit code.</div>
+            <div style={{marginBottom:14}}><label className="lbl">Email</label><input className="inp" type="email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} placeholder="your@email.com" autoFocus onKeyDown={e=>e.key==='Enter'&&submitForgotPw()}/></div>
+            <button className="btn btnpu" onClick={submitForgotPw} disabled={forgotBusy}>{forgotBusy?'SENDING...':'SEND CODE'}</button>
+          </>):(<>
+            <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>🔐 ENTER YOUR CODE</div>
+            <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Check <strong style={{color:'var(--tx)'}}>{forgotEmail}</strong> for a 6-digit code, then choose a new password.</div>
+            <div style={{marginBottom:10}}><label className="lbl">6-digit code</label><input className="inp" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={forgotCode} onChange={e=>setForgotCode(e.target.value.replace(/\D/g,''))} placeholder="123456" autoFocus style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:6,textAlign:'center'}}/></div>
+            <div style={{marginBottom:10}}><label className="lbl">New password</label><input className="inp" type="password" value={resetPw} onChange={e=>setResetPw(e.target.value)} placeholder="••••••••"/></div>
+            <div style={{marginBottom:14}}><label className="lbl">Confirm password</label><input className="inp" type="password" value={resetPw2} onChange={e=>setResetPw2(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&submitForgotCode()}/></div>
+            <button className="btn btnpu" onClick={submitForgotCode} disabled={forgotBusy}>{forgotBusy?'SAVING...':'RESET PASSWORD'}</button>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:12,fontSize:11}}>
+              <button onClick={()=>{setForgotStep('email');setForgotCode('');setResetPw('');setResetPw2('');}} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',padding:'4px',fontFamily:'var(--fb)'}}>← Different email</button>
+              <button onClick={submitForgotPw} disabled={forgotBusy} style={{background:'none',border:'none',color:'var(--pu2)',cursor:'pointer',padding:'4px',fontFamily:'var(--fb)',textDecoration:'underline'}}>Resend code</button>
+            </div>
+          </>)}
         </div>
       </div>
     )}
