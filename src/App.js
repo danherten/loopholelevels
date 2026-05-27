@@ -505,6 +505,9 @@ export default function App(){
   const [adminTab,setAdminTab]=useState('overview');
   const [adminPeriod,setAdminPeriod]=useState('30d');
   const [adminPeriodEvents,setAdminPeriodEvents]=useState([]);
+  // Period filter for the Referrals tab. Defaults to 'all' because referral
+  // signups are slow-moving — most people want lifetime totals first.
+  const [referralPeriod,setReferralPeriod]=useState('all');
   const [showReferralTree,setShowReferralTree]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [expandedAdminRow,setExpandedAdminRow]=useState(null);
   const [xpExclusions,setXpExclusions]=useState([]);
@@ -2475,15 +2478,30 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* REFERRALS — dedicated dashboard for the referral programme */}
         {adminTab==='referrals'&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          // Roll up per-referrer stats: count of kids, kids' net GMV, kids' orders,
-          // the 1% commission the referrer accrued (referral_earnings), and their
-          // paid / owed split derived from `payouts`.
+          // Period filter — when set, GMV/Orders/Earned reflect activity within
+          // the window only. Paid/Owed stay cumulative because payouts are
+          // monthly artefacts that don't map cleanly to rolling-day windows.
+          const refPeriodDays=referralPeriod==='today'?1:referralPeriod==='7d'?7:referralPeriod==='30d'?30:null;
+          const refPeriodFrom=refPeriodDays?new Date(Date.now()-refPeriodDays*24*60*60*1000):null;
+          // Per-referrer roll-up. When a period is selected, derive GMV/orders
+          // from adminPeriodEvents (already loaded for last 60 days) filtered
+          // to events whose profile_id is one of the referrer's referrals.
           const referrers=[...allProfiles].map(p=>{
             const kids=referralsByReferrer[p.id]||[];
-            const refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
-            const refOrders=kids.reduce((s,k)=>s+(k.total_orders||0),0);
+            let refGMV,refOrders,earned;
+            if(refPeriodFrom){
+              const kidIds=new Set(kids.map(k=>k.id));
+              const evts=adminPeriodEvents.filter(e=>kidIds.has(e.profile_id)&&new Date(e.created_at)>=refPeriodFrom);
+              refGMV=evts.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
+              refOrders=evts.reduce((s,e)=>s+(e.orders||0),0);
+              earned=refGMV*0.01;
+            }else{
+              refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
+              refOrders=kids.reduce((s,k)=>s+(k.total_orders||0),0);
+              earned=p.referral_earnings||0;
+            }
             const myPayouts=adminPayouts.filter(po=>po.profile_id===p.id);
-            return{...p,_refs:kids.length,_kids:kids,_refGMV:refGMV,_refOrders:refOrders,_earned:p.referral_earnings||0,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
+            return{...p,_refs:kids.length,_kids:kids,_refGMV:refGMV,_refOrders:refOrders,_earned:earned,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
           }).filter(p=>p._refs>0).sort((a,b)=>b._refGMV-a._refGMV);
           const totalReferrers=referrers.length;
           const totalReferred=referrers.reduce((s,r)=>s+r._refs,0);
@@ -2491,8 +2509,8 @@ body,html{margin:0;padding:0;background:#070710;}
           const totalEarned=referrers.reduce((s,r)=>s+r._earned,0);
           const totalPaid=referrers.reduce((s,r)=>s+r._paid,0);
           const totalOwed=referrers.reduce((s,r)=>s+r._owed,0);
-          // Recent signups via referral, newest first.
-          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
+          // Recent signups via referral — filtered by signup date when a period is on.
+          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).filter(p=>!refPeriodFrom||new Date(p.created_at||0)>=refPeriodFrom).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
           // Referral tree (collapsible at the bottom of the page).
           const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
           const RefNode=({p,depth})=>{
@@ -2515,11 +2533,18 @@ body,html{margin:0;padding:0;background:#070710;}
             {/* HERO STRIP */}
             <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.14) 0%,rgba(6,182,212,.06) 60%,rgba(245,158,11,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
               <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
-              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16,position:'relative'}}>
-                <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
-                <div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
-                  <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>1% of every referred creator's net GMV</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,position:'relative',flexWrap:'wrap',gap:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
+                  <div>
+                    <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Last 24 hours of referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':'Last 30 days of referral activity'}</div>
+                  </div>
+                </div>
+                <div className="aseg">
+                  {[['today','Today'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
+                    <button key={v} className={referralPeriod===v?'on':''} onClick={()=>setReferralPeriod(v)}>{l}</button>
+                  ))}
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(6, 1fr)':'1fr 1fr',gap:10,position:'relative'}}>
