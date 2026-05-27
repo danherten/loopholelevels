@@ -876,7 +876,10 @@ export default function App(){
   async function submitForgotCode(){
     const email=forgotEmail.trim().toLowerCase();
     const code=forgotCode.trim();
-    if(code.length<6){toast('Enter the 6-digit code from your email','wn');return;}
+    // Supabase OTP length is project-configurable (Auth → Settings → OTP Length),
+    // default 6 but can be 6–10 digits. Just sanity-check >= 6; verifyOtp is the
+    // real validator.
+    if(code.length<6){toast('Enter the code from your email','wn');return;}
     if(resetPw.length<6){toast('Password must be at least 6 characters','wn');return;}
     if(resetPw!==resetPw2){toast('Passwords don\'t match','wn');return;}
     setForgotBusy(true);
@@ -1361,13 +1364,13 @@ body,html{margin:0;padding:0;background:#070710;}
           <button onClick={()=>{setShowForgotPw(false);setForgotStep('email');setForgotCode('');setResetPw('');setResetPw2('');}} style={{position:'absolute',top:12,right:12,width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:14,cursor:'pointer'}}>✕</button>
           {forgotStep==='email'?(<>
             <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>📧 FORGOT PASSWORD</div>
-            <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Enter the email you used to sign up — we'll email you a 6-digit code.</div>
+            <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Enter the email you used to sign up — we'll email you a verification code.</div>
             <div style={{marginBottom:14}}><label className="lbl">Email</label><input className="inp" type="email" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} placeholder="your@email.com" autoFocus onKeyDown={e=>e.key==='Enter'&&submitForgotPw()}/></div>
             <button className="btn btnpu" onClick={submitForgotPw} disabled={forgotBusy}>{forgotBusy?'SENDING...':'SEND CODE'}</button>
           </>):(<>
             <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2,marginBottom:6,color:'var(--pu2)'}}>🔐 ENTER YOUR CODE</div>
-            <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Check <strong style={{color:'var(--tx)'}}>{forgotEmail}</strong> for a 6-digit code, then choose a new password.</div>
-            <div style={{marginBottom:10}}><label className="lbl">6-digit code</label><input className="inp" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={forgotCode} onChange={e=>setForgotCode(e.target.value.replace(/\D/g,''))} placeholder="123456" autoFocus style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:6,textAlign:'center'}}/></div>
+            <div style={{fontSize:12,color:'var(--tx3)',marginBottom:16,lineHeight:1.5}}>Check <strong style={{color:'var(--tx)'}}>{forgotEmail}</strong> for a verification code, then choose a new password.</div>
+            <div style={{marginBottom:10}}><label className="lbl">Verification code</label><input className="inp" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={10} value={forgotCode} onChange={e=>setForgotCode(e.target.value.replace(/\D/g,''))} placeholder="••••••" autoFocus style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:6,textAlign:'center'}}/></div>
             <div style={{marginBottom:10}}><label className="lbl">New password</label><input className="inp" type="password" value={resetPw} onChange={e=>setResetPw(e.target.value)} placeholder="••••••••"/></div>
             <div style={{marginBottom:14}}><label className="lbl">Confirm password</label><input className="inp" type="password" value={resetPw2} onChange={e=>setResetPw2(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&submitForgotCode()}/></div>
             <button className="btn btnpu" onClick={submitForgotCode} disabled={forgotBusy}>{forgotBusy?'SAVING...':'RESET PASSWORD'}</button>
