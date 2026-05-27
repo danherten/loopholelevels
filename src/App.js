@@ -423,7 +423,11 @@ function ProfileHandles({profile,setProfile,toast}){
 
 export default function App(){
   const {toasts,toast}=useToasts();
-  const [loading,setLoading]=useState(false);
+  // Defaults to true so the spinner page renders on first paint while init()
+  // resolves the Supabase session and loads the profile. If we started false,
+  // React would render the login screen for a beat before the auth check
+  // settled — confusing for already-signed-in users on slower connections.
+  const [loading,setLoading]=useState(true);
   const [profile,setProfile]=useState(null);
   const [rewards,setRewards]=useState([]);
   const [leaderboard,setLeaderboard]=useState([]);
@@ -548,7 +552,10 @@ export default function App(){
       }catch(e){console.error('auth sub error:',e);}
     };
     init();
-    const t=setTimeout(()=>setLoading(false),3000);
+    // Safety net in case init() hangs on the network. 8s is well above a
+    // normal getSession + loadProfile round-trip even on slow connections,
+    // so we won't kill the spinner before the dashboard is actually ready.
+    const t=setTimeout(()=>setLoading(false),8000);
     // Re-check session when the PWA / tab regains focus. iOS can suspend WKWebView and
     // sometimes resumes with a stale React state that thinks the user is logged out
     // when the underlying session is actually still valid.
