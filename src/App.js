@@ -526,6 +526,28 @@ export default function App(){
   const profileRef=React.useRef(null);
   useEffect(()=>{profileRef.current=profile;},[profile]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
+  // Surface Supabase auth errors that arrive in the URL hash so they don't get
+  // silently swallowed. Expired password-reset links land at:
+  //   /#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired
+  // Without this the user sees the login page with no explanation and assumes
+  // the reset feature is broken.
+  useEffect(()=>{
+    const hash=window.location.hash;
+    if(!hash||!hash.includes('error='))return;
+    const params=new URLSearchParams(hash.slice(1));
+    const errCode=params.get('error_code');
+    const errDesc=params.get('error_description');
+    if(errCode==='otp_expired'||params.get('error')==='access_denied'){
+      toast('This reset link expired — request a new one','wn');
+      // Auto-open the forgot-password modal so the user can immediately ask
+      // for a fresh email instead of hunting for the button.
+      setShowForgotPw(true);
+    }else if(errDesc){
+      toast(decodeURIComponent(errDesc).replace(/\+/g,' '),'wn');
+    }
+    // Strip the hash so a page reload doesn't re-trigger this toast.
+    window.history.replaceState(null,'',window.location.pathname+window.location.search);
+  },[]);
   // Keep body height in lockstep with the actual visible viewport. On iOS
   // standalone PWAs, window.innerHeight returns a stale Safari-toolbar-visible
   // value even though the PWA has no toolbar, leaving a black gap below the
