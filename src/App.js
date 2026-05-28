@@ -3271,17 +3271,10 @@ body,html{margin:0;padding:0;background:#070710;}
                 </div>
               </div>
               {refCode&&(
-                <div style={{paddingTop:10,borderTop:'1px solid rgba(168,85,247,.25)',textAlign:'center'}}>
-                  <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.6,fontWeight:600,marginBottom:5}}>Sign up & get</div>
-                  <div style={{display:'inline-flex',alignItems:'baseline',gap:6,marginBottom:6}}>
-                    <span style={{fontFamily:'var(--fh)',fontSize:30,color:'#10b981',lineHeight:1,letterSpacing:1,textShadow:'0 0 16px rgba(16,185,129,.55)'}}>100 XP</span>
-                    <span style={{fontSize:10,color:'#10b981',fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',background:'rgba(16,185,129,.18)',border:'1px solid rgba(16,185,129,.45)',borderRadius:99,padding:'2px 7px'}}>Free</span>
-                  </div>
-                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.65)',marginBottom:6}}>Use my code at signup</div>
-                  <div style={{padding:'7px 10px',background:'rgba(168,85,247,.22)',border:'1px solid rgba(168,85,247,.5)',borderRadius:8,marginBottom:6}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,textShadow:'0 0 12px rgba(168,85,247,.6)'}}>{refCode}</div>
-                  </div>
-                  <div style={{fontSize:9,color:'rgba(255,255,255,.5)'}}>loopholelevels.vercel.app</div>
+                <div style={{paddingTop:9,borderTop:'1px solid rgba(168,85,247,.25)',textAlign:'center'}}>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,.7)',lineHeight:1.4,marginBottom:5}}><strong style={{color:'#10b981',fontWeight:700}}>+100 XP</strong> sign-up bonus when you join with code:</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,marginBottom:4,textShadow:'0 0 14px rgba(168,85,247,.6)'}}>{refCode}</div>
+                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.55)'}}>loopholelevels.vercel.app</div>
                 </div>
               )}
             </div>
