@@ -3168,9 +3168,11 @@ body,html{margin:0;padding:0;background:#070710;}
       const monthShort=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const refCode=profile?.referral_code||'';
       return(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',padding:'70px 16px 24px',backdropFilter:'blur(6px)',overflowY:'auto'}}>
-          {/* Top toolbar — sits outside the card so screenshots stay clean. */}
-          <div style={{position:'fixed',top:16,left:0,right:0,zIndex:6,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',pointerEvents:'none'}}>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',padding:'calc(70px + var(--st)) 16px calc(24px + var(--sb))',backdropFilter:'blur(6px)',overflowY:'auto'}}>
+          {/* Top toolbar — sits outside the card so screenshots stay clean.
+              `top` uses the iOS safe-area inset so the chip/✕ clear the
+              notch + status bar instead of sitting underneath them. */}
+          <div style={{position:'fixed',top:'calc(14px + var(--st))',left:0,right:0,zIndex:6,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',pointerEvents:'none'}}>
             <button onClick={()=>{setShowMonthPicker(true);setPickerYear(monthlyRecap.year);}} disabled={monthlyRecapLoading} style={{pointerEvents:'auto',padding:'7px 14px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:99,fontFamily:'var(--fb)',display:'flex',alignItems:'center',gap:6,backdropFilter:'blur(8px)'}}>📅 {monthShort[monthlyRecap.month]} {monthlyRecap.year} <span style={{opacity:.6,fontSize:10}}>▾</span></button>
             <button onClick={()=>setMonthlyRecap(null)} style={{pointerEvents:'auto',width:34,height:34,borderRadius:'50%',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,backdropFilter:'blur(8px)'}}>✕</button>
           </div>
