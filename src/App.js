@@ -476,6 +476,11 @@ export default function App(){
   // consuming the single-use Supabase recovery token before the human ever clicks.
   const [forgotStep,setForgotStep]=useState('email');
   const [forgotCode,setForgotCode]=useState('');
+  // Monthly Recap — shareable end-of-month card. Auto-pops on the first visit
+  // of a new month with the previous month's totals; localStorage gates so it
+  // only opens once per user-per-month. Also reachable from Profile menu.
+  const [monthlyRecap,setMonthlyRecap]=useState(null);
+  const [monthlyRecapLoading,setMonthlyRecapLoading]=useState(false);
   const [adminPass,setAdminPass]=useState('');
   const [adminErr,setAdminErr]=useState('');
   const [allProfiles,setAllProfiles]=useState([]);
@@ -580,6 +585,15 @@ export default function App(){
   // don't want the standalone "Change Password" modal to also open on top.
   const inForgotPwFlowRef=React.useRef(false);
   useEffect(()=>{profileRef.current=profile;},[profile]);
+  // When the profile resolves for the first time after page load, check whether
+  // the previous-month recap card should pop. localStorage gates so it only
+  // ever shows once per user per month. Deferred a beat so the dashboard paints
+  // first and the recap arrives as a polite overlay rather than blocking init.
+  useEffect(()=>{
+    if(!profile?.id)return;
+    const t=setTimeout(()=>{maybeShowMonthlyRecap(profile.id);},1200);
+    return()=>clearTimeout(t);
+  },[profile?.id]);
   useEffect(()=>{const fn=()=>setIsDesktop(window.innerWidth>=768);window.addEventListener('resize',fn);return()=>window.removeEventListener('resize',fn);},[]);
   // Surface Supabase auth errors that arrive in the URL hash so they don't get
   // silently swallowed. Expired password-reset links land at:
@@ -675,6 +689,61 @@ export default function App(){
   },[showDiscordCta,discordCountdown]);
 
   async function loadProfile(id){const {data}=await supabase.from('profiles').select('*').eq('id',id).single();if(data){setProfile(data);await loadXpEvents(id);}}
+  // Aggregates a user's previous-month import events into a Monthly Recap card.
+  // `which`: 'prev' (default) for the previous calendar month, or {year,month}
+  // for an explicit month. Returns null if there were no imports for that month.
+  async function computeMonthlyRecap(id,which='prev'){
+    let y,m;
+    if(which==='prev'){
+      const now=new Date();
+      const prev=new Date(now.getFullYear(),now.getMonth()-1,1);
+      y=prev.getFullYear();m=prev.getMonth();
+    }else{y=which.year;m=which.month;}
+    const start=new Date(y,m,1).toISOString();
+    const end=new Date(y,m+1,1).toISOString();
+    const {data}=await supabase.from('xp_events').select('gmv,cancelled_gmv,commission,orders,amount,product_name,created_at').eq('profile_id',id).eq('reason','import').gte('created_at',start).lt('created_at',end);
+    if(!data||data.length===0)return null;
+    const netGMV=data.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
+    const commission=data.reduce((s,e)=>s+(e.commission||0),0);
+    const orders=data.reduce((s,e)=>s+(e.orders||0),0);
+    const xpGained=data.reduce((s,e)=>s+(e.amount||0),0);
+    // Top product = highest net GMV from a single product_name across the month.
+    const byProduct={};
+    data.forEach(e=>{const n=e.product_name||'Other';if(!byProduct[n])byProduct[n]={gmv:0,orders:0};byProduct[n].gmv+=Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0));byProduct[n].orders+=(e.orders||0);});
+    const sortedProducts=Object.entries(byProduct).sort((a,b)=>b[1].gmv-a[1].gmv);
+    const topName=sortedProducts[0]?.[0];
+    const topGMV=sortedProducts[0]?.[1].gmv||0;
+    const topOrders=sortedProducts[0]?.[1].orders||0;
+    const topMeta=products.find(p=>p.name===topName);
+    const monthLabel=new Date(y,m,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
+    return{year:y,month:m,monthLabel,netGMV,commission,orders,xpGained,topName,topGMV,topOrders,topImage:topMeta?.image_url||null,productCount:sortedProducts.length};
+  }
+  // Auto-check if the previous-month recap should pop. Gated on localStorage so
+  // it only shows once per user-per-month, even if they reload the app.
+  async function maybeShowMonthlyRecap(id){
+    if(!id||monthlyRecapLoading)return;
+    const now=new Date();
+    const prev=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const monthKey=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
+    const seenKey=`ll-recap-${id}-${monthKey}`;
+    if(localStorage.getItem(seenKey))return;
+    setMonthlyRecapLoading(true);
+    const recap=await computeMonthlyRecap(id,'prev');
+    setMonthlyRecapLoading(false);
+    if(recap)setMonthlyRecap(recap);
+    // Mark seen either way — if there was no data, don't keep querying every reload.
+    try{localStorage.setItem(seenKey,'1');}catch(e){}
+  }
+  // Manual trigger for the Profile menu "Monthly Recap" item. Always fetches
+  // the previous month, ignoring the localStorage gate.
+  async function openMonthlyRecap(){
+    if(!profile||monthlyRecapLoading)return;
+    setMonthlyRecapLoading(true);
+    const recap=await computeMonthlyRecap(profile.id,'prev');
+    setMonthlyRecapLoading(false);
+    if(recap)setMonthlyRecap(recap);
+    else toast('No import data for last month yet','info');
+  }
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
 
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
@@ -2098,6 +2167,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div className="mcard">
           <div className="mi" onClick={()=>navTo('products')}><div className="mil"><span className="mii">📦</span>Products</div><span className="mich">›</span></div>
           <div className="mi" onClick={()=>navTo('referrals')}><div className="mil"><span className="mii">👥</span>Refer &amp; Earn</div><span className="mich">›</span></div>
+          <div className="mi" onClick={openMonthlyRecap}><div className="mil"><span className="mii">📅</span>Monthly Recap{monthlyRecapLoading&&<span style={{fontSize:10,color:'var(--tx3)',marginLeft:6,fontWeight:500}}>loading…</span>}</div><span className="mich">›</span></div>
           <div className="mi" onClick={()=>{setResetPw('');setResetPw2('');setShowResetPw(true);}}><div className="mil"><span className="mii">🔑</span>Change Password</div><span className="mich">›</span></div>
           <div className="mi" onClick={openAdminGate}><div className="mil"><span className="mii">🔐</span>Admin Panel</div><span className="mich">›</span></div>
         </div>
@@ -3014,6 +3084,79 @@ body,html{margin:0;padding:0;background:#070710;}
     })()}
 
     {PwModals}
+    {/* MONTHLY RECAP — shareable end-of-month card. Pops automatically on the
+        first visit of a new month, or on demand via Profile menu. */}
+    {monthlyRecap&&(()=>{
+      const handle=(profile?.tiktok_handles||[])[0]||('@'+(profile?.username||''));
+      const lv=getLv(profile?.xp||0,LEVELS);
+      const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
+      return(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(6px)',overflowY:'auto'}}>
+          <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#0e0e1c 0%,#1a1a2e 100%)',border:'1px solid var(--bo2)',borderRadius:24,overflow:'hidden',boxShadow:'0 0 80px rgba(139,92,246,.35),0 20px 50px rgba(0,0,0,.6)'}}>
+            {/* Branded close */}
+            <button onClick={()=>setMonthlyRecap(null)} style={{position:'absolute',top:14,right:14,zIndex:5,width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.15)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,backdropFilter:'blur(8px)'}}>✕</button>
+            {/* Decorative gradient backdrop */}
+            <div style={{position:'absolute',top:-100,right:-100,width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.32) 0%,transparent 70%)',pointerEvents:'none'}}/>
+            <div style={{position:'absolute',bottom:-80,left:-80,width:260,height:260,borderRadius:'50%',background:'radial-gradient(circle,rgba(6,182,212,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
+            {/* Crown / branding strip */}
+            <div style={{position:'relative',padding:'22px 22px 0',display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>👑</span>
+              <div style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:3,color:'rgba(255,255,255,.85)'}}>LOOPHOLE LEVELS</div>
+            </div>
+            {/* User chip */}
+            <div style={{position:'relative',padding:'12px 22px 0',display:'flex',alignItems:'center',gap:11}}>
+              <div style={{width:40,height:40,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',border:'2px solid rgba(255,255,255,.18)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{handle}</div>
+                <div style={{fontSize:11,color:'var(--pu3)',fontWeight:600,letterSpacing:.4}}>LEVEL {lv.level}{lv.name?' · '+lv.name:''}</div>
+              </div>
+            </div>
+            {/* Month title */}
+            <div style={{position:'relative',padding:'24px 22px 4px',textAlign:'center'}}>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,marginBottom:6}}>Monthly Recap</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:30,letterSpacing:3.5,lineHeight:1,background:'linear-gradient(90deg,#a78bfa 0%,#06b6d4 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{monthlyRecap.monthLabel}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:2.5,marginTop:2,color:'rgba(255,255,255,.55)'}}>WRAPPED</div>
+            </div>
+            {/* Big GMV */}
+            <div style={{position:'relative',padding:'18px 22px 6px',textAlign:'center'}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:54,letterSpacing:1,lineHeight:1,color:'#10b981',textShadow:'0 0 30px rgba(16,185,129,.45)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:2.5,fontWeight:700,marginTop:6}}>NET GMV this month</div>
+            </div>
+            {/* Top product card */}
+            {monthlyRecap.topName&&(
+              <div style={{position:'relative',margin:'18px 22px 0',padding:14,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:14,display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:54,height:54,borderRadius:10,background:monthlyRecap.topImage?'transparent':'var(--card3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.8,fontWeight:700,marginBottom:3}}>🏆 Top Product</div>
+                  <div style={{fontSize:13,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginBottom:2}}>{monthlyRecap.topName}</div>
+                  <div style={{fontSize:11,color:'var(--gr)',fontFamily:'var(--fh)',letterSpacing:.5}}>{fmtGBPc(monthlyRecap.topGMV)} · {monthlyRecap.topOrders.toLocaleString()} orders</div>
+                </div>
+              </div>
+            )}
+            {/* Stats grid */}
+            <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,padding:'14px 22px 0'}}>
+              <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#f59e0b',letterSpacing:.5,lineHeight:1}}>{fmtGBPc(monthlyRecap.commission)}</div>
+                <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>Commission</div>
+              </div>
+              <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#06b6d4',letterSpacing:.5,lineHeight:1}}>{monthlyRecap.orders.toLocaleString()}</div>
+                <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>Orders</div>
+              </div>
+              <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#a78bfa',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained.toLocaleString()}</div>
+                <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>XP gained</div>
+              </div>
+            </div>
+            {/* Footer */}
+            <div style={{position:'relative',padding:'18px 22px 22px',textAlign:'center'}}>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.4)',letterSpacing:1.2,fontWeight:500}}>loopholelevels.vercel.app</div>
+              <div style={{fontSize:9,color:'rgba(255,255,255,.3)',marginTop:4,letterSpacing:.5}}>Screenshot to share 📸</div>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     <div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>
   </div>
   {/* BOTTOM NAV - mobile only. Placed OUTSIDE .app so it has no overflow:hidden
