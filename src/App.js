@@ -481,6 +481,10 @@ export default function App(){
   // only opens once per user-per-month. Also reachable from Profile menu.
   const [monthlyRecap,setMonthlyRecap]=useState(null);
   const [monthlyRecapLoading,setMonthlyRecapLoading]=useState(false);
+  // Calendar-style month picker for the recap modal — when open it overlays
+  // the card. pickerYear scopes the visible 12-month grid.
+  const [showMonthPicker,setShowMonthPicker]=useState(false);
+  const [pickerYear,setPickerYear]=useState(()=>new Date().getFullYear());
   const [adminPass,setAdminPass]=useState('');
   const [adminErr,setAdminErr]=useState('');
   const [allProfiles,setAllProfiles]=useState([]);
@@ -3105,53 +3109,51 @@ body,html{margin:0;padding:0;background:#070710;}
       const handle=(profile?.tiktok_handles||[])[0]||('@'+(profile?.username||''));
       const lv=getLv(profile?.xp||0,LEVELS);
       const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-      const goPrev=()=>{const d=new Date(monthlyRecap.year,monthlyRecap.month-1,1);loadRecapForMonth(d.getFullYear(),d.getMonth());};
-      const goNext=()=>{const d=new Date(monthlyRecap.year,monthlyRecap.month+1,1);loadRecapForMonth(d.getFullYear(),d.getMonth());};
       const now=new Date();
-      const atCurrent=monthlyRecap.year===now.getFullYear()&&monthlyRecap.month===now.getMonth();
-      const navBtn={width:30,height:30,borderRadius:'50%',background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.15)',color:'#fff',fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontFamily:'var(--fb)',transition:'opacity .15s'};
+      const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const monthShort=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const refCode=profile?.referral_code||'';
       return(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(6px)',overflowY:'auto'}}>
-          <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#0e0e1c 0%,#1a1a2e 100%)',border:'1px solid var(--bo2)',borderRadius:24,overflow:'hidden',boxShadow:'0 0 80px rgba(139,92,246,.35),0 20px 50px rgba(0,0,0,.6)'}}>
-            {/* Branded close */}
-            <button onClick={()=>setMonthlyRecap(null)} style={{position:'absolute',top:14,right:14,zIndex:5,width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.15)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,backdropFilter:'blur(8px)'}}>✕</button>
+          {/* Top toolbar — sits outside the card so screenshots stay clean. */}
+          <div style={{position:'fixed',top:16,left:0,right:0,zIndex:6,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',pointerEvents:'none'}}>
+            <button onClick={()=>{setShowMonthPicker(true);setPickerYear(monthlyRecap.year);}} disabled={monthlyRecapLoading} style={{pointerEvents:'auto',padding:'7px 14px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:99,fontFamily:'var(--fb)',display:'flex',alignItems:'center',gap:6,backdropFilter:'blur(8px)'}}>📅 {monthShort[monthlyRecap.month]} {monthlyRecap.year} <span style={{opacity:.6,fontSize:10}}>▾</span></button>
+            <button onClick={()=>setMonthlyRecap(null)} style={{pointerEvents:'auto',width:34,height:34,borderRadius:'50%',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,backdropFilter:'blur(8px)'}}>✕</button>
+          </div>
+          {/* THE CARD — designed for screenshot sharing. No UI noise. */}
+          <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#0e0e1c 0%,#1a1a2e 100%)',border:'1px solid var(--bo2)',borderRadius:24,overflow:'hidden',boxShadow:'0 0 80px rgba(139,92,246,.35),0 20px 50px rgba(0,0,0,.6)',marginTop:50}}>
             {/* Decorative gradient backdrop */}
             <div style={{position:'absolute',top:-100,right:-100,width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.32) 0%,transparent 70%)',pointerEvents:'none'}}/>
             <div style={{position:'absolute',bottom:-80,left:-80,width:260,height:260,borderRadius:'50%',background:'radial-gradient(circle,rgba(6,182,212,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
-            {/* Crown / branding strip */}
-            <div style={{position:'relative',padding:'22px 22px 0',display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>👑</span>
-              <div style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:3,color:'rgba(255,255,255,.85)'}}>LOOPHOLE LEVELS</div>
+            {/* Logo */}
+            <div style={{position:'relative',padding:'24px 22px 6px',display:'flex',justifyContent:'center'}}>
+              <img src="/logo.png" alt="Loophole Levels" style={{width:170,opacity:.95,filter:'drop-shadow(0 4px 12px rgba(139,92,246,.35))'}}/>
             </div>
             {/* User chip */}
-            <div style={{position:'relative',padding:'12px 22px 0',display:'flex',alignItems:'center',gap:11}}>
-              <div style={{width:40,height:40,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',border:'2px solid rgba(255,255,255,.18)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
-              <div style={{minWidth:0}}>
-                <div style={{fontSize:14,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{handle}</div>
-                <div style={{fontSize:11,color:'var(--pu3)',fontWeight:600,letterSpacing:.4}}>LEVEL {lv.level}{lv.name?' · '+lv.name:''}</div>
+            <div style={{position:'relative',padding:'12px 22px 0',display:'flex',alignItems:'center',gap:11,justifyContent:'center'}}>
+              <div style={{width:36,height:36,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden',border:'2px solid rgba(255,255,255,.18)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
+              <div style={{textAlign:'left'}}>
+                <div style={{fontSize:14,fontWeight:700,color:'#fff',whiteSpace:'nowrap'}}>{handle}</div>
+                <div style={{fontSize:10,color:'var(--pu3)',fontWeight:600,letterSpacing:.5}}>LEVEL {lv.level}{lv.name?' · '+lv.name:''}</div>
               </div>
             </div>
-            {/* Month title + nav arrows */}
-            <div style={{position:'relative',padding:'24px 22px 4px',textAlign:'center'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14,marginBottom:8}}>
-                <button onClick={goPrev} disabled={monthlyRecapLoading} style={{...navBtn,opacity:monthlyRecapLoading?.4:1}} title="Previous month">‹</button>
-                <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,minWidth:130}}>{monthlyRecap.isEmpty?'No data':monthlyRecap.isCurrent?'Month in Progress':'Monthly Recap'}</div>
-                <button onClick={goNext} disabled={atCurrent||monthlyRecapLoading} style={{...navBtn,opacity:(atCurrent||monthlyRecapLoading)?.3:1,cursor:atCurrent?'not-allowed':'pointer'}} title={atCurrent?'Already on current month':'Next month'}>›</button>
-              </div>
-              <div style={{fontFamily:'var(--fh)',fontSize:30,letterSpacing:3.5,lineHeight:1,background:'linear-gradient(90deg,#a78bfa 0%,#06b6d4 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{monthlyRecap.monthLabel}</div>
+            {/* Month title — clean, no inline buttons */}
+            <div style={{position:'relative',padding:'22px 22px 4px',textAlign:'center'}}>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,marginBottom:6}}>{monthlyRecap.isEmpty?'No data this month':monthlyRecap.isCurrent?'Month in Progress':'Monthly Recap'}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:32,letterSpacing:3.5,lineHeight:1,background:'linear-gradient(90deg,#a78bfa 0%,#06b6d4 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{monthlyRecap.monthLabel}</div>
               {!monthlyRecap.isEmpty&&<div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:2.5,marginTop:2,color:'rgba(255,255,255,.55)'}}>{monthlyRecap.isCurrent?'SO FAR':'WRAPPED'}</div>}
             </div>
             {/* BODY — either empty state or full stats */}
             {monthlyRecap.isEmpty?(
               <div style={{position:'relative',padding:'28px 22px 18px',textAlign:'center'}}>
                 <div style={{fontSize:42,marginBottom:10,opacity:.5}}>📭</div>
-                <div style={{fontSize:13,color:'rgba(255,255,255,.65)',marginBottom:6}}>No imports in {monthlyRecap.monthLabel.split(' ').map(s=>s[0]+s.slice(1).toLowerCase()).join(' ')}</div>
-                <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Use the ‹ / › arrows to browse another month</div>
+                <div style={{fontSize:13,color:'rgba(255,255,255,.65)',marginBottom:6}}>No imports in {monthNames[monthlyRecap.month]} {monthlyRecap.year}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Tap 📅 above to pick a different month</div>
               </div>
             ):(<>
               {/* Big GMV */}
               <div style={{position:'relative',padding:'18px 22px 6px',textAlign:'center'}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:54,letterSpacing:1,lineHeight:1,color:'#10b981',textShadow:'0 0 30px rgba(16,185,129,.45)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:56,letterSpacing:1,lineHeight:1,color:'#10b981',textShadow:'0 0 30px rgba(16,185,129,.45)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
                 <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:2.5,fontWeight:700,marginTop:6}}>Net GMV{monthlyRecap.isCurrent?' this month':''}</div>
               </div>
               {/* Top product card */}
@@ -3181,12 +3183,41 @@ body,html{margin:0;padding:0;background:#070710;}
                 </div>
               </div>
             </>)}
+            {/* REFERRAL CODE CTA — viral mechanic for stories/posts */}
+            {refCode&&(
+              <div style={{position:'relative',margin:'20px 22px 0',padding:'14px 16px',background:'linear-gradient(90deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.13) 100%)',border:'1px solid rgba(139,92,246,.32)',borderRadius:14,textAlign:'center'}}>
+                <div style={{fontSize:9,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:1.8,fontWeight:700,marginBottom:6}}>Want in on the loophole?</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:2,color:'#fff',lineHeight:1.1,marginBottom:5}}>USE CODE <span style={{color:'var(--pu2)',marginLeft:2}}>{refCode}</span></div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.75)'}}>Get <strong style={{color:'var(--gr)'}}>+100 XP</strong> when you join Loophole Levels</div>
+              </div>
+            )}
             {/* Footer */}
-            <div style={{position:'relative',padding:'18px 22px 22px',textAlign:'center'}}>
+            <div style={{position:'relative',padding:'16px 22px 22px',textAlign:'center'}}>
               <div style={{fontSize:10,color:'rgba(255,255,255,.4)',letterSpacing:1.2,fontWeight:500}}>loopholelevels.vercel.app</div>
-              <div style={{fontSize:9,color:'rgba(255,255,255,.3)',marginTop:4,letterSpacing:.5}}>Screenshot to share 📸</div>
             </div>
           </div>
+          {/* CALENDAR MONTH PICKER — opens on top of the recap when user taps the date chip. */}
+          {showMonthPicker&&(
+            <div style={{position:'fixed',inset:0,background:'rgba(7,7,16,.92)',zIndex:660,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(10px)'}} onClick={()=>setShowMonthPicker(false)}>
+              <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:340,background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:20,padding:'22px',position:'relative'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18}}>
+                  <button onClick={()=>setPickerYear(y=>y-1)} style={{width:32,height:32,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'#fff',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fb)',fontWeight:700}}>‹</button>
+                  <div style={{fontFamily:'var(--fh)',fontSize:26,letterSpacing:2.5,color:'#fff'}}>{pickerYear}</div>
+                  <button onClick={()=>setPickerYear(y=>y+1)} disabled={pickerYear>=now.getFullYear()} style={{width:32,height:32,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'#fff',fontSize:16,cursor:pickerYear>=now.getFullYear()?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fb)',fontWeight:700,opacity:pickerYear>=now.getFullYear()?.3:1}}>›</button>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                  {monthShort.map((label,i)=>{
+                    const isFuture=pickerYear>now.getFullYear()||(pickerYear===now.getFullYear()&&i>now.getMonth());
+                    const isSelected=pickerYear===monthlyRecap.year&&i===monthlyRecap.month;
+                    return(
+                      <button key={i} disabled={isFuture||monthlyRecapLoading} onClick={()=>{loadRecapForMonth(pickerYear,i);setShowMonthPicker(false);}} style={{padding:'14px 0',borderRadius:12,border:isSelected?'1px solid rgba(139,92,246,.5)':'1px solid var(--bo)',background:isSelected?'rgba(139,92,246,.22)':'var(--card2)',color:isFuture?'rgba(255,255,255,.25)':'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1.5,cursor:isFuture?'not-allowed':'pointer',transition:'background .15s'}}>{label}</button>
+                    );
+                  })}
+                </div>
+                <button onClick={()=>setShowMonthPicker(false)} style={{width:'100%',marginTop:16,padding:'10px',background:'transparent',border:'1px solid var(--bo)',borderRadius:10,color:'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)'}}>Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       );
     })()}
