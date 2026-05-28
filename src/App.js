@@ -693,11 +693,13 @@ export default function App(){
   // `which`: 'prev' (default) for the previous calendar month, or {year,month}
   // for an explicit month. Returns null if there were no imports for that month.
   async function computeMonthlyRecap(id,which='prev'){
-    let y,m;
+    let y,m,isCurrent=false;
+    const now=new Date();
     if(which==='prev'){
-      const now=new Date();
       const prev=new Date(now.getFullYear(),now.getMonth()-1,1);
       y=prev.getFullYear();m=prev.getMonth();
+    }else if(which==='current'){
+      y=now.getFullYear();m=now.getMonth();isCurrent=true;
     }else{y=which.year;m=which.month;}
     const start=new Date(y,m,1).toISOString();
     const end=new Date(y,m+1,1).toISOString();
@@ -716,7 +718,7 @@ export default function App(){
     const topOrders=sortedProducts[0]?.[1].orders||0;
     const topMeta=products.find(p=>p.name===topName);
     const monthLabel=new Date(y,m,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
-    return{year:y,month:m,monthLabel,netGMV,commission,orders,xpGained,topName,topGMV,topOrders,topImage:topMeta?.image_url||null,productCount:sortedProducts.length};
+    return{year:y,month:m,monthLabel,isCurrent,netGMV,commission,orders,xpGained,topName,topGMV,topOrders,topImage:topMeta?.image_url||null,productCount:sortedProducts.length};
   }
   // Auto-check if the previous-month recap should pop. Gated on localStorage so
   // it only shows once per user-per-month, even if they reload the app.
@@ -734,15 +736,17 @@ export default function App(){
     // Mark seen either way — if there was no data, don't keep querying every reload.
     try{localStorage.setItem(seenKey,'1');}catch(e){}
   }
-  // Manual trigger for the Profile menu "Monthly Recap" item. Always fetches
-  // the previous month, ignoring the localStorage gate.
+  // Manual trigger for the Profile menu "Monthly Recap" item. Tries the
+  // previous calendar month first, then falls back to "current month so far"
+  // if there's no data yet — useful early-month and for testing mid-month.
   async function openMonthlyRecap(){
     if(!profile||monthlyRecapLoading)return;
     setMonthlyRecapLoading(true);
-    const recap=await computeMonthlyRecap(profile.id,'prev');
+    let recap=await computeMonthlyRecap(profile.id,'prev');
+    if(!recap)recap=await computeMonthlyRecap(profile.id,'current');
     setMonthlyRecapLoading(false);
     if(recap)setMonthlyRecap(recap);
-    else toast('No import data for last month yet','info');
+    else toast('No import data to recap yet','info');
   }
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
 
@@ -3113,14 +3117,14 @@ body,html{margin:0;padding:0;background:#070710;}
             </div>
             {/* Month title */}
             <div style={{position:'relative',padding:'24px 22px 4px',textAlign:'center'}}>
-              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,marginBottom:6}}>Monthly Recap</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,marginBottom:6}}>{monthlyRecap.isCurrent?'Month in Progress':'Monthly Recap'}</div>
               <div style={{fontFamily:'var(--fh)',fontSize:30,letterSpacing:3.5,lineHeight:1,background:'linear-gradient(90deg,#a78bfa 0%,#06b6d4 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{monthlyRecap.monthLabel}</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:2.5,marginTop:2,color:'rgba(255,255,255,.55)'}}>WRAPPED</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:2.5,marginTop:2,color:'rgba(255,255,255,.55)'}}>{monthlyRecap.isCurrent?'SO FAR':'WRAPPED'}</div>
             </div>
             {/* Big GMV */}
             <div style={{position:'relative',padding:'18px 22px 6px',textAlign:'center'}}>
               <div style={{fontFamily:'var(--fh)',fontSize:54,letterSpacing:1,lineHeight:1,color:'#10b981',textShadow:'0 0 30px rgba(16,185,129,.45)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:2.5,fontWeight:700,marginTop:6}}>NET GMV this month</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:2.5,fontWeight:700,marginTop:6}}>Net GMV {monthlyRecap.isCurrent?'this month':'in '+monthlyRecap.monthLabel}</div>
             </div>
             {/* Top product card */}
             {monthlyRecap.topName&&(
