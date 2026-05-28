@@ -3174,25 +3174,22 @@ body,html{margin:0;padding:0;background:#070710;}
             <button onClick={()=>{setShowMonthPicker(true);setPickerYear(monthlyRecap.year);}} disabled={monthlyRecapLoading} style={{pointerEvents:'auto',padding:'7px 14px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:99,fontFamily:'var(--fb)',display:'flex',alignItems:'center',gap:6,backdropFilter:'blur(8px)'}}>📅 {monthShort[monthlyRecap.month]} {monthlyRecap.year} <span style={{opacity:.6,fontSize:10}}>▾</span></button>
             <button onClick={()=>setMonthlyRecap(null)} style={{pointerEvents:'auto',width:34,height:34,borderRadius:'50%',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,backdropFilter:'blur(8px)'}}>✕</button>
           </div>
-          {/* THE CARD — compact share asset, ~340×550. Vibrant electric
-              purple-magenta-cyan gradient, oversized £ as the iconic graphic,
-              sparkline of daily GMV — looks like a Webull/Robinhood/crypto
-              flex card but on Loophole brand. id='ll-recap-card' for share. */}
-          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:340,background:'linear-gradient(155deg,#7c3aed 0%,#a855f7 30%,#c026d3 55%,#0891b2 95%)',borderRadius:24,overflow:'hidden',boxShadow:'0 24px 60px rgba(139,92,246,.5),0 0 80px rgba(192,38,211,.25)',flexShrink:0}}>
-            {/* GIANT decorative £ in the background — our 'iconic graphic element', the loophole equivalent of Webull's hologram %. */}
-            {!monthlyRecap.isEmpty&&(
-              <div style={{position:'absolute',top:'48%',left:'50%',transform:'translate(-50%,-50%)',fontFamily:'var(--fh)',fontSize:340,lineHeight:1,color:'rgba(255,255,255,.06)',letterSpacing:-10,pointerEvents:'none',userSelect:'none'}}>£</div>
-            )}
-            {/* Subtle light streaks for depth */}
-            <div style={{position:'absolute',top:-60,right:-30,width:180,height:180,borderRadius:'50%',background:'radial-gradient(circle,rgba(255,255,255,.18) 0%,transparent 60%)',pointerEvents:'none'}}/>
-            <div style={{position:'absolute',bottom:-40,left:-30,width:160,height:160,borderRadius:'50%',background:'radial-gradient(circle,rgba(6,182,212,.25) 0%,transparent 60%)',pointerEvents:'none'}}/>
-            {/* TOP — logo + month label, all on one row */}
-            <div style={{position:'relative',padding:'18px 18px 0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <img src="/logo.png" alt="Loophole Levels" style={{width:90,filter:'drop-shadow(0 2px 8px rgba(0,0,0,.3))'}}/>
-              <div style={{textAlign:'right'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,.65)',textTransform:'uppercase',letterSpacing:2,fontWeight:600}}>{monthlyRecap.isEmpty?'No data':monthlyRecap.isCurrent?'In Progress':'Monthly Recap'}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2,color:'#fff',marginTop:2}}>{monthNames[monthlyRecap.month].toUpperCase()} {monthlyRecap.year}</div>
-              </div>
+          {/* THE CARD — same visual vibe as the Rewards page: deep purple
+              base with a wireframe grid overlay, atmospheric purple mist
+              glow from the centre. Big logo top. ~340 wide.
+              id='ll-recap-card' for share. */}
+          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:340,background:'#0a0218',backgroundImage:'radial-gradient(ellipse at 50% 25%, rgba(168,85,247,.55) 0%, rgba(139,92,246,.18) 30%, transparent 65%),linear-gradient(rgba(139,92,246,.12) 1px, transparent 1px),linear-gradient(90deg, rgba(139,92,246,.12) 1px, transparent 1px)',backgroundSize:'auto, 32px 32px, 32px 32px',backgroundPosition:'center center, center center, center center',borderRadius:24,overflow:'hidden',border:'1px solid rgba(139,92,246,.35)',boxShadow:'0 24px 60px rgba(0,0,0,.7),0 0 100px rgba(139,92,246,.4)',flexShrink:0}}>
+            {/* Atmospheric mist puffs — soft purple radials with blur */}
+            <div style={{position:'absolute',top:'18%',left:'18%',width:180,height:180,background:'radial-gradient(circle, rgba(192,38,211,.45) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(24px)'}}/>
+            <div style={{position:'absolute',bottom:'12%',right:'12%',width:160,height:160,background:'radial-gradient(circle, rgba(168,85,247,.35) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(20px)'}}/>
+            {/* LARGE LOGO at top, centered — the hero brand element */}
+            <div style={{position:'relative',padding:'30px 18px 8px',display:'flex',justifyContent:'center'}}>
+              <img src="/logo.png" alt="Loophole Levels" style={{width:220,filter:'drop-shadow(0 4px 20px rgba(168,85,247,.7))'}}/>
+            </div>
+            {/* Month label below logo */}
+            <div style={{position:'relative',textAlign:'center',marginTop:6}}>
+              <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:600}}>{monthlyRecap.isEmpty?'No data':monthlyRecap.isCurrent?'In Progress':'Monthly Recap'}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2.5,color:'#fff',marginTop:4}}>{monthNames[monthlyRecap.month].toUpperCase()} {monthlyRecap.year}</div>
             </div>
             {/* BODY */}
             {monthlyRecap.isEmpty?(
@@ -3202,12 +3199,12 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{fontSize:11,color:'rgba(255,255,255,.55)'}}>Tap 📅 above to pick another month</div>
               </div>
             ):(<>
-              {/* HERO NUMBER — the centerpiece */}
+              {/* HERO NUMBER — green money, glow on the dark backdrop */}
               <div style={{position:'relative',padding:'22px 18px 0',textAlign:'center'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,.7)',textTransform:'uppercase',letterSpacing:3,fontWeight:700,marginBottom:6}}>Net GMV</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:52,lineHeight:1,color:'#fff',letterSpacing:1,textShadow:'0 2px 20px rgba(0,0,0,.25)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
+                <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3,fontWeight:700,marginBottom:6}}>Net GMV</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:54,lineHeight:1,color:'#10b981',letterSpacing:1,textShadow:'0 0 30px rgba(16,185,129,.55),0 2px 12px rgba(0,0,0,.4)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
               </div>
-              {/* SPARKLINE — daily GMV through the month */}
+              {/* SPARKLINE — daily GMV. Green line with glow to match the GMV. */}
               {(()=>{
                 const dailyGMV=monthlyRecap.dailyGMV||[];
                 if(dailyGMV.length===0)return null;
@@ -3221,63 +3218,63 @@ body,html{margin:0;padding:0;background:#070710;}
                 const peakIdx=dailyGMV.indexOf(max);
                 return(
                   <div style={{position:'relative',padding:'18px 18px 0'}}>
-                    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:'block'}}>
+                    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:'block',filter:'drop-shadow(0 0 8px rgba(16,185,129,.5))'}}>
                       <defs>
-                        <linearGradient id="rcSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fff" stopOpacity=".35"/><stop offset="100%" stopColor="#fff" stopOpacity="0"/></linearGradient>
+                        <linearGradient id="rcSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".45"/><stop offset="100%" stopColor="#10b981" stopOpacity="0"/></linearGradient>
                       </defs>
                       <polygon points={areaPts} fill="url(#rcSpark)"/>
-                      <polyline points={pts} fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-                      {dailyGMV[peakIdx]>0&&(<circle cx={xAt(peakIdx)} cy={yAt(max)} r="3.5" fill="#fff" stroke="#c026d3" strokeWidth="1.5"/>)}
+                      <polyline points={pts} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+                      {dailyGMV[peakIdx]>0&&(<circle cx={xAt(peakIdx)} cy={yAt(max)} r="3.5" fill="#fff" stroke="#10b981" strokeWidth="1.5"/>)}
                     </svg>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'rgba(255,255,255,.55)',marginTop:2,fontFamily:'var(--fb)',fontWeight:600}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'rgba(255,255,255,.45)',marginTop:2,fontFamily:'var(--fb)',fontWeight:600}}>
                       <span>1</span>
-                      <span style={{color:'rgba(255,255,255,.85)'}}>PEAK · {peakIdx+1} {monthShort[monthlyRecap.month].toUpperCase()}</span>
+                      <span style={{color:'rgba(255,255,255,.8)'}}>PEAK · {peakIdx+1} {monthShort[monthlyRecap.month].toUpperCase()}</span>
                       <span>{dailyGMV.length}</span>
                     </div>
                   </div>
                 );
               })()}
-              {/* INLINE STATS — one row, compact */}
-              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',margin:'18px 18px 0',background:'rgba(0,0,0,.18)',borderRadius:12,padding:'10px 0',backdropFilter:'blur(8px)'}}>
-                <div style={{textAlign:'center',borderRight:'1px solid rgba(255,255,255,.13)'}}>
+              {/* STATS — purple-tinted panel for the dark backdrop */}
+              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',margin:'18px 18px 0',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.28)',borderRadius:12,padding:'10px 0',backdropFilter:'blur(8px)'}}>
+                <div style={{textAlign:'center',borderRight:'1px solid rgba(139,92,246,.25)'}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#fff',letterSpacing:.5,lineHeight:1}}>{fmtGBPc(monthlyRecap.commission)}</div>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,.65)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Commission</div>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Commission</div>
                 </div>
-                <div style={{textAlign:'center',borderRight:'1px solid rgba(255,255,255,.13)'}}>
+                <div style={{textAlign:'center',borderRight:'1px solid rgba(139,92,246,.25)'}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:16,color:monthlyRecap.rank===1?'#fde047':'#fff',letterSpacing:.5,lineHeight:1}}>{monthlyRecap.rank?'#'+monthlyRecap.rank:'—'}</div>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,.65)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Rank{monthlyRecap.totalRanked?'/'+monthlyRecap.totalRanked:''}</div>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Rank{monthlyRecap.totalRanked?'/'+monthlyRecap.totalRanked:''}</div>
                 </div>
                 <div style={{textAlign:'center'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#fff',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained>=1000?(monthlyRecap.xpGained/1000).toFixed(1)+'k':monthlyRecap.xpGained.toLocaleString()}</div>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,.65)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>XP</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#a78bfa',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained>=1000?(monthlyRecap.xpGained/1000).toFixed(1)+'k':monthlyRecap.xpGained.toLocaleString()}</div>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>XP</div>
                 </div>
               </div>
-              {/* TOP PRODUCT — small inline */}
+              {/* TOP PRODUCT */}
               {monthlyRecap.topName&&(
-                <div style={{position:'relative',margin:'10px 18px 0',display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(0,0,0,.18)',borderRadius:10,backdropFilter:'blur(8px)'}}>
-                  <div style={{width:32,height:32,borderRadius:6,background:monthlyRecap.topImage?'transparent':'rgba(255,255,255,.1)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
+                <div style={{position:'relative',margin:'10px 18px 0',display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.22)',borderRadius:10,backdropFilter:'blur(8px)'}}>
+                  <div style={{width:32,height:32,borderRadius:6,background:monthlyRecap.topImage?'transparent':'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:8,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700}}>🏆 Top Product</div>
+                    <div style={{fontSize:8,color:'rgba(255,255,255,.5)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700}}>🏆 Top Product</div>
                     <div style={{fontSize:12,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{monthlyRecap.topName}</div>
                   </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0}}>{fmtGBPc(monthlyRecap.topGMV)}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'#10b981',flexShrink:0}}>{fmtGBPc(monthlyRecap.topGMV)}</div>
                 </div>
               )}
             </>)}
-            {/* USER + REFERRAL FOOTER — combined small footer */}
-            <div style={{position:'relative',margin:'14px 18px 0',padding:'12px 12px',background:'rgba(0,0,0,.25)',borderRadius:12,backdropFilter:'blur(10px)'}}>
+            {/* USER + REFERRAL FOOTER — purple-tinted glass card */}
+            <div style={{position:'relative',margin:'14px 18px 0',padding:'12px 12px',background:'rgba(139,92,246,.14)',border:'1px solid rgba(139,92,246,.3)',borderRadius:12,backdropFilter:'blur(10px)'}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:refCode?9:0}}>
-                <div style={{width:30,height:30,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden',border:'1.5px solid rgba(255,255,255,.45)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
+                <div style={{width:30,height:30,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden',border:'1.5px solid rgba(168,85,247,.6)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{handle}</div>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,.7)'}}>LVL {lv.level} · {(profile?.xp||0).toLocaleString()} XP</div>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,.65)'}}>LVL {lv.level} · {(profile?.xp||0).toLocaleString()} XP</div>
                 </div>
               </div>
               {refCode&&(
-                <div style={{paddingTop:9,borderTop:'1px solid rgba(255,255,255,.15)',textAlign:'center'}}>
-                  <div style={{fontSize:9,color:'rgba(255,255,255,.7)',textTransform:'uppercase',letterSpacing:1.5,fontWeight:600,marginBottom:3}}>Join · use code</div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,marginBottom:3}}>{refCode}</div>
-                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.7)'}}>+100 XP · loopholelevels.vercel.app</div>
+                <div style={{paddingTop:9,borderTop:'1px solid rgba(168,85,247,.25)',textAlign:'center'}}>
+                  <div style={{fontSize:9,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:1.5,fontWeight:600,marginBottom:3}}>Join · use code</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,marginBottom:3,textShadow:'0 0 14px rgba(168,85,247,.6)'}}>{refCode}</div>
+                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.65)'}}>+100 XP · loopholelevels.vercel.app</div>
                 </div>
               )}
             </div>
