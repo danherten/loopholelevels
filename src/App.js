@@ -736,17 +736,28 @@ export default function App(){
     // Mark seen either way — if there was no data, don't keep querying every reload.
     try{localStorage.setItem(seenKey,'1');}catch(e){}
   }
-  // Manual trigger for the Profile menu "Monthly Recap" item. Tries the
-  // previous calendar month first, then falls back to "current month so far"
-  // if there's no data yet — useful early-month and for testing mid-month.
+  // Load (or reload) the Monthly Recap modal for a specific year/month. Used
+  // by both openMonthlyRecap (initial open from Profile menu) and the ‹/›
+  // navigation arrows inside the modal. When no data exists we still set a
+  // placeholder so the modal stays open and the user can navigate forward.
+  async function loadRecapForMonth(y,m){
+    if(!profile)return;
+    setMonthlyRecapLoading(true);
+    const recap=await computeMonthlyRecap(profile.id,{year:y,month:m});
+    setMonthlyRecapLoading(false);
+    if(recap){setMonthlyRecap(recap);return;}
+    // No imports that month — show empty placeholder so nav still works.
+    const monthLabel=new Date(y,m,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'}).toUpperCase();
+    const now=new Date();
+    const isCurrent=y===now.getFullYear()&&m===now.getMonth();
+    setMonthlyRecap({year:y,month:m,monthLabel,isCurrent,isEmpty:true,netGMV:0,commission:0,orders:0,xpGained:0,topName:null,topGMV:0,topOrders:0,topImage:null,productCount:0});
+  }
+  // Manual trigger for the Profile menu "Monthly Recap" item. Opens on the
+  // current month — the modal's ‹ / › arrows let users browse any other month.
   async function openMonthlyRecap(){
     if(!profile||monthlyRecapLoading)return;
-    setMonthlyRecapLoading(true);
-    let recap=await computeMonthlyRecap(profile.id,'prev');
-    if(!recap)recap=await computeMonthlyRecap(profile.id,'current');
-    setMonthlyRecapLoading(false);
-    if(recap)setMonthlyRecap(recap);
-    else toast('No import data to recap yet','info');
+    const now=new Date();
+    await loadRecapForMonth(now.getFullYear(),now.getMonth());
   }
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
 
@@ -3094,6 +3105,11 @@ body,html{margin:0;padding:0;background:#070710;}
       const handle=(profile?.tiktok_handles||[])[0]||('@'+(profile?.username||''));
       const lv=getLv(profile?.xp||0,LEVELS);
       const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
+      const goPrev=()=>{const d=new Date(monthlyRecap.year,monthlyRecap.month-1,1);loadRecapForMonth(d.getFullYear(),d.getMonth());};
+      const goNext=()=>{const d=new Date(monthlyRecap.year,monthlyRecap.month+1,1);loadRecapForMonth(d.getFullYear(),d.getMonth());};
+      const now=new Date();
+      const atCurrent=monthlyRecap.year===now.getFullYear()&&monthlyRecap.month===now.getMonth();
+      const navBtn={width:30,height:30,borderRadius:'50%',background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.15)',color:'#fff',fontSize:15,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontFamily:'var(--fb)',transition:'opacity .15s'};
       return(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(6px)',overflowY:'auto'}}>
           <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#0e0e1c 0%,#1a1a2e 100%)',border:'1px solid var(--bo2)',borderRadius:24,overflow:'hidden',boxShadow:'0 0 80px rgba(139,92,246,.35),0 20px 50px rgba(0,0,0,.6)'}}>
@@ -3115,43 +3131,56 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{fontSize:11,color:'var(--pu3)',fontWeight:600,letterSpacing:.4}}>LEVEL {lv.level}{lv.name?' · '+lv.name:''}</div>
               </div>
             </div>
-            {/* Month title */}
+            {/* Month title + nav arrows */}
             <div style={{position:'relative',padding:'24px 22px 4px',textAlign:'center'}}>
-              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,marginBottom:6}}>{monthlyRecap.isCurrent?'Month in Progress':'Monthly Recap'}</div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14,marginBottom:8}}>
+                <button onClick={goPrev} disabled={monthlyRecapLoading} style={{...navBtn,opacity:monthlyRecapLoading?.4:1}} title="Previous month">‹</button>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:700,minWidth:130}}>{monthlyRecap.isEmpty?'No data':monthlyRecap.isCurrent?'Month in Progress':'Monthly Recap'}</div>
+                <button onClick={goNext} disabled={atCurrent||monthlyRecapLoading} style={{...navBtn,opacity:(atCurrent||monthlyRecapLoading)?.3:1,cursor:atCurrent?'not-allowed':'pointer'}} title={atCurrent?'Already on current month':'Next month'}>›</button>
+              </div>
               <div style={{fontFamily:'var(--fh)',fontSize:30,letterSpacing:3.5,lineHeight:1,background:'linear-gradient(90deg,#a78bfa 0%,#06b6d4 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{monthlyRecap.monthLabel}</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:2.5,marginTop:2,color:'rgba(255,255,255,.55)'}}>{monthlyRecap.isCurrent?'SO FAR':'WRAPPED'}</div>
+              {!monthlyRecap.isEmpty&&<div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:2.5,marginTop:2,color:'rgba(255,255,255,.55)'}}>{monthlyRecap.isCurrent?'SO FAR':'WRAPPED'}</div>}
             </div>
-            {/* Big GMV */}
-            <div style={{position:'relative',padding:'18px 22px 6px',textAlign:'center'}}>
-              <div style={{fontFamily:'var(--fh)',fontSize:54,letterSpacing:1,lineHeight:1,color:'#10b981',textShadow:'0 0 30px rgba(16,185,129,.45)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:2.5,fontWeight:700,marginTop:6}}>Net GMV {monthlyRecap.isCurrent?'this month':'in '+monthlyRecap.monthLabel}</div>
-            </div>
-            {/* Top product card */}
-            {monthlyRecap.topName&&(
-              <div style={{position:'relative',margin:'18px 22px 0',padding:14,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:14,display:'flex',alignItems:'center',gap:12}}>
-                <div style={{width:54,height:54,borderRadius:10,background:monthlyRecap.topImage?'transparent':'var(--card3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.8,fontWeight:700,marginBottom:3}}>🏆 Top Product</div>
-                  <div style={{fontSize:13,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginBottom:2}}>{monthlyRecap.topName}</div>
-                  <div style={{fontSize:11,color:'var(--gr)',fontFamily:'var(--fh)',letterSpacing:.5}}>{fmtGBPc(monthlyRecap.topGMV)} · {monthlyRecap.topOrders.toLocaleString()} orders</div>
+            {/* BODY — either empty state or full stats */}
+            {monthlyRecap.isEmpty?(
+              <div style={{position:'relative',padding:'28px 22px 18px',textAlign:'center'}}>
+                <div style={{fontSize:42,marginBottom:10,opacity:.5}}>📭</div>
+                <div style={{fontSize:13,color:'rgba(255,255,255,.65)',marginBottom:6}}>No imports in {monthlyRecap.monthLabel.split(' ').map(s=>s[0]+s.slice(1).toLowerCase()).join(' ')}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.4)'}}>Use the ‹ / › arrows to browse another month</div>
+              </div>
+            ):(<>
+              {/* Big GMV */}
+              <div style={{position:'relative',padding:'18px 22px 6px',textAlign:'center'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:54,letterSpacing:1,lineHeight:1,color:'#10b981',textShadow:'0 0 30px rgba(16,185,129,.45)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
+                <div style={{fontSize:10,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:2.5,fontWeight:700,marginTop:6}}>Net GMV{monthlyRecap.isCurrent?' this month':''}</div>
+              </div>
+              {/* Top product card */}
+              {monthlyRecap.topName&&(
+                <div style={{position:'relative',margin:'18px 22px 0',padding:14,background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:14,display:'flex',alignItems:'center',gap:12}}>
+                  <div style={{width:54,height:54,borderRadius:10,background:monthlyRecap.topImage?'transparent':'var(--card3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.8,fontWeight:700,marginBottom:3}}>🏆 Top Product</div>
+                    <div style={{fontSize:13,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginBottom:2}}>{monthlyRecap.topName}</div>
+                    <div style={{fontSize:11,color:'var(--gr)',fontFamily:'var(--fh)',letterSpacing:.5}}>{fmtGBPc(monthlyRecap.topGMV)} · {monthlyRecap.topOrders.toLocaleString()} orders</div>
+                  </div>
+                </div>
+              )}
+              {/* Stats grid */}
+              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,padding:'14px 22px 0'}}>
+                <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#f59e0b',letterSpacing:.5,lineHeight:1}}>{fmtGBPc(monthlyRecap.commission)}</div>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>Commission</div>
+                </div>
+                <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#06b6d4',letterSpacing:.5,lineHeight:1}}>{monthlyRecap.orders.toLocaleString()}</div>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>Orders</div>
+                </div>
+                <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#a78bfa',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained.toLocaleString()}</div>
+                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>XP gained</div>
                 </div>
               </div>
-            )}
-            {/* Stats grid */}
-            <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,padding:'14px 22px 0'}}>
-              <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#f59e0b',letterSpacing:.5,lineHeight:1}}>{fmtGBPc(monthlyRecap.commission)}</div>
-                <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>Commission</div>
-              </div>
-              <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#06b6d4',letterSpacing:.5,lineHeight:1}}>{monthlyRecap.orders.toLocaleString()}</div>
-                <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>Orders</div>
-              </div>
-              <div style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.08)',borderRadius:10,padding:'9px 8px',textAlign:'center'}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:18,color:'#a78bfa',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained.toLocaleString()}</div>
-                <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:700,marginTop:4}}>XP gained</div>
-              </div>
-            </div>
+            </>)}
             {/* Footer */}
             <div style={{position:'relative',padding:'18px 22px 22px',textAlign:'center'}}>
               <div style={{fontSize:10,color:'rgba(255,255,255,.4)',letterSpacing:1.2,fontWeight:500}}>loopholelevels.vercel.app</div>
