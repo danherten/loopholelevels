@@ -3149,7 +3149,7 @@ body,html{margin:0;padding:0;background:#070710;}
       const monthShort=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       const refCode=profile?.referral_code||'';
       return(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(6px)',overflowY:'auto'}}>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:650,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',padding:'70px 16px 24px',backdropFilter:'blur(6px)',overflowY:'auto'}}>
           {/* Top toolbar — sits outside the card so screenshots stay clean. */}
           <div style={{position:'fixed',top:16,left:0,right:0,zIndex:6,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 18px',pointerEvents:'none'}}>
             <button onClick={()=>{setShowMonthPicker(true);setPickerYear(monthlyRecap.year);}} disabled={monthlyRecapLoading} style={{pointerEvents:'auto',padding:'7px 14px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:99,fontFamily:'var(--fb)',display:'flex',alignItems:'center',gap:6,backdropFilter:'blur(8px)'}}>📅 {monthShort[monthlyRecap.month]} {monthlyRecap.year} <span style={{opacity:.6,fontSize:10}}>▾</span></button>
@@ -3160,7 +3160,7 @@ body,html{margin:0;padding:0;background:#070710;}
               poster-style typography, all on a holo-style dark gradient.
               The whole card has id='ll-recap-card' so toPng() can rasterise
               just this element for the share flow. */}
-          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:380,background:'radial-gradient(at 0% 0%, rgba(139,92,246,.22) 0%, transparent 50%),radial-gradient(at 100% 100%, rgba(6,182,212,.16) 0%, transparent 50%),linear-gradient(170deg,#0a0a18 0%,#16162a 50%,#1a1a2e 100%)',border:'1px solid rgba(245,158,11,.25)',borderRadius:22,overflow:'hidden',boxShadow:'0 0 80px rgba(139,92,246,.4),0 20px 50px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.06)',marginTop:50,paddingLeft:14}}>
+          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:380,background:'radial-gradient(at 0% 0%, rgba(139,92,246,.22) 0%, transparent 50%),radial-gradient(at 100% 100%, rgba(6,182,212,.16) 0%, transparent 50%),linear-gradient(170deg,#0a0a18 0%,#16162a 50%,#1a1a2e 100%)',border:'1px solid rgba(245,158,11,.25)',borderRadius:22,overflow:'hidden',boxShadow:'0 0 80px rgba(139,92,246,.4),0 20px 50px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.06)',paddingLeft:14,flexShrink:0}}>
             {/* Signature gold accent stripe down the left edge */}
             <div style={{position:'absolute',left:0,top:0,bottom:0,width:6,background:'linear-gradient(180deg,#f59e0b 0%,#fbbf24 30%,#8b5cf6 65%,#06b6d4 100%)',pointerEvents:'none'}}/>
             {/* Background brand watermark — vertical 'LOOPHOLE' faintly behind it all */}
@@ -3262,7 +3262,7 @@ body,html{margin:0;padding:0;background:#070710;}
             </div>
           </div>
           {/* SHARE BUTTON — lives outside the card so it doesn't appear in the rasterised image. */}
-          <div style={{position:'relative',display:'flex',gap:10,justifyContent:'center',marginTop:18,width:'100%',maxWidth:380}}>
+          <div style={{position:'relative',display:'flex',gap:10,justifyContent:'center',marginTop:18,width:'100%',maxWidth:380,flexShrink:0}}>
             <button onClick={shareRecap} disabled={shareLoading||monthlyRecap.isEmpty} style={{flex:1,padding:'13px 18px',background:shareLoading?'rgba(139,92,246,.4)':'linear-gradient(135deg,#8b5cf6 0%,#06b6d4 100%)',border:'none',color:'#fff',fontSize:14,fontWeight:700,letterSpacing:.5,cursor:(shareLoading||monthlyRecap.isEmpty)?'not-allowed':'pointer',borderRadius:14,fontFamily:'var(--fb)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 8px 24px rgba(139,92,246,.4)',opacity:monthlyRecap.isEmpty?.5:1}}>
               {shareLoading?'⏳ Generating...':'📤 Share Recap'}
             </button>
