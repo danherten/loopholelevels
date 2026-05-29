@@ -790,13 +790,39 @@ export default function App(){
   // Rasterises the recap card DOM to a PNG and hands it to the native share
   // sheet (Web Share API) on iOS/Android, falling back to a download on
   // desktop browsers where canShare({files}) isn't supported.
+  // Walks the card DOM, fetches every <img>'s src and rewrites it to an inline
+  // data: URL. Required because html-to-image's canvas draw is blocked by CORS
+  // for cross-origin product / avatar images served from Supabase storage —
+  // without this they render as blank rectangles in the exported PNG. Returns
+  // a `restore` function that puts the original src values back, called after
+  // toPng() resolves so the DOM stays clean.
+  async function inlineCardImages(node){
+    const imgs=Array.from(node.querySelectorAll('img'));
+    const restorers=[];
+    await Promise.all(imgs.map(async(img)=>{
+      const original=img.getAttribute('src');
+      if(!original||original.startsWith('data:'))return;
+      try{
+        const res=await fetch(original,{mode:'cors',cache:'no-cache'});
+        if(!res.ok)return;
+        const blob=await res.blob();
+        const dataUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onloadend=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+        img.setAttribute('src',dataUrl);
+        restorers.push(()=>img.setAttribute('src',original));
+      }catch(e){/* best-effort, leave the original src and let toPng try */}
+    }));
+    return()=>restorers.forEach(fn=>fn());
+  }
   async function shareRecap(){
     if(!monthlyRecap||shareLoading)return;
     setShareLoading(true);
+    let restoreImages=null;
     try{
       const node=document.getElementById('ll-recap-card');
       if(!node){toast('Couldn\'t find card. Try again.','wn');setShareLoading(false);return;}
+      restoreImages=await inlineCardImages(node);
       const dataUrl=await toPng(node,{pixelRatio:3,backgroundColor:'#0e0e1c',cacheBust:true,style:{transform:'none'}});
+      if(restoreImages){restoreImages();restoreImages=null;}
       const monthShort=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
       const filename=`loophole-${monthShort[monthlyRecap.month]}-${monthlyRecap.year}.png`;
       const blob=await(await fetch(dataUrl)).blob();
@@ -815,6 +841,8 @@ export default function App(){
       console.error('shareRecap error:',e);
       toast('Couldn\'t generate image. Try screenshot instead.','wn');
       setShareLoading(false);
+    }finally{
+      if(restoreImages){try{restoreImages();}catch(e){}}
     }
   }
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
