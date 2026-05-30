@@ -435,8 +435,10 @@ export default function App(){
   const [profile,setProfile]=useState(null);
   const [rewards,setRewards]=useState([]);
   const [leaderboard,setLeaderboard]=useState([]);
-  const [weeklyLeaderboard,setWeeklyLeaderboard]=useState([]);
+  const [monthlyLeaderboard,setMonthlyLeaderboard]=useState([]);
   const [lbTab,setLbTab]=useState('alltime');
+  // Selected month for the monthly leaderboard tab. Defaults to current month.
+  const [lbMonth,setLbMonth]=useState(()=>{const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};});
   const [milestones,setMilestones]=useState(DEFAULT_MILESTONES);
   const [page,setPage]=useState('home');
   const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('ll-admin')==='true');
@@ -850,17 +852,20 @@ export default function App(){
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
   async function loadRewards(){const {data}=await supabase.from('rewards').select('*').order('level');if(data)setRewards(data);}
   async function loadLeaderboard(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}
-  async function loadWeeklyLeaderboard(){
-    const now=new Date();const day=now.getDay();const diff=day===0?6:day-1;
-    const monday=new Date(now);monday.setDate(now.getDate()-diff);monday.setHours(0,0,0,0);
-    const {data:events}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission').gte('created_at',monday.toISOString());
+  // Aggregates xp_events into a per-month leaderboard. Queries the calendar
+  // month bounds for {year, month} and sorts profiles by total XP in that
+  // window. Top 50 only — matches the all-time leaderboard cap.
+  async function loadMonthlyLeaderboard(year,month){
+    const start=new Date(year,month,1).toISOString();
+    const end=new Date(year,month+1,1).toISOString();
+    const {data:events}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission').gte('created_at',start).lt('created_at',end);
     if(!events)return;
     const byProfile={};
     events.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,commission:0};byProfile[e.profile_id].xp+=(e.amount||0);byProfile[e.profile_id].gmv+=(e.gmv||0);byProfile[e.profile_id].commission+=(e.commission||0);});
     const {data:profiles}=await supabase.from('profiles').select('id,username,avatar_url,tiktok_handles');
     if(!profiles)return;
-    const weekly=Object.entries(byProfile).map(([pid,vals])=>{const p=profiles.find(x=>x.id===pid);if(!p)return null;return{...p,xp:vals.xp,total_gmv:vals.gmv,total_commission:vals.commission};}).filter(Boolean).sort((a,b)=>b.xp-a.xp).slice(0,50);
-    setWeeklyLeaderboard(weekly);
+    const monthly=Object.entries(byProfile).map(([pid,vals])=>{const p=profiles.find(x=>x.id===pid);if(!p)return null;return{...p,xp:vals.xp,total_gmv:vals.gmv,total_commission:vals.commission};}).filter(Boolean).sort((a,b)=>b.xp-a.xp).slice(0,50);
+    setMonthlyLeaderboard(monthly);
   }
   async function loadAllProfiles(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false});if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}}
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
@@ -1135,7 +1140,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadWeeklyLeaderboard();}if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -1883,15 +1888,28 @@ body,html{margin:0;padding:0;background:#070710;}
         <div className="sh" style={{marginBottom:10}}>RANKINGS</div>
         {/* Tabs */}
         <div style={{display:'flex',gap:0,marginBottom:14,background:'var(--card)',borderRadius:'var(--rsm)',border:'1px solid var(--bo)',overflow:'hidden'}}>
-          {[['alltime','🏆 All Time'],['weekly','⚡ This Week']].map(([key,label])=>(
+          {[['alltime','🏆 All Time'],['monthly','📅 Monthly']].map(([key,label])=>(
             <button key={key} onClick={()=>setLbTab(key)} style={{flex:1,padding:'10px 0',background:lbTab===key?'rgba(139,92,246,.18)':'transparent',border:'none',borderRight:key==='alltime'?'1px solid var(--bo)':'none',color:lbTab===key?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{label}</button>
           ))}
         </div>
-        {/* Weekly reset note */}
-        {lbTab==='weekly'&&<div style={{textAlign:'center',fontSize:11,color:'var(--tx3)',marginBottom:12,padding:'6px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)'}}>Resets every Monday at midnight</div>}
+        {/* Month nav — only when Monthly is selected. ‹ Month YYYY ›, no future months. */}
+        {lbTab==='monthly'&&(()=>{
+          const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+          const now=new Date();
+          const atCurrent=lbMonth.year===now.getFullYear()&&lbMonth.month===now.getMonth();
+          const goPrev=()=>{const d=new Date(lbMonth.year,lbMonth.month-1,1);const ny=d.getFullYear(),nm=d.getMonth();setLbMonth({year:ny,month:nm});loadMonthlyLeaderboard(ny,nm);};
+          const goNext=()=>{if(atCurrent)return;const d=new Date(lbMonth.year,lbMonth.month+1,1);const ny=d.getFullYear(),nm=d.getMonth();setLbMonth({year:ny,month:nm});loadMonthlyLeaderboard(ny,nm);};
+          return(
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14,marginBottom:14,padding:'8px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)'}}>
+              <button onClick={goPrev} style={{width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fb)',fontWeight:700}}>‹</button>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2,color:'#fff',minWidth:160,textAlign:'center'}}>{monthNames[lbMonth.month].toUpperCase()} {lbMonth.year}</div>
+              <button onClick={goNext} disabled={atCurrent} style={{width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'#fff',fontSize:14,cursor:atCurrent?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fb)',fontWeight:700,opacity:atCurrent?.3:1}}>›</button>
+            </div>
+          );
+        })()}
         {(()=>{
-          const lb=lbTab==='weekly'?weeklyLeaderboard:leaderboard;
-          const isWeekly=lbTab==='weekly';
+          const lb=lbTab==='monthly'?monthlyLeaderboard:leaderboard;
+          const isMonthly=lbTab==='monthly';
           return(<>
             {/* YOUR POSITION — pinned to the top so the user can see their rank
                 immediately without scrolling. Big bright purple gradient card
@@ -1901,7 +1919,7 @@ body,html{margin:0;padding:0;background:#070710;}
               if(myIdx<0){
                 return(
                   <div style={{background:'var(--card)',border:'1px dashed rgba(139,92,246,.3)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,textAlign:'center',fontSize:12.5,color:'var(--tx2)'}}>
-                    {isWeekly?'You haven\'t earned any XP this week yet — start selling to climb the board.':'You\'re not on the leaderboard yet — start selling to get ranked.'}
+                    {isMonthly?'You haven\'t earned any XP this month yet — start selling to get ranked.':'You\'re not on the leaderboard yet — start selling to get ranked.'}
                   </div>
                 );
               }
@@ -1917,7 +1935,7 @@ body,html{margin:0;padding:0;background:#070710;}
                       <div style={{fontSize:13.5,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{me.username}</div>
                       <span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'2px 7px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>
                     </div>
-                    <div style={{fontSize:10.5,color:'rgba(255,255,255,.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{isWeekly?'This week':'All-time'} · top {pct}% of {lb.length}</div>
+                    <div style={{fontSize:10.5,color:'rgba(255,255,255,.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{isMonthly?(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][lbMonth.month]+' '+lbMonth.year):'All-time'} · top {pct}% of {lb.length}</div>
                   </div>
                   <div style={{textAlign:'right',flexShrink:0}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--pu2)',letterSpacing:.5,lineHeight:1}}>{(me.xp||0).toLocaleString()} XP</div>
@@ -1933,27 +1951,33 @@ body,html{margin:0;padding:0;background:#070710;}
                 const col=avc(u.username);
                 const isMe=u.id===profile?.id;
                 const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
-                const glow=rank===1?'rgba(245,158,11,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)';
-                const border=rank===1?'rgba(245,158,11,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)';
-                const bg=rank===1?'rgba(245,158,11,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)';
+                // When the current user is the one in this podium slot, swap the medal-coloured
+                // glow/border/bg for a brighter purple treatment so it stands out — matches the
+                // list-row 'YOU' highlight below.
+                const glow=isMe?'rgba(168,85,247,.55)':(rank===1?'rgba(245,158,11,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)');
+                const border=isMe?'rgba(168,85,247,.85)':(rank===1?'rgba(245,158,11,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)');
+                const bg=isMe?'rgba(139,92,246,.22)':(rank===1?'rgba(245,158,11,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)');
                 const avSize=rank===1?54:44;
                 return(
                   <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',minWidth:0}}>
-                    <div style={{fontSize:11,fontWeight:700,color:isMe?'var(--pu2)':'var(--tx2)',marginBottom:6,textAlign:'center',maxWidth:'100%',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',padding:'0 2px',lineHeight:1.2,width:'100%'}}>{u.username}</div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,marginBottom:6,maxWidth:'100%',padding:'0 2px',width:'100%'}}>
+                      <span style={{fontSize:11,fontWeight:700,color:isMe?'#fff':'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.2,minWidth:0}}>{u.username}</span>
+                      {isMe&&<span style={{fontSize:7.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.75)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1px 5px',letterSpacing:.7,textTransform:'uppercase',flexShrink:0,lineHeight:1}}>You</span>}
+                    </div>
                     <div style={{position:'relative',marginBottom:8}}>
-                      <div style={{width:avSize,height:avSize,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?18:14,color:'#fff',border:`2px solid ${border}`,boxShadow:`0 0 18px ${glow}`,overflow:'hidden',flexShrink:0,lineHeight:1}}>
+                      <div style={{width:avSize,height:avSize,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?18:14,color:'#fff',border:`${isMe?3:2}px solid ${border}`,boxShadow:`0 0 ${isMe?24:18}px ${glow}`,overflow:'hidden',flexShrink:0,lineHeight:1}}>
                         {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
                       </div>
                       <div style={{position:'absolute',bottom:-4,right:-6,fontSize:18,lineHeight:1,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.45))',pointerEvents:'none'}}>{medal}</div>
                     </div>
-                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'12px 6px 14px',textAlign:'center',minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'center',gap:10}}>
+                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'12px 6px 14px',textAlign:'center',minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'center',gap:10,boxShadow:isMe?'inset 0 0 18px rgba(139,92,246,.25)':'none'}}>
                       <div>
-                        <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--tx)',letterSpacing:.5,lineHeight:1}}>{(u.xp||0).toLocaleString()}</div>
-                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isWeekly?'XP this week':'XP'}</div>
+                        <div style={{fontFamily:'var(--fh)',fontSize:20,color:isMe?'#fff':'var(--tx)',letterSpacing:.5,lineHeight:1}}>{(u.xp||0).toLocaleString()}</div>
+                        <div style={{fontSize:9,color:isMe?'rgba(255,255,255,.7)':'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isMonthly?'XP this month':'XP'}</div>
                       </div>
                       <div>
                         <div style={{fontFamily:'var(--fh)',fontSize:15,color:'var(--gr)',letterSpacing:.3,lineHeight:1}}>{fmtGBP(u.total_gmv||0)}</div>
-                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isWeekly?'GMV this week':'GMV'}</div>
+                        <div style={{fontSize:9,color:isMe?'rgba(255,255,255,.7)':'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isMonthly?'GMV this month':'GMV'}</div>
                       </div>
                     </div>
                   </div>
@@ -2019,7 +2043,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 );
               })}
             </div>)}
-            {lb.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>{isWeekly?'No activity this week yet — get selling!':'No affiliates yet.'}</div>}
+            {lb.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>{isMonthly?'No activity in this month yet.':'No affiliates yet.'}</div>}
             {/* (The "Your position" callout used to live here; now pinned at the top of the page.) */}
           </>);
         })()}
