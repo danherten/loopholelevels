@@ -202,11 +202,8 @@ input,button{font-family:var(--fb)}
 .av{width:29px;height:29px;border-radius:50%;border:2px solid var(--pu);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:1px;overflow:hidden;flex-shrink:0}
 .av img{width:100%;height:100%;object-fit:cover}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(64px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
-/* Desktop PWA in standalone mode (added to dock on macOS) extends behind the
-   macOS Dock, hiding the last few rows of long lists. The mobile bottom-nav
-   padding is irrelevant on desktop (no bottom nav), so swap it for a larger
-   buffer that clears the Dock at typical sizes. */
-@media (min-width:768px){.pages{padding-bottom:140px}}
+/* Desktop has no fixed bottom-nav, so the mobile padding is overkill — trim it. */
+@media (min-width:768px){.pages{padding-bottom:24px}}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
 .bnav{position:fixed;top:auto;left:0;right:0;bottom:0;background:rgba(7,7,16,.97);backdrop-filter:blur(16px);border-top:1px solid var(--bo2);display:flex;align-items:center;padding:9px 2px;padding-bottom:max(9px,var(--sb));z-index:50;will-change:auto;}
@@ -642,6 +639,17 @@ export default function App(){
   // bottom nav. In standalone mode we therefore also consider screen.height
   // (orientation-aware) as a candidate and use the largest measurement.
   useEffect(()=>{
+    // Same iOS-only gating as in src/index.js — desktop PWAs shouldn't
+    // override body height, the browser's natural viewport accounts for the
+    // macOS Dock / Windows taskbar correctly.
+    const isIOSDevice=()=>{
+      if(typeof navigator==='undefined')return false;
+      const ua=navigator.userAgent||'';
+      if(/iPad|iPhone|iPod/.test(ua))return true;
+      if(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)return true;
+      return false;
+    };
+    if(!isIOSDevice())return;
     const computeH=()=>{
       const isStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||(window.navigator&&window.navigator.standalone===true);
       const cands=[
