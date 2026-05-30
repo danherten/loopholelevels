@@ -1893,6 +1893,39 @@ body,html{margin:0;padding:0;background:#070710;}
           const lb=lbTab==='weekly'?weeklyLeaderboard:leaderboard;
           const isWeekly=lbTab==='weekly';
           return(<>
+            {/* YOUR POSITION — pinned to the top so the user can see their rank
+                immediately without scrolling. Big bright purple gradient card
+                so it stands out as 'this is you'. */}
+            {profile&&lb.length>0&&(()=>{
+              const myIdx=lb.findIndex(u=>u.id===profile.id);
+              if(myIdx<0){
+                return(
+                  <div style={{background:'var(--card)',border:'1px dashed rgba(139,92,246,.3)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,textAlign:'center',fontSize:12.5,color:'var(--tx2)'}}>
+                    {isWeekly?'You haven\'t earned any XP this week yet — start selling to climb the board.':'You\'re not on the leaderboard yet — start selling to get ranked.'}
+                  </div>
+                );
+              }
+              const me=lb[myIdx];
+              const myRank=myIdx+1;
+              const pct=Math.round((myRank/lb.length)*100);
+              return(
+                <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.32) 0%,rgba(168,85,247,.18) 50%,rgba(6,182,212,.14) 100%)',border:'1.5px solid rgba(168,85,247,.6)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:12,boxShadow:'0 0 30px rgba(139,92,246,.28)'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:34,color:'#fff',letterSpacing:.5,lineHeight:1,minWidth:54,textAlign:'center',textShadow:'0 0 14px rgba(168,85,247,.75)'}}>#{myRank}</div>
+                  <div style={{width:1,height:38,background:'rgba(255,255,255,.18)'}}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                      <div style={{fontSize:13.5,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{me.username}</div>
+                      <span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'2px 7px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>
+                    </div>
+                    <div style={{fontSize:10.5,color:'rgba(255,255,255,.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{isWeekly?'This week':'All-time'} · top {pct}% of {lb.length}</div>
+                  </div>
+                  <div style={{textAlign:'right',flexShrink:0}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--pu2)',letterSpacing:.5,lineHeight:1}}>{(me.xp||0).toLocaleString()} XP</div>
+                    <div style={{fontSize:11,color:'var(--gr)',fontFamily:'var(--fh)',marginTop:4,letterSpacing:.3,lineHeight:1}}>{fmtGBP(me.total_gmv||0)}</div>
+                  </div>
+                </div>
+              );
+            })()}
             {/* TOP 3 PODIUM */}
             {lb.length>=3&&(()=>{
               const [first,second,third]=lb;
@@ -1940,11 +1973,14 @@ body,html{margin:0;padding:0;background:#070710;}
                 {lb.map((u,i)=>{
                   const isMe=u.id===profile?.id;const col=avc(u.username);const medal=i===0?'🥇':i===1?'🥈':'🥉';
                   return(
-                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',background:isMe?'rgba(139,92,246,.06)':'transparent'}}>
+                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(139,92,246,.22) 0%, rgba(139,92,246,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #a78bfa':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(139,92,246,.18)':'none'}}>
                       <div style={{fontSize:16,width:24,textAlign:'center'}}>{medal}</div>
-                      <div style={{width:36,height:36,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden'}}>{u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}</div>
+                      <div style={{width:36,height:36,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #a78bfa':'none',boxShadow:isMe?'0 0 12px rgba(168,85,247,.5)':'none'}}>{u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}</div>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:13,fontWeight:600}}>{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div>
+                        <div style={{display:'flex',alignItems:'center',gap:5,fontSize:13,fontWeight:600}}>
+                          <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:isMe?'#fff':'var(--tx)'}}>{u.username}</span>
+                          {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
+                        </div>
                         <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
@@ -1963,13 +1999,16 @@ body,html{margin:0;padding:0;background:#070710;}
                 const isMe=u.id===profile?.id;
                 const col=avc(u.username);
                 return(
-                  <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<lb.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'rgba(139,92,246,.06)':'transparent'}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:'var(--tx3)',flexShrink:0}}>{rank}</div>
-                    <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden'}}>
+                  <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<lb.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(139,92,246,.22) 0%, rgba(139,92,246,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #a78bfa':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(139,92,246,.18)':'none'}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:isMe?'#fff':'var(--tx3)',flexShrink:0}}>{rank}</div>
+                    <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #a78bfa':'none',boxShadow:isMe?'0 0 12px rgba(168,85,247,.5)':'none'}}>
                       {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
                     </div>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:5,fontSize:13,fontWeight:500}}>
+                        <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:isMe?'#fff':'var(--tx)',fontWeight:isMe?700:500}}>{u.username}</span>
+                        {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
+                      </div>
                       <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
                     </div>
                     <div style={{textAlign:'right',flexShrink:0}}>
@@ -1981,20 +2020,7 @@ body,html{margin:0;padding:0;background:#070710;}
               })}
             </div>)}
             {lb.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>{isWeekly?'No activity this week yet — get selling!':'No affiliates yet.'}</div>}
-            {/* Your position callout */}
-            {profile&&lb.length>0&&(()=>{
-              const myIdx=lb.findIndex(u=>u.id===profile.id);
-              if(myIdx<0)return <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'12px 14px',marginTop:11,textAlign:'center',fontSize:12,color:'var(--tx3)'}}>{isWeekly?'You haven\'t earned any XP this week yet':'You\'re not on the leaderboard yet'}</div>;
-              return(
-                <div style={{background:'rgba(139,92,246,.08)',border:'1px solid rgba(139,92,246,.2)',borderRadius:'var(--rsm)',padding:'12px 14px',marginTop:11,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--pu2)'}}>#{myIdx+1}</div>
-                    <div style={{fontSize:12,color:'var(--tx2)'}}>Your position</div>
-                  </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)'}}>{(lb[myIdx].xp||0).toLocaleString()} XP</div>
-                </div>
-              );
-            })()}
+            {/* (The "Your position" callout used to live here; now pinned at the top of the page.) */}
           </>);
         })()}
       </div>)}
