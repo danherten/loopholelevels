@@ -439,6 +439,9 @@ export default function App(){
   const [lbTab,setLbTab]=useState('alltime');
   // Selected month for the monthly leaderboard tab. Defaults to current month.
   const [lbMonth,setLbMonth]=useState(()=>{const n=new Date();return{year:n.getFullYear(),month:n.getMonth()};});
+  // True while either rankings query is in-flight. Drives the loading
+  // skeleton so we don't briefly flash 'No data' before the rows arrive.
+  const [lbLoading,setLbLoading]=useState(false);
   const [milestones,setMilestones]=useState(DEFAULT_MILESTONES);
   const [page,setPage]=useState('home');
   const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('ll-admin')==='true');
@@ -851,21 +854,27 @@ export default function App(){
 
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
   async function loadRewards(){const {data}=await supabase.from('rewards').select('*').order('level');if(data)setRewards(data);}
-  async function loadLeaderboard(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}
+  async function loadLeaderboard(){setLbLoading(true);try{const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}finally{setLbLoading(false);}}
   // Aggregates xp_events into a per-month leaderboard. Queries the calendar
   // month bounds for {year, month} and sorts profiles by total XP in that
   // window. Top 50 only — matches the all-time leaderboard cap.
   async function loadMonthlyLeaderboard(year,month){
-    const start=new Date(year,month,1).toISOString();
-    const end=new Date(year,month+1,1).toISOString();
-    const {data:events}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission').gte('created_at',start).lt('created_at',end);
-    if(!events)return;
-    const byProfile={};
-    events.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,commission:0};byProfile[e.profile_id].xp+=(e.amount||0);byProfile[e.profile_id].gmv+=(e.gmv||0);byProfile[e.profile_id].commission+=(e.commission||0);});
-    const {data:profiles}=await supabase.from('profiles').select('id,username,avatar_url,tiktok_handles');
-    if(!profiles)return;
-    const monthly=Object.entries(byProfile).map(([pid,vals])=>{const p=profiles.find(x=>x.id===pid);if(!p)return null;return{...p,xp:vals.xp,total_gmv:vals.gmv,total_commission:vals.commission};}).filter(Boolean).sort((a,b)=>b.xp-a.xp).slice(0,50);
-    setMonthlyLeaderboard(monthly);
+    setLbLoading(true);
+    // Clear stale rows from a previous month so the skeleton shows instead of
+    // briefly flashing last month's data while the new query is in-flight.
+    setMonthlyLeaderboard([]);
+    try{
+      const start=new Date(year,month,1).toISOString();
+      const end=new Date(year,month+1,1).toISOString();
+      const {data:events}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission').gte('created_at',start).lt('created_at',end);
+      if(!events)return;
+      const byProfile={};
+      events.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]={xp:0,gmv:0,commission:0};byProfile[e.profile_id].xp+=(e.amount||0);byProfile[e.profile_id].gmv+=(e.gmv||0);byProfile[e.profile_id].commission+=(e.commission||0);});
+      const {data:profiles}=await supabase.from('profiles').select('id,username,avatar_url,tiktok_handles');
+      if(!profiles)return;
+      const monthly=Object.entries(byProfile).map(([pid,vals])=>{const p=profiles.find(x=>x.id===pid);if(!p)return null;return{...p,xp:vals.xp,total_gmv:vals.gmv,total_commission:vals.commission};}).filter(Boolean).sort((a,b)=>b.xp-a.xp).slice(0,50);
+      setMonthlyLeaderboard(monthly);
+    }finally{setLbLoading(false);}
   }
   async function loadAllProfiles(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false});if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}}
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
@@ -1910,6 +1919,20 @@ body,html{margin:0;padding:0;background:#070710;}
         {(()=>{
           const lb=lbTab==='monthly'?monthlyLeaderboard:leaderboard;
           const isMonthly=lbTab==='monthly';
+          // Spinner / skeleton state — shown while the active query is in
+          // flight AND there's nothing to render yet. Stops the page from
+          // flashing 'No affiliates yet' before the rows arrive.
+          if(lbLoading&&lb.length===0){
+            const skel=(h)=>(<div style={{height:h,background:'linear-gradient(90deg, var(--card) 0%, var(--card2) 50%, var(--card) 100%)',backgroundSize:'200% 100%',animation:'lbSkel 1.4s ease-in-out infinite',borderRadius:'var(--rsm)',marginBottom:8}}/>);
+            return(<>
+              <style>{`@keyframes lbSkel{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+              <div style={{padding:'40px 14px 24px',textAlign:'center'}}>
+                <div className="spin-el" style={{margin:'0 auto 14px'}}/>
+                <div style={{fontSize:12,color:'var(--tx3)',letterSpacing:.5,marginBottom:18}}>Loading rankings…</div>
+                <div style={{textAlign:'left'}}>{skel(58)}{skel(58)}{skel(58)}{skel(58)}{skel(58)}</div>
+              </div>
+            </>);
+          }
           return(<>
             {/* YOUR POSITION — pinned to the top so the user can see their rank
                 immediately without scrolling. Big bright purple gradient card
