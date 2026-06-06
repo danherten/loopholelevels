@@ -183,6 +183,27 @@ function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.roun
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
 function avc(n){const c=['#8b5cf6','#a855f7','#06b6d4','#f59e0b','#10b981','#f43f5e'];let h=0;for(const x of n||'')h=(h*31+x.charCodeAt(0))%c.length;return c[h]}
 function tdy(){return new Date().toISOString().slice(0,10)}
+// Whole days elapsed since an ISO timestamp. Negative input → null.
+function daysSince(iso){if(!iso)return null;const d=new Date(iso).getTime();if(!d||isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d)/86400000));}
+// Walks a profile's xp_events in chronological order and finds the first event
+// whose running XP total crosses each reward.xp_required threshold. Returns
+// { level: ISO timestamp } for every level the profile has unlocked.
+function computeUnlockDates(events,rewards){
+  if(!events||!events.length||!rewards||!rewards.length)return{};
+  const sortedEvents=[...events].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+  const sortedRewards=[...rewards].sort((a,b)=>(a.xp_required||0)-(b.xp_required||0));
+  const dates={};
+  let runningXp=0;
+  for(const e of sortedEvents){
+    const prevXp=runningXp;
+    runningXp+=(e.amount||0);
+    for(const r of sortedRewards){
+      const req=r.xp_required||0;
+      if(dates[r.level]==null&&prevXp<req&&runningXp>=req){dates[r.level]=e.created_at;}
+    }
+  }
+  return dates;
+}
 function fmtGBP(v){return'£'+(Number(v)||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function findCol(headers,type){const maps=TCOLS[type];for(const m of maps){const f=headers.find(h=>h.toLowerCase().replace(/[_\-]/g,' ').trim()===m||h.toLowerCase().includes(m));if(f)return f;}return null}
 function parseCSV(text){const lines=text.split(/\r?\n/).filter(l=>l.trim());if(!lines.length)return[];const dl=lines[0].includes('\t')?'\t':',';const hdrs=splitLine(lines[0],dl);return lines.slice(1).map(line=>{const vals=splitLine(line,dl);const obj={};hdrs.forEach((h,i)=>{obj[h.trim()]=vals[i]!==undefined?vals[i].trim():'';});return obj;}).filter(r=>Object.values(r).some(v=>v))}
@@ -536,6 +557,9 @@ export default function App(){
   const [adminTab,setAdminTab]=useState('overview');
   const [adminPeriod,setAdminPeriod]=useState('30d');
   const [adminPeriodEvents,setAdminPeriodEvents]=useState([]);
+  // Per-profile per-level unlock timestamps. Shape: { profileId: { 1: ISO, 2: ISO, ... } }.
+  // Drives the 'waiting X days' badges in the admin Rewards Owed tab.
+  const [affiliateUnlockDates,setAffiliateUnlockDates]=useState({});
   // Period filter for the Referrals tab. Defaults to 'all' because referral
   // signups are slow-moving — most people want lifetime totals first.
   const [referralPeriod,setReferralPeriod]=useState('all');
@@ -939,6 +963,18 @@ export default function App(){
     const {data}=await supabase.from('payouts').select('*').order('month',{ascending:false});
     if(data)setAdminPayouts(data);
   }
+  // Loads every xp_event in the system (light columns only) and walks each
+  // profile's events chronologically to build a {level: ISO} unlock map.
+  // Powers the 'waiting Xd' badges in the admin Rewards Owed tab.
+  async function loadAffiliateUnlockDates(){
+    const {data}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true});
+    if(!data)return;
+    const byProfile={};
+    data.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
+    const unlocks={};
+    for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rewards);}
+    setAffiliateUnlockDates(unlocks);
+  }
   // Pulls the last 60 days of import xp_events for period-toggle deltas on the
   // admin overview. 60 days covers the 30d window plus the prior 30d for the
   // delta calculation; longer toggles use cumulative `profiles` totals.
@@ -1232,7 +1268,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -3169,14 +3205,19 @@ body,html{margin:0;padding:0;background:#070710;}
                     </div>
                     {/* Owed-tiers list */}
                     <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10,padding:'8px 10px',background:'var(--card2)',borderRadius:8}}>
-                      {p._owedLevels.map(r=>(
-                        <div key={r.level} style={{display:'flex',alignItems:'center',gap:9,fontSize:11.5}}>
-                          <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
-                          <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
-                          <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
-                          <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
-                        </div>
-                      ))}
+                      {p._owedLevels.map(r=>{
+                        const waited=daysSince(affiliateUnlockDates[p.id]?.[r.level]);
+                        const waitColor=waited==null?'var(--tx3)':waited>=30?'#f43f5e':waited>=14?'#fbbf24':'var(--tx3)';
+                        return(
+                          <div key={r.level} style={{display:'flex',alignItems:'center',gap:9,fontSize:11.5}}>
+                            <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+                            <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
+                            <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
+                            {waited!=null&&<span style={{fontSize:10,color:waitColor,padding:'2px 6px',background:waited>=30?'rgba(244,63,94,.13)':waited>=14?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)',border:`1px solid ${waited>=30?'rgba(244,63,94,.32)':waited>=14?'rgba(251,191,36,.3)':'var(--bo)'}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)'}}>⏱ {waited}d</span>}
+                            <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
                       <div style={{fontSize:10,color:'var(--tx3)',flex:1}}>Last delivered: {p._lastLevel?'L'+p._lastLevel:'—'} · Current: L{p._curLevel}</div>
@@ -3458,7 +3499,29 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>{showReward.name}</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12,lineHeight:1.5}}>{showReward.description||'Complete this level to unlock.'}</div>
         {showReward.image_url?<div style={{width:'100%',aspectRatio:'1/1',borderRadius:10,overflow:'hidden',marginBottom:11,background:'var(--card2)'}}><img src={showReward.image_url} alt={showReward.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/></div>:<div style={{width:'100%',aspectRatio:'1/1',background:'var(--card2)',borderRadius:10,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:11,fontSize:54,opacity:.3}}>🎁</div>}
-        {(()=>{const un=profile.xp>=showReward.xp_required;const prog=Math.min(100,Math.round((profile.xp/showReward.xp_required)*100));const need=Math.max(0,showReward.xp_required-profile.xp);return(<div style={{background:'var(--card2)',borderRadius:8,padding:11,marginBottom:11}}><div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)',marginBottom:5}}><span>Progress</span><span>{un?'✅ Unlocked!':`${need.toLocaleString()} XP needed`}</span></div><div className="pw"><div className="pf" style={{width:`${prog}%`}}/></div><div style={{display:'flex',justifyContent:'space-between',marginTop:3,fontSize:10,color:'var(--tx3)'}}><span>{profile.xp.toLocaleString()}</span><span>{showReward.xp_required.toLocaleString()} XP</span></div>{un&&<div style={{marginTop:8,background:'rgba(16,185,129,.09)',border:'1px solid rgba(16,185,129,.2)',borderRadius:7,padding:9,textAlign:'center',fontSize:12,color:'var(--gr)',lineHeight:1.45}}>🎉 Unlocked! Contact Loophole to claim — or swap it for <strong>80% cash</strong> instead.</div>}</div>);})()} 
+        {(()=>{
+          const un=profile.xp>=showReward.xp_required;
+          const prog=Math.min(100,Math.round((profile.xp/showReward.xp_required)*100));
+          const need=Math.max(0,showReward.xp_required-profile.xp);
+          // When unlocked, work out when they crossed the line and how long
+          // they've been waiting for delivery (using their own xp_events).
+          const myUnlocks=un?computeUnlockDates(xpEvents,rewards):null;
+          const unlockIso=myUnlocks?myUnlocks[showReward.level]:null;
+          const waited=daysSince(unlockIso);
+          const delivered=un&&profile.rewards_delivered_level!=null&&profile.rewards_delivered_level>=showReward.level;
+          return(<div style={{background:'var(--card2)',borderRadius:8,padding:11,marginBottom:11}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)',marginBottom:5}}><span>Progress</span><span>{un?'✅ Unlocked!':`${need.toLocaleString()} XP needed`}</span></div>
+            <div className="pw"><div className="pf" style={{width:`${prog}%`}}/></div>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:3,fontSize:10,color:'var(--tx3)'}}><span>{profile.xp.toLocaleString()}</span><span>{showReward.xp_required.toLocaleString()} XP</span></div>
+            {un&&(
+              <div style={{marginTop:8,background:delivered?'rgba(16,185,129,.09)':'rgba(139,92,246,.1)',border:`1px solid ${delivered?'rgba(16,185,129,.2)':'rgba(139,92,246,.25)'}`,borderRadius:7,padding:10,textAlign:'center',fontSize:12,color:delivered?'var(--gr)':'var(--pu2)',lineHeight:1.45}}>
+                {delivered?(<>✅ <strong>Delivered</strong> — enjoy your reward!</>):(<>🎉 <strong>Unlocked!</strong> Contact Loophole to claim — or swap it for <strong style={{color:'#fff'}}>80% cash</strong>.</>)}
+                {waited!=null&&!delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>⏱ Waiting for delivery · {waited} day{waited===1?'':'s'}</div>)}
+                {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
+              </div>
+            )}
+          </div>);
+        })()}
         <button onClick={()=>setShowReward(null)} style={{width:'100%',padding:9,background:'var(--card2)',border:'1px solid var(--bo2)',borderRadius:8,color:'var(--tx2)',fontSize:13,cursor:'pointer'}}>Close</button>
       </div>
     </div>)}
