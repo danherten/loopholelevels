@@ -1986,27 +1986,42 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
         </div>
         <div style={{paddingTop:4}}>
-          {rewards.map((r,i)=>{
-            const un=profile.xp>=r.xp_required;
-            const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
-            const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
-            const need=Math.max(0,r.xp_required-profile.xp);
-            return(
-              <div key={r.id} className={`bp-vcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
-                <div className={`bp-vbadge${un?' un':isCur?' cur':' lk'}`}>{un?'✓ DONE':isCur?'IN PROGRESS':'🔒'}</div>
-                <div className="bp-vimg">
-                  {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:26,opacity:.35}}>🎁</span>}
+          {(()=>{
+            // Compute unlock timestamps ONCE for the whole list. Walks the
+            // user's own xp_events to find when each reward threshold was
+            // first crossed.
+            const myUnlocks=computeUnlockDates(xpEvents,rewards);
+            const deliveredThrough=profile?.rewards_delivered_level??0;
+            return rewards.map((r,i)=>{
+              const un=profile.xp>=r.xp_required;
+              const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
+              const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
+              const need=Math.max(0,r.xp_required-profile.xp);
+              const delivered=un&&r.level<=deliveredThrough;
+              const waited=un?daysSince(myUnlocks[r.level]):null;
+              const badgeText=delivered?'✅ DELIVERED':un?'✓ UNLOCKED':isCur?'IN PROGRESS':'🔒';
+              return(
+                <div key={r.id} className={`bp-vcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
+                  <div className={`bp-vbadge${un?' un':isCur?' cur':' lk'}`}>{badgeText}</div>
+                  <div className="bp-vimg">
+                    {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:26,opacity:.35}}>🎁</span>}
+                  </div>
+                  <div className="bp-vbody">
+                    <div className="bp-vlv">Level {r.level}</div>
+                    <div className="bp-vnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
+                    <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
+                    <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
+                    {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
+                    {un&&waited!=null&&(
+                      <div style={{fontSize:10.5,marginTop:5,fontWeight:600,letterSpacing:.2,color:delivered?'var(--gr)':waited>=30?'#f43f5e':waited>=14?'#fbbf24':'var(--tx2)'}}>
+                        {delivered?`✅ Delivered · unlocked ${waited}d ago`:`⏱ Waiting for delivery · ${waited}d`}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="bp-vbody">
-                  <div className="bp-vlv">Level {r.level}</div>
-                  <div className="bp-vnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
-                  <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
-                  <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
-                  {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
 
       </div>)}
