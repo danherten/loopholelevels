@@ -877,8 +877,13 @@ export default function App(){
   // via loadAdminRewardValues() once the admin gate is unlocked.
   async function loadRewards(){const {data}=await supabase.from('rewards').select('id,level,name,description,xp_required,image_url').order('level');if(data)setRewards(data);}
   // Admin-only — merges the £ value into the already-loaded rewards array.
+  // Routes through admin_get_reward_values() RPC (migration 0005) rather
+  // than querying rewards.value directly, since column-level SELECT on
+  // value has been revoked from anon/authenticated. The RPC checks the
+  // caller's profiles.is_admin and raises 'Not authorized' otherwise.
   async function loadAdminRewardValues(){
-    const {data}=await supabase.from('rewards').select('id,value');
+    const {data,error}=await supabase.rpc('admin_get_reward_values');
+    if(error){console.warn('admin_get_reward_values:',error.message);return;}
     if(!data)return;
     setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
   }
