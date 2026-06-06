@@ -172,6 +172,12 @@ function HowToEarnDropdown({milestones}){
   );
 }
 function getLv(xp,levels){const L=levels||DEFAULT_LEVELS;for(let i=L.length-1;i>=0;i--)if(xp>=L[i].min)return L[i];return L[0]}
+// Highest reward tier the user has actually EARNED — i.e. crossed the
+// xp_required threshold. Different from getLv().level which is the tier
+// the user is currently working WITHIN. A user with 4,999 XP is at
+// getLv=1 ('Level 1') but has earned 0 reward tiers because they haven't
+// hit L1's 5,000 XP threshold yet.
+function achievedLevel(xp,rewards){let max=0;(rewards||[]).forEach(r=>{if((xp||0)>=(r.xp_required||0))max=Math.max(max,r.level||0);});return max;}
 function getNx(xp,levels){const L=levels||DEFAULT_LEVELS;const c=getLv(xp,L);const i=L.findIndex(l=>l.level===c.level);return L[i+1]||null}
 function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.round(((xp-c.min)/(c.max-c.min))*100))}
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
@@ -959,9 +965,9 @@ export default function App(){
   // one-time 'mark everyone as currently up-to-date' action when the feature
   // first launches.
   async function markAllDiscordRolesUpdated(){
-    const pending=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
     if(pending.length===0){toast('Nothing to mark','info');return;}
-    const updates=pending.map(p=>({id:p.id,level:getLv(p.xp,LEVELS).level}));
+    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
     // Per-row updates rather than one giant upsert — safer with RLS and avoids
     // accidentally clobbering other columns.
     for(const u of updates){
@@ -981,9 +987,9 @@ export default function App(){
   // Bulk-set every pending profile's rewards_delivered_level to their current
   // calculated level.
   async function markAllRewardsDelivered(){
-    const pending=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.rewards_delivered_level??0));
+    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0));
     if(pending.length===0){toast('Nothing to mark','info');return;}
-    const updates=pending.map(p=>({id:p.id,level:getLv(p.xp,LEVELS).level}));
+    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
     for(const u of updates){
       await supabase.from('profiles').update({rewards_delivered_level:u.level}).eq('id',u.id);
     }
@@ -2433,8 +2439,8 @@ body,html{margin:0;padding:0;background:#070710;}
           {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['rewardsowed','🎁','Rewards'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
             <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}>
               <span>{ic}</span><span>{lb}</span>
-              {id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
-              {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+              {id==='discord'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+              {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
             </button>
           ))}
         </div>
@@ -2486,11 +2492,11 @@ body,html{margin:0;padding:0;background:#070710;}
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
           // Discord role-update reminders: any profile whose computed level is
           // higher than the last acknowledged discord_level.
-          const pendingDiscord=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+          const pendingDiscord=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
           if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>setAdminTab('discord')});
           // Reward delivery reminders — affiliates with unlocked level rewards that haven't been physically dispatched.
           const rewardByLevelLookup={};rewards.forEach(r=>{rewardByLevelLookup[r.level]={value:Number(r.value||0)};});
-          const pendingRewards=allProfiles.map(p=>{const cur=getLv(p.xp,LEVELS).level;const last=p.rewards_delivered_level??0;let owed=0;for(let l=last+1;l<=cur;l++){if(rewardByLevelLookup[l])owed+=rewardByLevelLookup[l].value||0;}return{p,owed,hasTiers:cur>last};}).filter(x=>x.hasTiers);
+          const pendingRewards=allProfiles.map(p=>{const ach=achievedLevel(p.xp,rewards);const last=p.rewards_delivered_level??0;let owed=0;for(let l=last+1;l<=ach;l++){if(rewardByLevelLookup[l])owed+=rewardByLevelLookup[l].value||0;}return{p,owed,hasTiers:ach>last};}).filter(x=>x.hasTiers);
           const totalRewardOwed=pendingRewards.reduce((s,x)=>s+x.owed,0);
           if(pendingRewards.length>0)tasks.push({k:'warn',e:'🎁',t:`${pendingRewards.length} affiliate${pendingRewards.length===1?'':'s'} owed level rewards${totalRewardOwed>0?' ('+(totalRewardOwed>=1000?'£'+Math.round(totalRewardOwed).toLocaleString('en-GB'):'£'+totalRewardOwed.toFixed(2))+')':''}`,n:'Dispatch their tier reward then tick them off',cta:'Review',fn:()=>setAdminTab('rewardsowed')});
           if(allProfiles.length===0)tasks.push({k:'info',e:'🎯',t:'No affiliates yet',n:'Share the signup link to get started',cta:'',fn:()=>{}});
@@ -2995,7 +3001,10 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* DISCORD — checklist of pending Discord-role bumps for affiliates that have levelled up since the admin last acknowledged their role. */}
         {adminTab==='discord'&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          const pending=allProfiles.map(p=>{const cur=getLv(p.xp,LEVELS).level;return{...p,_curLevel:cur,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
+          // _curLevel = highest reward tier they've actually crossed the threshold for
+          // (NOT getLv().level — that's the tier they're 'in', which doesn't equal what
+          // they've earned a Discord role for).
+          const pending=allProfiles.map(p=>{const ach=achievedLevel(p.xp,rewards);return{...p,_curLevel:ach,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
           const totalAffiliates=allProfiles.length;
           return(<>
             {/* HERO */}
@@ -3083,9 +3092,11 @@ body,html{margin:0;padding:0;background:#070710;}
           // Build per-level lookup of name + value from the rewards collection.
           const rewardByLevel={};
           rewards.forEach(r=>{rewardByLevel[r.level]={name:r.name,value:Number(r.value||0),image:r.image_url};});
-          // Compute owed tiers per affiliate.
+          // Compute owed tiers per affiliate. _curLevel = highest reward tier
+          // they've crossed the XP threshold for (achievedLevel), NOT the tier
+          // they're 'in' per getLv (which would over-count by 1).
           const enriched=allProfiles.map(p=>{
-            const cur=getLv(p.xp,LEVELS).level;
+            const cur=achievedLevel(p.xp,rewards);
             const last=p.rewards_delivered_level??0;
             const owedLevels=[];
             for(let l=last+1;l<=cur;l++){if(rewardByLevel[l])owedLevels.push({level:l,...rewardByLevel[l]});}
