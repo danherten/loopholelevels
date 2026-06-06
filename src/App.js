@@ -172,6 +172,12 @@ function HowToEarnDropdown({milestones}){
   );
 }
 function getLv(xp,levels){const L=levels||DEFAULT_LEVELS;for(let i=L.length-1;i>=0;i--)if(xp>=L[i].min)return L[i];return L[0]}
+// Highest reward tier the user has actually EARNED — i.e. crossed the
+// xp_required threshold. Different from getLv().level which is the tier
+// the user is currently working WITHIN. A user with 4,999 XP is at
+// getLv=1 ('Level 1') but has earned 0 reward tiers because they haven't
+// hit L1's 5,000 XP threshold yet.
+function achievedLevel(xp,rewards){let max=0;(rewards||[]).forEach(r=>{if((xp||0)>=(r.xp_required||0))max=Math.max(max,r.level||0);});return max;}
 function getNx(xp,levels){const L=levels||DEFAULT_LEVELS;const c=getLv(xp,L);const i=L.findIndex(l=>l.level===c.level);return L[i+1]||null}
 function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.round(((xp-c.min)/(c.max-c.min))*100))}
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
@@ -871,7 +877,22 @@ export default function App(){
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
 
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
-  async function loadRewards(){const {data}=await supabase.from('rewards').select('*').order('level');if(data)setRewards(data);}
+  // Public reward loader — explicitly excludes `value` (£ cost per tier) so
+  // creators never receive cash amounts in the wire response. The admin
+  // Catalog editor and Rewards Owed tab fetch the value column separately
+  // via loadAdminRewardValues() once the admin gate is unlocked.
+  async function loadRewards(){const {data}=await supabase.from('rewards').select('id,level,name,description,xp_required,image_url').order('level');if(data)setRewards(data);}
+  // Admin-only — merges the £ value into the already-loaded rewards array.
+  // Routes through admin_get_reward_values() RPC (migration 0005) rather
+  // than querying rewards.value directly, since column-level SELECT on
+  // value has been revoked from anon/authenticated. The RPC checks the
+  // caller's profiles.is_admin and raises 'Not authorized' otherwise.
+  async function loadAdminRewardValues(){
+    const {data,error}=await supabase.rpc('admin_get_reward_values');
+    if(error){console.warn('admin_get_reward_values:',error.message);return;}
+    if(!data)return;
+    setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
+  }
   async function loadLeaderboard(){setLbLoading(true);try{const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}finally{setLbLoading(false);}}
   // Aggregates xp_events into a per-month leaderboard. Queries the calendar
   // month bounds for {year, month} and sorts profiles by total XP in that
@@ -944,9 +965,9 @@ export default function App(){
   // one-time 'mark everyone as currently up-to-date' action when the feature
   // first launches.
   async function markAllDiscordRolesUpdated(){
-    const pending=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
     if(pending.length===0){toast('Nothing to mark','info');return;}
-    const updates=pending.map(p=>({id:p.id,level:getLv(p.xp,LEVELS).level}));
+    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
     // Per-row updates rather than one giant upsert — safer with RLS and avoids
     // accidentally clobbering other columns.
     for(const u of updates){
@@ -954,6 +975,26 @@ export default function App(){
     }
     setAllProfiles(prev=>prev.map(p=>{const u=updates.find(x=>x.id===p.id);return u?{...p,discord_level:u.level}:p;}));
     toast(`Marked ${pending.length} as updated ✓`,'ok');
+  }
+  // Mark a single profile's reward delivery up to their current level — used
+  // when the admin physically dispatches all owed reward tiers.
+  async function markRewardsDelivered(profileId,toLevel){
+    const {error}=await supabase.from('profiles').update({rewards_delivered_level:toLevel}).eq('id',profileId);
+    if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
+    setAllProfiles(prev=>prev.map(p=>p.id===profileId?{...p,rewards_delivered_level:toLevel}:p));
+    toast('Marked delivered ✓','ok');
+  }
+  // Bulk-set every pending profile's rewards_delivered_level to their current
+  // calculated level.
+  async function markAllRewardsDelivered(){
+    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0));
+    if(pending.length===0){toast('Nothing to mark','info');return;}
+    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
+    for(const u of updates){
+      await supabase.from('profiles').update({rewards_delivered_level:u.level}).eq('id',u.id);
+    }
+    setAllProfiles(prev=>prev.map(p=>{const u=updates.find(x=>x.id===p.id);return u?{...p,rewards_delivered_level:u.level}:p;}));
+    toast(`Marked ${pending.length} as delivered ✓`,'ok');
   }
   async function generatePayouts(){
     // Generate payout records for each affiliate for each month they have referral earnings
@@ -1191,7 +1232,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -1319,7 +1360,7 @@ export default function App(){
     }catch(e){toast('Delete failed: '+(e.message||''),'wn');}
   }
   async function saveReward(r){
-    const updates={name:r.name,description:r.description,xp_required:Number(r.xp_required),image_url:r.image_url};
+    const updates={name:r.name,description:r.description,xp_required:Number(r.xp_required),image_url:r.image_url,value:Number(r.value||0)};
     const {error}=await supabase.from('rewards').update(updates).eq('id',r.id);
     if(!error){toast(`Reward ${r.level} saved ✓`,'ok');loadRewards();}
     else toast('Save failed: '+error.message,'wn');
@@ -2395,8 +2436,12 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* TAB STRIP */}
         <div style={{display:'flex',gap:7,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
           <span style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2.5,marginRight:8,color:'var(--tx2)'}}>👑 ADMIN</span>
-          {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
-            <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}><span>{ic}</span><span>{lb}</span>{id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}</button>
+          {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['rewardsowed','🎁','Rewards'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
+            <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}>
+              <span>{ic}</span><span>{lb}</span>
+              {id==='discord'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+              {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+            </button>
           ))}
         </div>
         {adminTab==='overview'&&(()=>{
@@ -2447,8 +2492,13 @@ body,html{margin:0;padding:0;background:#070710;}
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
           // Discord role-update reminders: any profile whose computed level is
           // higher than the last acknowledged discord_level.
-          const pendingDiscord=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+          const pendingDiscord=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
           if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>setAdminTab('discord')});
+          // Reward delivery reminders — affiliates with unlocked level rewards that haven't been physically dispatched.
+          const rewardByLevelLookup={};rewards.forEach(r=>{rewardByLevelLookup[r.level]={value:Number(r.value||0)};});
+          const pendingRewards=allProfiles.map(p=>{const ach=achievedLevel(p.xp,rewards);const last=p.rewards_delivered_level??0;let owed=0;for(let l=last+1;l<=ach;l++){if(rewardByLevelLookup[l])owed+=rewardByLevelLookup[l].value||0;}return{p,owed,hasTiers:ach>last};}).filter(x=>x.hasTiers);
+          const totalRewardOwed=pendingRewards.reduce((s,x)=>s+x.owed,0);
+          if(pendingRewards.length>0)tasks.push({k:'warn',e:'🎁',t:`${pendingRewards.length} affiliate${pendingRewards.length===1?'':'s'} owed level rewards${totalRewardOwed>0?' ('+(totalRewardOwed>=1000?'£'+Math.round(totalRewardOwed).toLocaleString('en-GB'):'£'+totalRewardOwed.toFixed(2))+')':''}`,n:'Dispatch their tier reward then tick them off',cta:'Review',fn:()=>setAdminTab('rewardsowed')});
           if(allProfiles.length===0)tasks.push({k:'info',e:'🎯',t:'No affiliates yet',n:'Share the signup link to get started',cta:'',fn:()=>{}});
           // === Top performers (top 3 each) ===
           const byGMV=[...allProfiles].sort((a,b)=>(Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0)))-(Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0)))).slice(0,3);
@@ -2951,7 +3001,10 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* DISCORD — checklist of pending Discord-role bumps for affiliates that have levelled up since the admin last acknowledged their role. */}
         {adminTab==='discord'&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          const pending=allProfiles.map(p=>{const cur=getLv(p.xp,LEVELS).level;return{...p,_curLevel:cur,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
+          // _curLevel = highest reward tier they've actually crossed the threshold for
+          // (NOT getLv().level — that's the tier they're 'in', which doesn't equal what
+          // they've earned a Discord role for).
+          const pending=allProfiles.map(p=>{const ach=achievedLevel(p.xp,rewards);return{...p,_curLevel:ach,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
           const totalAffiliates=allProfiles.length;
           return(<>
             {/* HERO */}
@@ -3027,6 +3080,110 @@ body,html{margin:0;padding:0;background:#070710;}
                     </div>
                   ))
                 )}
+              </div>
+            )}
+          </>);
+        })()}
+        {/* REWARDS OWED — per-affiliate checklist of physical reward deliveries owed.
+            Uses rewards.value to compute £ totals and rewards_delivered_level to
+            track who's been paid out vs. who's still owed. */}
+        {adminTab==='rewardsowed'&&(()=>{
+          const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
+          // Build per-level lookup of name + value from the rewards collection.
+          const rewardByLevel={};
+          rewards.forEach(r=>{rewardByLevel[r.level]={name:r.name,value:Number(r.value||0),image:r.image_url};});
+          // Compute owed tiers per affiliate. _curLevel = highest reward tier
+          // they've crossed the XP threshold for (achievedLevel), NOT the tier
+          // they're 'in' per getLv (which would over-count by 1).
+          const enriched=allProfiles.map(p=>{
+            const cur=achievedLevel(p.xp,rewards);
+            const last=p.rewards_delivered_level??0;
+            const owedLevels=[];
+            for(let l=last+1;l<=cur;l++){if(rewardByLevel[l])owedLevels.push({level:l,...rewardByLevel[l]});}
+            const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
+            return{...p,_curLevel:cur,_lastLevel:last,_owedLevels:owedLevels,_owedValue:owedValue};
+          });
+          const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>b._owedValue-a._owedValue);
+          const delivered=enriched.filter(p=>p._owedLevels.length===0);
+          // Hero totals.
+          const totalOwedValue=pending.reduce((s,p)=>s+p._owedValue,0);
+          const totalDeliveredValue=delivered.reduce((s,p)=>{
+            // Sum reward values for every level the affiliate has been delivered through.
+            let v=0;for(let l=1;l<=(p._lastLevel||0);l++){if(rewardByLevel[l])v+=rewardByLevel[l].value||0;}return s+v;
+          },0);
+          const missingValues=rewards.filter(r=>!r.value||Number(r.value)===0).length;
+          return(<>
+            {/* HERO STRIP */}
+            <div style={{background:'linear-gradient(135deg,rgba(245,158,11,.14) 0%,rgba(139,92,246,.06) 60%,rgba(16,185,129,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(245,158,11,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,position:'relative'}}>
+                <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>🎁</span>
+                <div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REWARDS OWED</div>
+                  <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>Tick affiliates off after dispatching their level rewards</div>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4, 1fr)':'1fr 1fr',gap:8,position:'relative'}}>
+                <div className="ahk"><div className="ahkl">Total owed</div><div className="ahkv" style={{color:'#f59e0b'}}>{fmtGBPc(totalOwedValue)}</div><div className="ahkd"><span className="vs">across {pending.length} affiliate{pending.length===1?'':'s'}</span></div></div>
+                <div className="ahk"><div className="ahkl">Already delivered</div><div className="ahkv" style={{color:'var(--gr)'}}>{fmtGBPc(totalDeliveredValue)}</div><div className="ahkd"><span className="vs">cumulative</span></div></div>
+                <div className="ahk"><div className="ahkl">Pending</div><div className="ahkv" style={{color:pending.length>0?'#f59e0b':'var(--gr)'}}>{pending.length}</div><div className="ahkd"><span className="vs">affiliate{pending.length===1?'':'s'} waiting</span></div></div>
+                <div className="ahk"><div className="ahkl">Up to date</div><div className="ahkv" style={{color:'var(--gr)'}}>{delivered.length}</div><div className="ahkd"><span className="vs">level rewards delivered</span></div></div>
+              </div>
+            </div>
+            {/* Missing values nudge */}
+            {missingValues>0&&(
+              <div className="asec" style={{padding:'12px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.3)',display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:18}}>⚠️</span>
+                <div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>{missingValues} reward tier{missingValues===1?'':'s'} {missingValues===1?'has':'have'} no £ value set — owed totals won't include {missingValues===1?'it':'them'} until {missingValues===1?'it\'s':'they\'re'} filled in.</div>
+                <button onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{padding:'6px 11px',background:'rgba(245,158,11,.15)',border:'1px solid rgba(245,158,11,.4)',color:'#fbbf24',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>Edit rewards →</button>
+              </div>
+            )}
+            {pending.length===0?(
+              <div className="asec" style={{padding:'40px 18px',textAlign:'center'}}>
+                <div style={{fontSize:36,marginBottom:10,opacity:.6}}>✨</div>
+                <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6}}>All rewards delivered</div>
+                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,maxWidth:300,margin:'0 auto'}}>Every affiliate has received their level rewards. New unlocks will appear here automatically.</div>
+              </div>
+            ):(
+              <div className="asec">
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11,flexWrap:'wrap'}}>
+                  <span style={{fontSize:14}}>📦</span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>PENDING DELIVERIES</span>
+                  <span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{pending.length}</span>
+                  <button onClick={markAllRewardsDelivered} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all delivered</button>
+                </div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Dispatch the reward, then tick the affiliate off. First-time users: 'Mark all delivered' to bulk-acknowledge everyone at their current level.</div>
+                {pending.map((p,i)=>(
+                  <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:'12px 13px',marginBottom:8}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                      <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--tx3)',width:20,textAlign:'center'}}>{i+1}</span>
+                      <div style={{width:34,height:34,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,2).join(' · ')||'—'}</div>
+                      </div>
+                      <div style={{textAlign:'right',flexShrink:0}}>
+                        <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#f59e0b',letterSpacing:.3,lineHeight:1}}>{fmtGBPc(p._owedValue)}</div>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:2,fontWeight:700}}>owed</div>
+                      </div>
+                    </div>
+                    {/* Owed-tiers list */}
+                    <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10,padding:'8px 10px',background:'var(--card2)',borderRadius:8}}>
+                      {p._owedLevels.map(r=>(
+                        <div key={r.level} style={{display:'flex',alignItems:'center',gap:9,fontSize:11.5}}>
+                          <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+                          <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
+                          <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
+                          <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                      <div style={{fontSize:10,color:'var(--tx3)',flex:1}}>Last delivered: {p._lastLevel?'L'+p._lastLevel:'—'} · Current: L{p._curLevel}</div>
+                      <button onClick={()=>markRewardsDelivered(p.id,p._curLevel)} style={{padding:'7px 12px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Mark delivered</button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </>);
@@ -3149,7 +3306,7 @@ body,html{margin:0;padding:0;background:#070710;}
         </div>)}
 
         {adminTab==='catalog'&&showME&&(<div className="asec"><div className="asect">Edit Streak Milestones</div>{editMilestones.map((m,i)=>(<div key={m.id||i} className="rerow"><div style={{display:'flex',gap:5,alignItems:'flex-end'}}><div style={{width:55}}><div className="lbl">Days</div><input className="ins" type="number" value={m.days} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],days:parseInt(e.target.value)||m.days};setEditMilestones(n);}}/></div><div style={{flex:1}}><div className="lbl">Label</div><input className="ins" value={m.label} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],label:e.target.value};setEditMilestones(n);}}/></div><div style={{width:60}}><div className="lbl">XP</div><input className="ins" type="number" value={m.xp_bonus} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],xp_bonus:parseInt(e.target.value)||m.xp_bonus};setEditMilestones(n);}}/></div><button className="svbtn" onClick={async()=>{const {error}=await supabase.from('streak_milestones').update({days:Number(m.days),label:String(m.label),xp_bonus:Number(m.xp_bonus)}).eq('id',m.id);if(!error){toast('Saved ✓','ok');loadMilestones();}else{console.error('Milestone save error:',error);toast('Failed: '+(error.message||'unknown'),'wn');}}}>Save</button></div></div>))}</div>)}
-        {adminTab==='catalog'&&showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
+        {adminTab==='catalog'&&showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">Value £</div><input className="ins" type="number" step="0.01" value={r.value??0} onChange={e=>{const n=[...editRewards];n[i]={...n[i],value:e.target.value===''?0:parseFloat(e.target.value)};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
       </div>)}
       {adminTab==='catalog'&&showPE&&adminUnlocked&&(<div className="asec" style={{margin:'0 13px 9px'}}>
         <div className="asect">Edit Products</div>
