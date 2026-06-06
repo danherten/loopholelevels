@@ -766,11 +766,16 @@ export default function App(){
     }catch(e){/* rank is non-critical, just leave null */}
     return{year:y,month:m,monthLabel,isCurrent,netGMV,commission,orders,xpGained,topName,topGMV,topOrders,topImage:topMeta?.image_url||null,productCount:sortedProducts.length,rank,totalRanked,dailyGMV};
   }
-  // Auto-check if the previous-month recap should pop. Gated on localStorage so
-  // it only shows once per user-per-month, even if they reload the app.
+  // Auto-check if the previous-month recap should pop. ONLY fires on day 1
+  // of the calendar month — we don't want the wrap-up popping a week into
+  // the new month when a sporadic user logs back in. Users can still open
+  // last month's recap any time via Profile → 📅 Monthly Recap.
+  // Also gated on localStorage so it only shows once even on multiple
+  // logins / refreshes during the same 1st-of-month.
   async function maybeShowMonthlyRecap(id){
     if(!id||monthlyRecapLoading)return;
     const now=new Date();
+    if(now.getDate()!==1)return;
     const prev=new Date(now.getFullYear(),now.getMonth()-1,1);
     const monthKey=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
     const seenKey=`ll-recap-${id}-${monthKey}`;
