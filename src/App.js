@@ -871,7 +871,17 @@ export default function App(){
   async function loadTopProduct(profileId){const {data}=await supabase.from('affiliate_product_stats').select('*').eq('profile_id',profileId).order('gmv',{ascending:false}).limit(3);if(data)setTopProducts(data);}
 
   async function loadXpEvents(id){const {data}=await supabase.from('xp_events').select('*').eq('profile_id',id).order('created_at');if(data)setXpEvents(data);await loadTopProduct(id);}
-  async function loadRewards(){const {data}=await supabase.from('rewards').select('*').order('level');if(data)setRewards(data);}
+  // Public reward loader — explicitly excludes `value` (£ cost per tier) so
+  // creators never receive cash amounts in the wire response. The admin
+  // Catalog editor and Rewards Owed tab fetch the value column separately
+  // via loadAdminRewardValues() once the admin gate is unlocked.
+  async function loadRewards(){const {data}=await supabase.from('rewards').select('id,level,name,description,xp_required,image_url').order('level');if(data)setRewards(data);}
+  // Admin-only — merges the £ value into the already-loaded rewards array.
+  async function loadAdminRewardValues(){
+    const {data}=await supabase.from('rewards').select('id,value');
+    if(!data)return;
+    setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
+  }
   async function loadLeaderboard(){setLbLoading(true);try{const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}finally{setLbLoading(false);}}
   // Aggregates xp_events into a per-month leaderboard. Queries the calendar
   // month bounds for {year, month} and sorts profiles by total XP in that
@@ -1211,7 +1221,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
