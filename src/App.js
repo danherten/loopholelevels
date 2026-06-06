@@ -926,6 +926,30 @@ export default function App(){
     toast(paid?'Marked as paid ✓':'Marked as unpaid','ok');
     loadAdminPayouts();if(profile)loadPayouts();
   }
+  // Marks a single profile's Discord role as updated to their current level
+  // — used after the admin manually bumps their role in Discord.
+  async function markDiscordRoleUpdated(profileId,toLevel){
+    const {error}=await supabase.from('profiles').update({discord_level:toLevel}).eq('id',profileId);
+    if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
+    setAllProfiles(prev=>prev.map(p=>p.id===profileId?{...p,discord_level:toLevel}:p));
+    toast('Marked updated ✓','ok');
+  }
+  // Bulk-set every pending profile's discord_level to their current calculated
+  // level. Used either to clear the inbox after a Discord sweep, or as the
+  // one-time 'mark everyone as currently up-to-date' action when the feature
+  // first launches.
+  async function markAllDiscordRolesUpdated(){
+    const pending=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+    if(pending.length===0){toast('Nothing to mark','info');return;}
+    const updates=pending.map(p=>({id:p.id,level:getLv(p.xp,LEVELS).level}));
+    // Per-row updates rather than one giant upsert — safer with RLS and avoids
+    // accidentally clobbering other columns.
+    for(const u of updates){
+      await supabase.from('profiles').update({discord_level:u.level}).eq('id',u.id);
+    }
+    setAllProfiles(prev=>prev.map(p=>{const u=updates.find(x=>x.id===p.id);return u?{...p,discord_level:u.level}:p;}));
+    toast(`Marked ${pending.length} as updated ✓`,'ok');
+  }
   async function generatePayouts(){
     // Generate payout records for each affiliate for each month they have referral earnings
     const {data:allP}=await supabase.from('profiles').select('id,username,referred_by');
@@ -2366,8 +2390,8 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* TAB STRIP */}
         <div style={{display:'flex',gap:7,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
           <span style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2.5,marginRight:8,color:'var(--tx2)'}}>👑 ADMIN</span>
-          {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
-            <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}><span>{ic}</span><span>{lb}</span></button>
+          {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
+            <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}><span>{ic}</span><span>{lb}</span>{id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}</button>
           ))}
         </div>
         {adminTab==='overview'&&(()=>{
@@ -2416,6 +2440,10 @@ body,html{margin:0;padding:0;background:#070710;}
           if(adminPayouts.length===0&&allProfiles.some(p=>p.referred_by))tasks.push({k:'crit',e:'💷',t:'Generate first payout records',n:'Referral payouts haven\'t been created yet',cta:'Generate',fn:generatePayouts});
           if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>setAdminTab('payouts')});
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
+          // Discord role-update reminders: any profile whose computed level is
+          // higher than the last acknowledged discord_level.
+          const pendingDiscord=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+          if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>setAdminTab('discord')});
           if(allProfiles.length===0)tasks.push({k:'info',e:'🎯',t:'No affiliates yet',n:'Share the signup link to get started',cta:'',fn:()=>{}});
           // === Top performers (top 3 each) ===
           const byGMV=[...allProfiles].sort((a,b)=>(Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0)))-(Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0)))).slice(0,3);
@@ -2913,6 +2941,89 @@ body,html{margin:0;padding:0;background:#070710;}
                 </div>
               )}
             </div>
+          </>);
+        })()}
+        {/* DISCORD — checklist of pending Discord-role bumps for affiliates that have levelled up since the admin last acknowledged their role. */}
+        {adminTab==='discord'&&(()=>{
+          const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
+          const pending=allProfiles.map(p=>{const cur=getLv(p.xp,LEVELS).level;return{...p,_curLevel:cur,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
+          const totalAffiliates=allProfiles.length;
+          return(<>
+            {/* HERO */}
+            <div style={{background:'linear-gradient(135deg,rgba(88,101,242,.18) 0%,rgba(139,92,246,.10) 60%,rgba(6,182,212,.06) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(88,101,242,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,position:'relative'}}>
+                <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(88,101,242,.4))'}}>🎮</span>
+                <div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>DISCORD ROLE UPDATES</div>
+                  <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>Tick affiliates off after you've bumped their Discord role</div>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(3, 1fr)':'1fr 1fr 1fr',gap:8,position:'relative'}}>
+                <div className="ahk"><div className="ahkl">Pending updates</div><div className="ahkv" style={{color:pending.length>0?'#5865F2':'var(--gr)'}}>{pending.length}</div><div className="ahkd"><span className="vs">need a role bump</span></div></div>
+                <div className="ahk"><div className="ahkl">Affiliates tracked</div><div className="ahkv" style={{color:'var(--pu2)'}}>{totalAffiliates}</div><div className="ahkd"><span className="vs">all-time</span></div></div>
+                <div className="ahk"><div className="ahkl">Up to date</div><div className="ahkv" style={{color:'var(--gr)'}}>{totalAffiliates-pending.length}</div><div className="ahkd"><span className="vs">role matches level</span></div></div>
+              </div>
+            </div>
+            {pending.length===0?(
+              <div className="asec" style={{padding:'40px 18px',textAlign:'center'}}>
+                <div style={{fontSize:36,marginBottom:10,opacity:.6}}>✨</div>
+                <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6}}>All caught up</div>
+                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,maxWidth:300,margin:'0 auto'}}>Everyone's Discord role matches their current level. New level-ups will show up here automatically.</div>
+              </div>
+            ):(
+              <div className="asec">
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11,flexWrap:'wrap'}}>
+                  <span style={{fontSize:14}}>📋</span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>PENDING ROLE UPDATES</span>
+                  <span style={{background:'#5865F2',color:'#fff',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,letterSpacing:.3}}>{pending.length}</span>
+                  <button onClick={markAllDiscordRolesUpdated} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(88,101,242,.15)',border:'1px solid rgba(88,101,242,.4)',color:'#a5b4fc',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all updated</button>
+                </div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Bump their role in Discord, then tick them off. First-time users: hit 'Mark all updated' once to set everyone to their current level.</div>
+                {isDesktop?(
+                  <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden'}}>
+                    <div style={{display:'grid',gridTemplateColumns:'34px minmax(150px, 1fr) minmax(140px, 1fr) 90px 130px',gap:6,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center'}}>
+                      <span>#</span><span>Affiliate</span><span>Handles</span><span style={{textAlign:'center'}}>Level</span><span style={{textAlign:'right'}}>Action</span>
+                    </div>
+                    {pending.map((p,i)=>(
+                      <div key={p.id} style={{display:'grid',gridTemplateColumns:'34px minmax(150px, 1fr) minmax(140px, 1fr) 90px 130px',gap:6,padding:'11px 14px',borderBottom:i<pending.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12}}>
+                        <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--tx3)'}}>{i+1}</span>
+                        <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
+                          <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                          <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
+                        </div>
+                        <div style={{fontSize:11,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,2).join(' · ')||'—'}</div>
+                        <div style={{textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center',gap:5}}>
+                          <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--tx3)'}}>L{p._lastLevel||'—'}</span>
+                          <span style={{color:'var(--tx3)',fontSize:11}}>→</span>
+                          <span style={{fontFamily:'var(--fh)',fontSize:14,color:'#a5b4fc',padding:'2px 7px',background:'rgba(88,101,242,.18)',borderRadius:6}}>L{p._curLevel}</span>
+                        </div>
+                        <button onClick={()=>markDiscordRoleUpdated(p.id,p._curLevel)} style={{padding:'6px 10px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',justifySelf:'end'}}>✓ Mark updated</button>
+                      </div>
+                    ))}
+                  </div>
+                ):(
+                  pending.map((p,i)=>(
+                    <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:'12px 13px',marginBottom:8}}>
+                      <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:9}}>
+                        <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--tx3)',width:20,textAlign:'center'}}>{i+1}</span>
+                        <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600}}>{p.username}</div>
+                          <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,2).join(' · ')||'—'}</div>
+                        </div>
+                        <div style={{display:'flex',alignItems:'center',gap:5,flexShrink:0}}>
+                          <span style={{fontFamily:'var(--fh)',fontSize:12,color:'var(--tx3)'}}>L{p._lastLevel||'—'}</span>
+                          <span style={{color:'var(--tx3)',fontSize:10}}>→</span>
+                          <span style={{fontFamily:'var(--fh)',fontSize:14,color:'#a5b4fc',padding:'2px 7px',background:'rgba(88,101,242,.18)',borderRadius:6}}>L{p._curLevel}</span>
+                        </div>
+                      </div>
+                      <button onClick={()=>markDiscordRoleUpdated(p.id,p._curLevel)} style={{width:'100%',padding:'8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark Discord role updated</button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </>);
         })()}
         {/* XP EXCLUSIONS — accessible via Imports tab + Quick Actions */}
