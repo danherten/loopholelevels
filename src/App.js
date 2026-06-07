@@ -1921,6 +1921,10 @@ body,html{margin:0;padding:0;background:#070710;}
                     <span style={{color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {retUnits} unit{retUnits===1?'':'s'}</span></span>
                     <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,color:'var(--re)'}}>−{fmtGBP(retGMV)}</span>{isFiltered&&renderDelta(filteredCancelledGMV,prevCancelledGMV,fmtGBP,true)}</span>
                   </div>
+                  <div style={{display:'flex',gap:6,padding:'8px 0 6px',borderTop:'1px solid var(--bo)',color:'var(--tx3)',fontSize:10.5,lineHeight:1.45}}>
+                    <span style={{flexShrink:0}}>ℹ️</span>
+                    <span>Returns are counted on the day the parcel ships back to us — not the day of the original sale. A short window can show returns from earlier sales, so net GMV can dip below gross{retGMV>grossGMV?' (or to £0)':''}.</span>
+                  </div>
                 </div>
               );
             })()}
