@@ -1669,6 +1669,9 @@ export default function App(){
   const filteredCancelled=importEvts.reduce((s,e)=>s+(e.cancelled||0),0);
   const filteredCancelledGMV=importEvts.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
   const filteredGMV=Math.max(0,filteredGMVGross-filteredCancelledGMV);
+  // Unclamped net for the headline — when returns (dated to ship-back day)
+  // exceed a window's gross, net is genuinely negative and we show it.
+  const filteredNet=filteredGMVGross-filteredCancelledGMV;
   const filteredComm=filteredGMVGross>0?Math.max(0,filteredCommGross-(filteredCommGross*(filteredCancelledGMV/filteredGMVGross))):0;
   const filteredAOV=(filteredOrders-filteredCancelled)>0?filteredGMV/(filteredOrders-filteredCancelled):0;
   const filteredCommPerLive=filteredLiveStreams>0?filteredComm/filteredLiveStreams:0;
@@ -1682,6 +1685,7 @@ export default function App(){
   const prevCancelled=prevImports.reduce((s,e)=>s+(e.cancelled||0),0);
   const prevCancelledGMV=prevImports.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
   const prevGMV=Math.max(0,prevGMVGross-prevCancelledGMV);
+  const prevNet=prevGMVGross-prevCancelledGMV;
   const prevComm=prevGMVGross>0?Math.max(0,prevCommGross-(prevCommGross*(prevCancelledGMV/prevGMVGross))):0;
   const prevAOV=(prevOrders-prevCancelled)>0?prevGMV/(prevOrders-prevCancelled):0;
   const prevCommPerLive=prevLiveStreams>0?prevComm/prevLiveStreams:0;
@@ -1903,8 +1907,8 @@ body,html{margin:0;padding:0;background:#070710;}
                 <span style={{fontSize:9,opacity:.55,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:grossOpen?12:20}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(filteredGMV)}</div>
-                {isFiltered&&renderDelta(filteredGMV,prevGMV,fmtGBP)}
+                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:filteredNet<0?'var(--re)':'#fff',lineHeight:1}}>{filteredNet<0?'−'+fmtGBP(-filteredNet):fmtGBP(filteredNet)}</div>
+                {isFiltered&&renderDelta(filteredNet,prevNet,fmtGBP)}
               </div>
             </button>
             {grossOpen&&(()=>{
@@ -1920,6 +1924,10 @@ body,html{margin:0;padding:0;background:#070710;}
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderTop:'1px solid var(--bo)'}}>
                     <span style={{color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {retUnits} unit{retUnits===1?'':'s'}</span></span>
                     <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,color:'var(--re)'}}>−{fmtGBP(retGMV)}</span>{isFiltered&&renderDelta(filteredCancelledGMV,prevCancelledGMV,fmtGBP,true)}</span>
+                  </div>
+                  <div style={{display:'flex',gap:6,padding:'8px 0 6px',borderTop:'1px solid var(--bo)',color:'var(--tx3)',fontSize:10.5,lineHeight:1.45}}>
+                    <span style={{flexShrink:0}}>ℹ️</span>
+                    <span>Returns are counted on the day the parcel ships back to us — not the day of the original sale. A short window can show returns from earlier sales, so net GMV can dip below gross{retGMV>grossGMV?' — even go negative':''}.</span>
                   </div>
                 </div>
               );
