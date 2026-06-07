@@ -187,6 +187,24 @@ function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.roun
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
 function avc(n){const c=['#8b5cf6','#a855f7','#06b6d4','#f59e0b','#10b981','#f43f5e'];let h=0;for(const x of n||'')h=(h*31+x.charCodeAt(0))%c.length;return c[h]}
 function tdy(){return new Date().toISOString().slice(0,10)}
+// Admin period → {from,to,prevFrom,prevTo} half-open windows ([from,to)).
+// 'today' means the full calendar day BEFORE today ("Yesterday") because imports
+// are back-stamped to noon of the import date — a rolling last-24h-from-now window
+// would miss yesterday's noon-stamped events. 7d/30d stay rolling from now. 'all'→null.
+function periodWindow(period){
+  if(!period||period==='all')return null;
+  const dayMs=86400000;
+  if(period==='today'){
+    const todayStart=new Date();todayStart.setHours(0,0,0,0);
+    const from=new Date(todayStart.getTime()-dayMs);
+    return{from,to:todayStart,prevFrom:new Date(from.getTime()-dayMs),prevTo:from};
+  }
+  const days=period==='7d'?7:period==='30d'?30:null;
+  if(!days)return null;
+  const now=new Date();
+  const from=new Date(now.getTime()-days*dayMs);
+  return{from,to:now,prevFrom:new Date(from.getTime()-days*dayMs),prevTo:from};
+}
 // Whole days elapsed since an ISO timestamp. Negative input → null.
 function daysSince(iso){if(!iso)return null;const d=new Date(iso).getTime();if(!d||isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d)/86400000));}
 // Walks a profile's xp_events in chronological order and finds the first event
@@ -1885,14 +1903,14 @@ body,html{margin:0;padding:0;background:#070710;}
                 <span style={{fontSize:9,opacity:.55,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:grossOpen?12:20}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(filteredGMV)}</div>
                 {isFiltered&&renderDelta(filteredGMV,prevGMV,fmtGBP)}
               </div>
             </button>
             {grossOpen&&(()=>{
-              const grossGMV=isFiltered?filteredGMVGross:(profile.total_gmv||0);
-              const retGMV=isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0);
-              const retUnits=isFiltered?filteredCancelled:(profile.total_cancelled||0);
+              const grossGMV=filteredGMVGross;
+              const retGMV=filteredCancelledGMV;
+              const retUnits=filteredCancelled;
               return(
                 <div style={{background:'var(--bg2)',border:'1px solid var(--bo)',borderRadius:10,padding:'4px 12px',marginBottom:18,fontSize:12}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0'}}>
@@ -1908,9 +1926,9 @@ body,html{margin:0;padding:0;background:#070710;}
             })()}
             <div style={{display:'flex',gap:0}}>
               {[
-                {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
-                {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
-                {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
+                {label:'Commission',val:fmtGBP(filteredComm),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
+                {label:'Orders',val:filteredOrders.toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
+                {label:'Units Sold',val:filteredUnits.toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
               ].map((s,i)=>(
                 <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
@@ -1950,8 +1968,8 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* METRICS GRID */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           {[
-            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
-            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
+            {label:'Avg Comm / Live',val:filteredLiveStreams>0?fmtGBP(filteredComm/filteredLiveStreams):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
+            {label:'Avg Order Value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
               <div style={{width:3,background:s.accent,flexShrink:0}}/>
@@ -2590,15 +2608,10 @@ body,html{margin:0;padding:0;background:#070710;}
           const avgLevel=allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0';
           const totalOwed=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
           // === Period aggregates from adminPeriodEvents (60-day import window) ===
-          const periodDays=adminPeriod==='today'?1:adminPeriod==='7d'?7:adminPeriod==='30d'?30:null;
           const sumEvts=(from,to)=>adminPeriodEvents.filter(e=>{const d=new Date(e.created_at);return d>=from&&d<to;}).reduce((a,e)=>({gmv:a.gmv+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),comm:a.comm+(e.commission||0),orders:a.orders+(e.orders||0),xp:a.xp+(e.amount||0),profs:a.profs.add(e.profile_id)}),{gmv:0,comm:0,orders:0,xp:0,profs:new Set()});
+          const pw=periodWindow(adminPeriod);
           let curPeriod=null,prevPeriod=null;
-          if(periodDays){
-            const now=new Date();const dayMs=24*60*60*1000;
-            const curFrom=new Date(now.getTime()-periodDays*dayMs);
-            const prevFrom=new Date(curFrom.getTime()-periodDays*dayMs);
-            curPeriod=sumEvts(curFrom,now);prevPeriod=sumEvts(prevFrom,curFrom);
-          }
+          if(pw){curPeriod=sumEvts(pw.from,pw.to);prevPeriod=sumEvts(pw.prevFrom,pw.prevTo);}
           const useP=adminPeriod!=='all'&&curPeriod;
           const dispNet=useP?curPeriod.gmv:totalNet;
           const dispComm=useP?curPeriod.comm:totalComm;
@@ -2685,7 +2698,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.3))'}}>📊</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>PERFORMANCE</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Last 24 hours':adminPeriod==='7d'?'Last 7 days':'Last 30 days'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Yesterday':adminPeriod==='7d'?'Last 7 days':'Last 30 days'}</div>
                   </div>
                 </div>
                 <div className="aseg">
@@ -2960,8 +2973,7 @@ body,html{margin:0;padding:0;background:#070710;}
           // Period filter — when set, GMV/Orders/Earned reflect activity within
           // the window only. Paid/Owed stay cumulative because payouts are
           // monthly artefacts that don't map cleanly to rolling-day windows.
-          const refPeriodDays=referralPeriod==='today'?1:referralPeriod==='7d'?7:referralPeriod==='30d'?30:null;
-          const refPeriodFrom=refPeriodDays?new Date(Date.now()-refPeriodDays*24*60*60*1000):null;
+          const refWin=periodWindow(referralPeriod);
           // Per-referrer roll-up. When a period is selected, derive GMV/orders
           // from adminPeriodEvents (already loaded for last 60 days) filtered
           // to events whose profile_id is one of the referrer's referrals.
@@ -2971,8 +2983,8 @@ body,html{margin:0;padding:0;background:#070710;}
             // selected period (events) or fall back to cumulative totals (all-time).
             const kidStats=kids.map(k=>{
               let net,orders;
-              if(refPeriodFrom){
-                const evts=adminPeriodEvents.filter(e=>e.profile_id===k.id&&new Date(e.created_at)>=refPeriodFrom);
+              if(refWin){
+                const evts=adminPeriodEvents.filter(e=>{if(e.profile_id!==k.id)return false;const d=new Date(e.created_at);return d>=refWin.from&&d<refWin.to;});
                 net=evts.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
                 orders=evts.reduce((s,e)=>s+(e.orders||0),0);
               }else{
@@ -2996,7 +3008,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const totalPaid=referrers.reduce((s,r)=>s+r._paid,0);
           const totalOwed=referrers.reduce((s,r)=>s+r._owed,0);
           // Recent signups via referral — filtered by signup date when a period is on.
-          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).filter(p=>!refPeriodFrom||new Date(p.created_at||0)>=refPeriodFrom).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
+          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).filter(p=>{if(!refWin)return true;const d=new Date(p.created_at||0);return d>=refWin.from&&d<refWin.to;}).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
           // Referral tree (collapsible at the bottom of the page).
           const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
           const RefNode=({p,depth})=>{
@@ -3024,11 +3036,11 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Last 24 hours of referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':'Last 30 days of referral activity'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Yesterday\'s referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':'Last 30 days of referral activity'}</div>
                   </div>
                 </div>
                 <div className="aseg">
-                  {[['today','Today'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
+                  {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
                     <button key={v} className={referralPeriod===v?'on':''} onClick={()=>setReferralPeriod(v)}>{l}</button>
                   ))}
                 </div>
