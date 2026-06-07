@@ -2022,7 +2022,7 @@ body,html{margin:0;padding:0;background:#070710;}
                       const urgent=!delivered&&remaining<=7&&!overdue;
                       const warn=!delivered&&remaining<=14&&!urgent&&!overdue;
                       const color=delivered?'var(--gr)':overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Delivery within ${remaining}d`;
+                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Redeemable within ${remaining}d`;
                       return(
                         <div style={{fontSize:10.5,marginTop:5,fontWeight:600,letterSpacing:.2,color}}>{text}</div>
                       );
@@ -3554,7 +3554,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   const remaining=REWARD_DELIVERY_DAYS-waited;
                   const overdue=remaining<0;
                   const c=overdue||remaining<=7?'#f43f5e':remaining<=14?'#fbbf24':'#10b981';
-                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Delivery within ${remaining} day${remaining===1?'':'s'}`}</div>);
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Redeemable within ${remaining} day${remaining===1?'':'s'}`}</div>);
                 })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
