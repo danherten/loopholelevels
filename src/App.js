@@ -187,6 +187,24 @@ function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.roun
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
 function avc(n){const c=['#8b5cf6','#a855f7','#06b6d4','#f59e0b','#10b981','#f43f5e'];let h=0;for(const x of n||'')h=(h*31+x.charCodeAt(0))%c.length;return c[h]}
 function tdy(){return new Date().toISOString().slice(0,10)}
+// Admin period → {from,to,prevFrom,prevTo} half-open windows ([from,to)).
+// 'today' means the full calendar day BEFORE today ("Yesterday") because imports
+// are back-stamped to noon of the import date — a rolling last-24h-from-now window
+// would miss yesterday's noon-stamped events. 7d/30d stay rolling from now. 'all'→null.
+function periodWindow(period){
+  if(!period||period==='all')return null;
+  const dayMs=86400000;
+  if(period==='today'){
+    const todayStart=new Date();todayStart.setHours(0,0,0,0);
+    const from=new Date(todayStart.getTime()-dayMs);
+    return{from,to:todayStart,prevFrom:new Date(from.getTime()-dayMs),prevTo:from};
+  }
+  const days=period==='7d'?7:period==='30d'?30:null;
+  if(!days)return null;
+  const now=new Date();
+  const from=new Date(now.getTime()-days*dayMs);
+  return{from,to:now,prevFrom:new Date(from.getTime()-days*dayMs),prevTo:from};
+}
 // Whole days elapsed since an ISO timestamp. Negative input → null.
 function daysSince(iso){if(!iso)return null;const d=new Date(iso).getTime();if(!d||isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d)/86400000));}
 // Walks a profile's xp_events in chronological order and finds the first event
@@ -570,6 +588,7 @@ export default function App(){
   const [referralPeriod,setReferralPeriod]=useState('all');
   const [showReferralTree,setShowReferralTree]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [expandedAdminRow,setExpandedAdminRow]=useState(null);
+  const [expandedReferrer,setExpandedReferrer]=useState(null);
   const [xpExclusions,setXpExclusions]=useState([]);
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
@@ -1884,14 +1903,14 @@ body,html{margin:0;padding:0;background:#070710;}
                 <span style={{fontSize:9,opacity:.55,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:grossOpen?12:20}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(isFiltered?filteredGMV:Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0)))}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1}}>{fmtGBP(filteredGMV)}</div>
                 {isFiltered&&renderDelta(filteredGMV,prevGMV,fmtGBP)}
               </div>
             </button>
             {grossOpen&&(()=>{
-              const grossGMV=isFiltered?filteredGMVGross:(profile.total_gmv||0);
-              const retGMV=isFiltered?filteredCancelledGMV:(profile.total_cancelled_gmv||0);
-              const retUnits=isFiltered?filteredCancelled:(profile.total_cancelled||0);
+              const grossGMV=filteredGMVGross;
+              const retGMV=filteredCancelledGMV;
+              const retUnits=filteredCancelled;
               return(
                 <div style={{background:'var(--bg2)',border:'1px solid var(--bo)',borderRadius:10,padding:'4px 12px',marginBottom:18,fontSize:12}}>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0'}}>
@@ -1907,9 +1926,9 @@ body,html{margin:0;padding:0;background:#070710;}
             })()}
             <div style={{display:'flex',gap:0}}>
               {[
-                {label:'Commission',val:fmtGBP(isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0))),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
-                {label:'Orders',val:(isFiltered?filteredOrders:(profile.total_orders||0)).toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
-                {label:'Units Sold',val:(isFiltered?filteredUnits:(profile.total_sales||0)).toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
+                {label:'Commission',val:fmtGBP(filteredComm),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
+                {label:'Orders',val:filteredOrders.toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
+                {label:'Units Sold',val:filteredUnits.toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
               ].map((s,i)=>(
                 <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
@@ -1949,8 +1968,8 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* METRICS GRID */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           {[
-            {label:'Avg Comm / Live',val:(isFiltered?filteredLiveStreams:(profile.total_live_streams||0))>0?fmtGBP((isFiltered?filteredComm:Math.max(0,(profile.total_commission||0)-((profile.total_gmv||0)>0?(profile.total_commission||0)*((profile.total_cancelled_gmv||0)/(profile.total_gmv||1)):0)))/(isFiltered?filteredLiveStreams:(profile.total_live_streams||1))):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
-            {label:'Avg Order Value',val:isFiltered?(filteredAOV>0?fmtGBP(filteredAOV):'£0.00'):((profile.total_orders||0)-(profile.total_cancelled||0)>0?fmtGBP(Math.max(0,(profile.total_gmv||0)-(profile.total_cancelled_gmv||0))/((profile.total_orders||0)-(profile.total_cancelled||0))):'£0.00'),icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
+            {label:'Avg Comm / Live',val:filteredLiveStreams>0?fmtGBP(filteredComm/filteredLiveStreams):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
+            {label:'Avg Order Value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
               <div style={{width:3,background:s.accent,flexShrink:0}}/>
@@ -2589,15 +2608,10 @@ body,html{margin:0;padding:0;background:#070710;}
           const avgLevel=allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0';
           const totalOwed=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
           // === Period aggregates from adminPeriodEvents (60-day import window) ===
-          const periodDays=adminPeriod==='today'?1:adminPeriod==='7d'?7:adminPeriod==='30d'?30:null;
           const sumEvts=(from,to)=>adminPeriodEvents.filter(e=>{const d=new Date(e.created_at);return d>=from&&d<to;}).reduce((a,e)=>({gmv:a.gmv+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),comm:a.comm+(e.commission||0),orders:a.orders+(e.orders||0),xp:a.xp+(e.amount||0),profs:a.profs.add(e.profile_id)}),{gmv:0,comm:0,orders:0,xp:0,profs:new Set()});
+          const pw=periodWindow(adminPeriod);
           let curPeriod=null,prevPeriod=null;
-          if(periodDays){
-            const now=new Date();const dayMs=24*60*60*1000;
-            const curFrom=new Date(now.getTime()-periodDays*dayMs);
-            const prevFrom=new Date(curFrom.getTime()-periodDays*dayMs);
-            curPeriod=sumEvts(curFrom,now);prevPeriod=sumEvts(prevFrom,curFrom);
-          }
+          if(pw){curPeriod=sumEvts(pw.from,pw.to);prevPeriod=sumEvts(pw.prevFrom,pw.prevTo);}
           const useP=adminPeriod!=='all'&&curPeriod;
           const dispNet=useP?curPeriod.gmv:totalNet;
           const dispComm=useP?curPeriod.comm:totalComm;
@@ -2684,7 +2698,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.3))'}}>📊</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>PERFORMANCE</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Last 24 hours':adminPeriod==='7d'?'Last 7 days':'Last 30 days'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Yesterday':adminPeriod==='7d'?'Last 7 days':'Last 30 days'}</div>
                   </div>
                 </div>
                 <div className="aseg">
@@ -2959,30 +2973,33 @@ body,html{margin:0;padding:0;background:#070710;}
           // Period filter — when set, GMV/Orders/Earned reflect activity within
           // the window only. Paid/Owed stay cumulative because payouts are
           // monthly artefacts that don't map cleanly to rolling-day windows.
-          const refPeriodDays=referralPeriod==='today'?1:referralPeriod==='7d'?7:referralPeriod==='30d'?30:null;
-          const refPeriodFrom=refPeriodDays?new Date(Date.now()-refPeriodDays*24*60*60*1000):null;
+          const refWin=periodWindow(referralPeriod);
           // Per-referrer roll-up. When a period is selected, derive GMV/orders
           // from adminPeriodEvents (already loaded for last 60 days) filtered
           // to events whose profile_id is one of the referrer's referrals.
           const referrers=[...allProfiles].map(p=>{
             const kids=referralsByReferrer[p.id]||[];
-            let refGMV,refOrders,earned;
-            if(refPeriodFrom){
-              const kidIds=new Set(kids.map(k=>k.id));
-              const evts=adminPeriodEvents.filter(e=>kidIds.has(e.profile_id)&&new Date(e.created_at)>=refPeriodFrom);
-              refGMV=evts.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
-              refOrders=evts.reduce((s,e)=>s+(e.orders||0),0);
-              earned=refGMV*0.01;
-            }else{
-              refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
-              refOrders=kids.reduce((s,k)=>s+(k.total_orders||0),0);
-              // Derive 1% from referred net GMV (same basis as generatePayouts and
-              // the period views) rather than the denormalized referral_earnings
-              // field, which is only credited live at import time and drifts.
-              earned=refGMV*0.01;
-            }
+            // Per-kid breakdown for the drill-down. Net GMV/orders respect the
+            // selected period (events) or fall back to cumulative totals (all-time).
+            const kidStats=kids.map(k=>{
+              let net,orders;
+              if(refWin){
+                const evts=adminPeriodEvents.filter(e=>{if(e.profile_id!==k.id)return false;const d=new Date(e.created_at);return d>=refWin.from&&d<refWin.to;});
+                net=evts.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
+                orders=evts.reduce((s,e)=>s+(e.orders||0),0);
+              }else{
+                net=Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0));
+                orders=k.total_orders||0;
+              }
+              return{...k,_net:net,_orders:orders,_earned:net*0.01};
+            }).sort((a,b)=>b._net-a._net);
+            const refGMV=kidStats.reduce((s,k)=>s+k._net,0);
+            const refOrders=kidStats.reduce((s,k)=>s+k._orders,0);
+            // Derive 1% from referred net GMV (same basis as generatePayouts) rather
+            // than the denormalized referral_earnings field, which drifts.
+            const earned=refGMV*0.01;
             const myPayouts=adminPayouts.filter(po=>po.profile_id===p.id);
-            return{...p,_refs:kids.length,_kids:kids,_refGMV:refGMV,_refOrders:refOrders,_earned:earned,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
+            return{...p,_refs:kids.length,_kids:kids,_kidStats:kidStats,_refGMV:refGMV,_refOrders:refOrders,_earned:earned,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
           }).filter(p=>p._refs>0).sort((a,b)=>b._refGMV-a._refGMV);
           const totalReferrers=referrers.length;
           const totalReferred=referrers.reduce((s,r)=>s+r._refs,0);
@@ -2991,7 +3008,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const totalPaid=referrers.reduce((s,r)=>s+r._paid,0);
           const totalOwed=referrers.reduce((s,r)=>s+r._owed,0);
           // Recent signups via referral — filtered by signup date when a period is on.
-          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).filter(p=>!refPeriodFrom||new Date(p.created_at||0)>=refPeriodFrom).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
+          const recentReferred=[...allProfiles].filter(p=>p.referred_by&&profileById[p.referred_by]).filter(p=>{if(!refWin)return true;const d=new Date(p.created_at||0);return d>=refWin.from&&d<refWin.to;}).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).slice(0,8);
           // Referral tree (collapsible at the bottom of the page).
           const roots=allProfiles.filter(p=>!p.referred_by||!profileById[p.referred_by]);
           const RefNode=({p,depth})=>{
@@ -3019,11 +3036,11 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Last 24 hours of referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':'Last 30 days of referral activity'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Yesterday\'s referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':'Last 30 days of referral activity'}</div>
                   </div>
                 </div>
                 <div className="aseg">
-                  {[['today','Today'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
+                  {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
                     <button key={v} className={referralPeriod===v?'on':''} onClick={()=>setReferralPeriod(v)}>{l}</button>
                   ))}
                 </div>
@@ -3051,10 +3068,12 @@ body,html{margin:0;padding:0;background:#070710;}
                   <div style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center',minWidth:780}}>
                     <span>#</span><span>Referrer</span><span style={{textAlign:'right'}}>Refs</span><span style={{textAlign:'right'}}>Referred GMV</span><span style={{textAlign:'right'}}>Orders</span><span style={{textAlign:'right'}}>Earned 1%</span><span style={{textAlign:'right'}}>Paid</span><span style={{textAlign:'right'}}>Owed</span>
                   </div>
-                  {referrers.map((p,i)=>(
-                    <div key={p.id} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:i<referrers.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780}}>
+                  {referrers.map((p,i)=>{const open=expandedReferrer===p.id;return(
+                    <React.Fragment key={p.id}>
+                    <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:(open||i<referrers.length-1)?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780,cursor:'pointer',background:open?'rgba(139,92,246,.06)':'transparent'}}>
                       <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
+                        <span style={{fontSize:10,color:'var(--tx3)',transform:open?'rotate(90deg)':'none',transition:'transform .18s ease',flexShrink:0}}>▸</span>
                         <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                         <div style={{minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
@@ -3068,27 +3087,66 @@ body,html{margin:0;padding:0;background:#070710;}
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBPc(p._paid)}</span>
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:p._owed>0?'var(--go)':'var(--tx3)'}}>{fmtGBPc(p._owed)}</span>
                     </div>
-                  ))}
+                    {open&&(
+                      <div style={{borderBottom:i<referrers.length-1?'1px solid var(--bo)':'none',background:'rgba(0,0,0,.18)',padding:'4px 14px 10px 44px',minWidth:780}}>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,padding:'8px 0 4px'}}>Referred creators · {p._kidStats.length}</div>
+                        <div style={{display:'grid',gridTemplateColumns:'minmax(160px,1fr) 110px 90px 100px',gap:6,padding:'0 0 6px',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,fontWeight:600}}>
+                          <span>Creator</span><span style={{textAlign:'right'}}>Net GMV</span><span style={{textAlign:'right'}}>Orders</span><span style={{textAlign:'right'}}>Earned 1%</span>
+                        </div>
+                        {p._kidStats.map(k=>(
+                          <div key={k.id} style={{display:'grid',gridTemplateColumns:'minmax(160px,1fr) 110px 90px 100px',gap:6,padding:'7px 0',borderTop:'1px solid var(--bo)',alignItems:'center',fontSize:12}}>
+                            <div style={{display:'flex',gap:8,alignItems:'center',minWidth:0}}>
+                              <div style={{width:24,height:24,borderRadius:'50%',background:k.avatar_url?'transparent':avc(k.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:9,color:'#fff',flexShrink:0,overflow:'hidden'}}>{k.avatar_url?<img src={k.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(k.username)}</div>
+                              <div style={{minWidth:0}}>
+                                <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{k.username}</div>
+                                <div style={{fontSize:9.5,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(k.tiktok_handles||[]).slice(0,1).join('')||'—'}</div>
+                              </div>
+                            </div>
+                            <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBPc(k._net)}</span>
+                            <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--cy)'}}>{k._orders.toLocaleString()}</span>
+                            <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBPc(k._earned)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    </React.Fragment>
+                  );})}
                 </div>
               ):(
                 /* Mobile — stacked cards */
-                referrers.map((p,i)=>(
+                referrers.map((p,i)=>{const open=expandedReferrer===p.id;return(
                   <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:12,marginBottom:8}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                    <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8,cursor:'pointer'}}>
                       <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:600}}>{p.username}</div>
                         <div style={{fontSize:10,color:'var(--tx3)'}}>{(p.tiktok_handles||[]).slice(0,1).join('')||'—'} · {p._refs} referred</div>
                       </div>
+                      <span style={{fontSize:11,color:'var(--tx3)',transform:open?'rotate(90deg)':'none',transition:'transform .18s ease'}}>▸</span>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
                       <div className="asub"><div className="asubl">Ref GMV</div><div className="asubv" style={{color:'var(--gr)'}}>{fmtGBPc(p._refGMV)}</div></div>
                       <div className="asub"><div className="asubl">Earned</div><div className="asubv" style={{color:'var(--go)'}}>{fmtGBPc(p._earned)}</div></div>
                       <div className="asub"><div className="asubl">Owed</div><div className="asubv" style={{color:p._owed>0?'var(--go)':'var(--tx3)'}}>{fmtGBPc(p._owed)}</div></div>
                     </div>
+                    {open&&(
+                      <div style={{marginTop:10,paddingTop:8,borderTop:'1px solid var(--bo2)'}}>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,marginBottom:4}}>Referred creators · {p._kidStats.length}</div>
+                        {p._kidStats.map(k=>(
+                          <div key={k.id} style={{display:'flex',alignItems:'center',gap:9,padding:'7px 0',borderTop:'1px solid var(--bo)'}}>
+                            <div style={{width:26,height:26,borderRadius:'50%',background:k.avatar_url?'transparent':avc(k.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:9,color:'#fff',flexShrink:0,overflow:'hidden'}}>{k.avatar_url?<img src={k.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(k.username)}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{k.username}</div>
+                              <div style={{fontSize:9.5,color:'var(--tx3)'}}>{fmtGBPc(k._net)} net · {k._orders.toLocaleString()} orders</div>
+                            </div>
+                            <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--go)',flexShrink:0}}>{fmtGBPc(k._earned)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))
+                );})
               )}
             </div>
             {/* RECENT REFERRAL SIGNUPS */}
