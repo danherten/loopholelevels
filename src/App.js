@@ -241,8 +241,7 @@ input,button{font-family:var(--fb)}
 .bnav.dragging{cursor:grabbing}
 .nind{position:absolute;top:6px;bottom:6px;border-radius:22px;background:linear-gradient(to bottom,rgba(255,255,255,.2),rgba(255,255,255,.09));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 2px rgba(0,0,0,.18),0 3px 10px rgba(0,0,0,.32);transform-origin:center;transition:left .42s cubic-bezier(.34,1.56,.64,1),width .42s cubic-bezier(.34,1.56,.64,1),transform .18s ease;pointer-events:none;z-index:0;}
 .ni{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;margin:0 1px;cursor:pointer;border:none;background:none;min-width:0;pointer-events:none;}
-.ni.on .nicon{transform:scale(1.18)}
-.nicon{font-size:17px;line-height:1;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}
+.nicon{font-size:17px;line-height:1}
 .nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;transition:color .2s}
 .ni.on .nlbl{color:var(--tx)}
 .hero{background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:15px;margin-bottom:11px;position:relative;overflow:hidden}
