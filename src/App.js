@@ -2974,7 +2974,10 @@ body,html{margin:0;padding:0;background:#070710;}
             }else{
               refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
               refOrders=kids.reduce((s,k)=>s+(k.total_orders||0),0);
-              earned=p.referral_earnings||0;
+              // Derive 1% from referred net GMV (same basis as generatePayouts and
+              // the period views) rather than the denormalized referral_earnings
+              // field, which is only credited live at import time and drifts.
+              earned=refGMV*0.01;
             }
             const myPayouts=adminPayouts.filter(po=>po.profile_id===p.id);
             return{...p,_refs:kids.length,_kids:kids,_refGMV:refGMV,_refOrders:refOrders,_earned:earned,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
