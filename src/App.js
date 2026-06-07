@@ -2687,7 +2687,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   </div>
                 </div>
                 <div className="aseg">
-                  {[['today','Today'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
+                  {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
                     <button key={v} className={adminPeriod===v?'on':''} onClick={()=>setAdminPeriod(v)}>{l}</button>
                   ))}
                 </div>
