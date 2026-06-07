@@ -237,13 +237,14 @@ input,button{font-family:var(--fb)}
 @media (min-width:768px){.pages{padding-bottom:24px}}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{position:fixed;top:auto;left:12px;right:12px;bottom:max(12px,var(--sb));background:linear-gradient(to bottom,rgba(36,36,58,.52),rgba(14,14,26,.6));backdrop-filter:blur(32px) saturate(190%);-webkit-backdrop-filter:blur(32px) saturate(190%);border:1px solid rgba(255,255,255,.14);border-radius:30px;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 1px rgba(0,0,0,.2),0 10px 34px rgba(0,0,0,.45);display:flex;align-items:center;padding:6px;z-index:50;will-change:auto;}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;margin:0 1px;cursor:pointer;border:none;background:none;min-width:0;border-radius:22px;transition:background .2s,box-shadow .2s;}
-.ni.on{background:rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 8px rgba(0,0,0,.3)}
-.ni.on .nicon{transform:scale(1.15)}
-.nicon{font-size:17px;line-height:1;transition:transform .18s}
-.nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;}
-.ni.on .nlbl{color:var(--pu2)}
+.bnav{position:fixed;top:auto;left:12px;right:12px;bottom:max(12px,var(--sb));background:linear-gradient(to bottom,rgba(36,36,58,.52),rgba(14,14,26,.6));backdrop-filter:blur(32px) saturate(190%);-webkit-backdrop-filter:blur(32px) saturate(190%);border:1px solid rgba(255,255,255,.14);border-radius:30px;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 1px rgba(0,0,0,.2),0 10px 34px rgba(0,0,0,.45);display:flex;align-items:center;padding:6px;z-index:50;will-change:auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+.bnav.dragging{cursor:grabbing}
+.nind{position:absolute;top:6px;bottom:6px;border-radius:22px;background:linear-gradient(to bottom,rgba(255,255,255,.2),rgba(255,255,255,.09));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 2px rgba(0,0,0,.18),0 3px 10px rgba(0,0,0,.32);transform-origin:center;transition:left .42s cubic-bezier(.34,1.56,.64,1),width .42s cubic-bezier(.34,1.56,.64,1),transform .18s ease;pointer-events:none;z-index:0;}
+.ni{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;margin:0 1px;cursor:pointer;border:none;background:none;min-width:0;pointer-events:none;}
+.ni.on .nicon{transform:scale(1.18)}
+.nicon{font-size:17px;line-height:1;transition:transform .22s cubic-bezier(.34,1.56,.64,1)}
+.nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;transition:color .2s}
+.ni.on .nlbl{color:var(--tx)}
 .hero{background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:15px;margin-bottom:11px;position:relative;overflow:hidden}
 .hero::after{content:'';position:absolute;top:-45px;right:-45px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%);pointer-events:none}
 .lvlbadge{display:inline-flex;align-items:center;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.26);border-radius:99px;padding:3px 9px;margin-bottom:7px}
@@ -631,6 +632,14 @@ export default function App(){
   // Keep a ref to current profile so the visibility handler can read it without
   // re-subscribing every time profile changes.
   const profileRef=React.useRef(null);
+  // Liquid-glass bottom-nav drag state. bnavRef anchors geometry; draggingRef
+  // mirrors `navDragging` so fast pointermove events don't read a stale closure.
+  const bnavRef=React.useRef(null);
+  const draggingRef=React.useRef(false);
+  const navLastXRef=React.useRef(0);
+  const [navDragging,setNavDragging]=useState(false);
+  const [navHotIdx,setNavHotIdx]=useState(null);
+  const [navIndPx,setNavIndPx]=useState(null);
   // When true, the PASSWORD_RECOVERY auth event is suppressed because the
   // forgot-password OTP flow is handling the password update itself and we
   // don't want the standalone "Change Password" modal to also open on top.
@@ -1777,6 +1786,31 @@ body,html{margin:0;padding:0;background:#070710;}
 
   if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/logo.png" alt="Loophole Levels" style={{width:230,marginBottom:5}}/><div className="asub">Affiliate Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div><button onClick={()=>{setForgotEmail(loginUser);setShowForgotPw(true);}} style={{background:'none',border:'none',color:'var(--pu2)',fontSize:12,cursor:'pointer',padding:'6px 4px 0',fontFamily:'var(--fb)',textDecoration:'underline',alignSelf:'center'}}>Forgot password?</button></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><div><label className="lbl">Referral code (optional)</label><input className="inp" value={signupRef} onChange={e=>setSignupRef(e.target.value.toUpperCase())} placeholder="e.g. ABC12345"/></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>{PwModals}</div></>);
 
+  // ── Bottom-nav model + iOS liquid-glass drag interaction ──────────────────
+  const bnavItems=[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['referrals','💸','Refer'],['profile','👤','Profile',['profile','products']]];
+  if(adminUnlocked)bnavItems.push(['admin','👑','Admin']);
+  const navActiveIdx=Math.max(0,bnavItems.findIndex(([pg,,,activeOn])=>(activeOn||[pg]).includes(page)));
+  const navHot=navDragging?navHotIdx:navActiveIdx;
+  // Map a clientX onto the nav: which cell it's over plus geometry for the blob.
+  const navGeom=clientX=>{
+    const r=bnavRef.current.getBoundingClientRect();const pad=6;const inner=r.width-pad*2;const cw=inner/bnavItems.length;
+    const x=clientX-r.left;let i=Math.floor((x-pad)/cw);i=Math.max(0,Math.min(bnavItems.length-1,i));
+    return{i,cw,pad,inner,x};
+  };
+  const navMove=(clientX,initial)=>{
+    const{i,cw,pad,inner,x}=navGeom(clientX);setNavHotIdx(i);
+    const v=clientX-navLastXRef.current;navLastXRef.current=clientX;
+    // Velocity → horizontal stretch / vertical squish for the liquid wobble.
+    const sx=initial?1:Math.min(1.4,1+Math.abs(v)*0.02);
+    const sy=initial?1:Math.max(0.78,1-Math.abs(v)*0.013);
+    const w=cw-2;let left=x-w/2;left=Math.max(pad+1,Math.min(left,pad+inner-w-1));
+    setNavIndPx({left,width:w,sx,sy});
+  };
+  const navDown=e=>{draggingRef.current=true;setNavDragging(true);navLastXRef.current=e.clientX;navMove(e.clientX,true);try{bnavRef.current.setPointerCapture(e.pointerId);}catch{}};
+  const navMoveEvt=e=>{if(draggingRef.current)navMove(e.clientX,false);};
+  const navUp=e=>{if(!draggingRef.current)return;draggingRef.current=false;setNavDragging(false);const{i}=navGeom(e.clientX);setNavHotIdx(null);setNavIndPx(null);navTo(bnavItems[i][0]);};
+  const navInd=bnavItems.length;
+  const navIndStyle=navDragging&&navIndPx?{left:navIndPx.left+'px',width:navIndPx.width+'px',transform:`scaleX(${navIndPx.sx}) scaleY(${navIndPx.sy})`,transition:'transform .16s ease'}:{left:`calc(6px + ${navHot} * ((100% - 12px)/${navInd}) + 1px)`,width:`calc((100% - 12px)/${navInd} - 2px)`,transform:'none'};
   return(<><style>{CSS}</style><div className="app" style={isDesktop?{flexDirection:'row'}:{}}>
     {/* DESKTOP SIDEBAR */}
     {isDesktop&&(<div style={{width:220,minWidth:220,height:'100dvh',background:'var(--bg2)',borderRight:'1px solid var(--bo2)',display:'flex',flexDirection:'column',flexShrink:0,zIndex:10}}>
@@ -3861,14 +3895,13 @@ body,html{margin:0;padding:0;background:#070710;}
   {/* BOTTOM NAV - mobile only. Placed OUTSIDE .app so it has no overflow:hidden
       ancestor — iOS WebKit can pin position:fixed children inside overflow:hidden
       to a stale viewport-bottom value during initial paint. */}
-  {!isDesktop&&<div className="bnav">
-    {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['profile','👤','Profile',['profile','products','referrals']]].map(([pg,icon,label,activeOn])=>{
-      const on=(activeOn||[pg]).includes(page);
-      return(<button key={pg} className={`ni${on?' on':''}`} onClick={()=>navTo(pg)}>
+  {!isDesktop&&<div className={`bnav${navDragging?' dragging':''}`} ref={bnavRef} onPointerDown={navDown} onPointerMove={navMoveEvt} onPointerUp={navUp} onPointerCancel={navUp}>
+    <div className="nind" style={navIndStyle}/>
+    {bnavItems.map(([pg,icon,label],i)=>(
+      <button key={pg} className={`ni${i===navHot?' on':''}`} type="button">
         <div className="nicon">{icon}</div><div className="nlbl">{label}</div>
-      </button>);
-    })}
-    {adminUnlocked&&(<button className={`ni${page==='admin'?' on':''}`} onClick={()=>navTo('admin')}><div className="nicon">👑</div><div className="nlbl">Admin</div></button>)}
+      </button>
+    ))}
   </div>}
   </>);
 }
