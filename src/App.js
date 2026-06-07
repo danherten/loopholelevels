@@ -8,6 +8,10 @@ import { toPng } from 'html-to-image';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'LoopholeLads123';
 const XP_PER_10_GMV = 100;
+// Reward delivery window in days. Affiliates expect the physical reward
+// within this many days of crossing the level threshold; UI surfaces the
+// time remaining (and 'OVERDUE' when negative).
+const REWARD_DELIVERY_DAYS = 37;
 const DEFAULT_MILESTONES = [
   { id:1, days:3,   xp_bonus:50,   label:'3 Day Streak' },
   { id:2, days:7,   xp_bonus:100,  label:'1 Week Streak' },
@@ -1986,27 +1990,48 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
         </div>
         <div style={{paddingTop:4}}>
-          {rewards.map((r,i)=>{
-            const un=profile.xp>=r.xp_required;
-            const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
-            const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
-            const need=Math.max(0,r.xp_required-profile.xp);
-            return(
-              <div key={r.id} className={`bp-vcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
-                <div className={`bp-vbadge${un?' un':isCur?' cur':' lk'}`}>{un?'✓ DONE':isCur?'IN PROGRESS':'🔒'}</div>
-                <div className="bp-vimg">
-                  {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:26,opacity:.35}}>🎁</span>}
+          {(()=>{
+            // Compute unlock timestamps ONCE for the whole list. Walks the
+            // user's own xp_events to find when each reward threshold was
+            // first crossed.
+            const myUnlocks=computeUnlockDates(xpEvents,rewards);
+            const deliveredThrough=profile?.rewards_delivered_level??0;
+            return rewards.map((r,i)=>{
+              const un=profile.xp>=r.xp_required;
+              const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
+              const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
+              const need=Math.max(0,r.xp_required-profile.xp);
+              const delivered=un&&r.level<=deliveredThrough;
+              const waited=un?daysSince(myUnlocks[r.level]):null;
+              const badgeText=delivered?'✅ DELIVERED':un?'✓ UNLOCKED':isCur?'IN PROGRESS':'🔒';
+              return(
+                <div key={r.id} className={`bp-vcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
+                  <div className={`bp-vbadge${un?' un':isCur?' cur':' lk'}`}>{badgeText}</div>
+                  <div className="bp-vimg">
+                    {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:26,opacity:.35}}>🎁</span>}
+                  </div>
+                  <div className="bp-vbody">
+                    <div className="bp-vlv">Level {r.level}</div>
+                    <div className="bp-vnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
+                    <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
+                    <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
+                    {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
+                    {un&&waited!=null&&(()=>{
+                      const remaining=REWARD_DELIVERY_DAYS-waited;
+                      const overdue=!delivered&&remaining<0;
+                      const urgent=!delivered&&remaining<=7&&!overdue;
+                      const warn=!delivered&&remaining<=14&&!urgent&&!overdue;
+                      const color=delivered?'var(--gr)':overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
+                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Delivery within ${remaining}d`;
+                      return(
+                        <div style={{fontSize:10.5,marginTop:5,fontWeight:600,letterSpacing:.2,color}}>{text}</div>
+                      );
+                    })()}
+                  </div>
                 </div>
-                <div className="bp-vbody">
-                  <div className="bp-vlv">Level {r.level}</div>
-                  <div className="bp-vnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
-                  <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
-                  <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
-                  {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
 
       </div>)}
@@ -3207,13 +3232,22 @@ body,html{margin:0;padding:0;background:#070710;}
                     <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10,padding:'8px 10px',background:'var(--card2)',borderRadius:8}}>
                       {p._owedLevels.map(r=>{
                         const waited=daysSince(affiliateUnlockDates[p.id]?.[r.level]);
-                        const waitColor=waited==null?'var(--tx3)':waited>=30?'#f43f5e':waited>=14?'#fbbf24':'var(--tx3)';
+                        const remaining=waited==null?null:REWARD_DELIVERY_DAYS-waited;
+                        // Countdown styling — green when comfortable, yellow when
+                        // it's getting close, red when within a week or overdue.
+                        const overdue=remaining!=null&&remaining<0;
+                        const urgent=remaining!=null&&remaining<=7&&!overdue;
+                        const warn=remaining!=null&&remaining<=14&&!urgent&&!overdue;
+                        const color=overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
+                        const bg=overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
+                        const border=overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                        const label=overdue?`⚠ Overdue ${Math.abs(remaining)}d`:urgent?`⏱ ${remaining}d left`:warn?`⏱ ${remaining}d left`:remaining!=null?`⏱ ${remaining}d left`:null;
                         return(
                           <div key={r.level} style={{display:'flex',alignItems:'center',gap:9,fontSize:11.5}}>
                             <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
                             <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
-                            {waited!=null&&<span style={{fontSize:10,color:waitColor,padding:'2px 6px',background:waited>=30?'rgba(244,63,94,.13)':waited>=14?'rgba(251,191,36,.12)':'rgba(255,255,255,.04)',border:`1px solid ${waited>=30?'rgba(244,63,94,.32)':waited>=14?'rgba(251,191,36,.3)':'var(--bo)'}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)'}}>⏱ {waited}d</span>}
+                            {label&&<span style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)'}}>{label}</span>}
                             <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
                           </div>
                         );
@@ -3516,7 +3550,12 @@ body,html{margin:0;padding:0;background:#070710;}
             {un&&(
               <div style={{marginTop:8,background:delivered?'rgba(16,185,129,.09)':'rgba(139,92,246,.1)',border:`1px solid ${delivered?'rgba(16,185,129,.2)':'rgba(139,92,246,.25)'}`,borderRadius:7,padding:10,textAlign:'center',fontSize:12,color:delivered?'var(--gr)':'var(--pu2)',lineHeight:1.45}}>
                 {delivered?(<>✅ <strong>Delivered</strong> — enjoy your reward!</>):(<>🎉 <strong>Unlocked!</strong> Contact Loophole to claim — or swap it for <strong style={{color:'#fff'}}>80% cash</strong>.</>)}
-                {waited!=null&&!delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>⏱ Waiting for delivery · {waited} day{waited===1?'':'s'}</div>)}
+                {waited!=null&&!delivered&&(()=>{
+                  const remaining=REWARD_DELIVERY_DAYS-waited;
+                  const overdue=remaining<0;
+                  const c=overdue||remaining<=7?'#f43f5e':remaining<=14?'#fbbf24':'#10b981';
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Delivery within ${remaining} day${remaining===1?'':'s'}`}</div>);
+                })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
             )}
