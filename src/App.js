@@ -232,14 +232,14 @@ input,button{font-family:var(--fb)}
 .xpchip{background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.28);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--pu3)}
 .av{width:29px;height:29px;border-radius:50%;border:2px solid var(--pu);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:1px;overflow:hidden;flex-shrink:0}
 .av img{width:100%;height:100%;object-fit:cover}
-.pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(64px + var(--sb) + 8px);min-height:0;-webkit-overflow-scrolling:touch}
+.pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(76px + var(--sb) + 12px);min-height:0;-webkit-overflow-scrolling:touch}
 /* Desktop has no fixed bottom-nav, so the mobile padding is overkill — trim it. */
 @media (min-width:768px){.pages{padding-bottom:24px}}
 .pages::-webkit-scrollbar{display:none}
 .pg{padding:13px}
-.bnav{position:fixed;top:auto;left:0;right:0;bottom:0;background:linear-gradient(to bottom,rgba(24,24,46,.55),rgba(7,7,16,.68));backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%);border-top:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 -10px 34px rgba(0,0,0,.38);display:flex;align-items:center;padding:9px 2px;padding-bottom:max(9px,var(--sb));z-index:50;will-change:auto;}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px;margin:0 2px;cursor:pointer;border:none;background:none;min-width:0;border-radius:14px;transition:background .2s,box-shadow .2s;}
-.ni.on{background:rgba(255,255,255,.07);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 1px 6px rgba(0,0,0,.25)}
+.bnav{position:fixed;top:auto;left:12px;right:12px;bottom:max(12px,var(--sb));background:linear-gradient(to bottom,rgba(36,36,58,.52),rgba(14,14,26,.6));backdrop-filter:blur(32px) saturate(190%);-webkit-backdrop-filter:blur(32px) saturate(190%);border:1px solid rgba(255,255,255,.14);border-radius:30px;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 1px rgba(0,0,0,.2),0 10px 34px rgba(0,0,0,.45);display:flex;align-items:center;padding:6px;z-index:50;will-change:auto;}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;margin:0 1px;cursor:pointer;border:none;background:none;min-width:0;border-radius:22px;transition:background .2s,box-shadow .2s;}
+.ni.on{background:rgba(255,255,255,.13);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 8px rgba(0,0,0,.3)}
 .ni.on .nicon{transform:scale(1.15)}
 .nicon{font-size:17px;line-height:1;transition:transform .18s}
 .nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;}
