@@ -1018,22 +1018,56 @@ export default function App(){
   }
   // Mark a single profile's reward delivery up to their current level — used
   // when the admin physically dispatches all owed reward tiers.
-  async function markRewardsDelivered(profileId,toLevel){
-    const {error}=await supabase.from('profiles').update({rewards_delivered_level:toLevel}).eq('id',profileId);
+  // Returns the full set of redeemed levels for a profile — union of the new
+  // per-level array (migration 0006) and the legacy high-water-mark int field.
+  // Pre-migration data uses just rewards_delivered_level; post-migration uses
+  // the array; combining both means we never lose state during the transition.
+  function redeemedLevelsFor(p){
+    const set=new Set(p?.rewards_redeemed_levels||[]);
+    const hwm=p?.rewards_delivered_level||0;
+    for(let i=1;i<=hwm;i++)set.add(i);
+    return set;
+  }
+  // Marks/unmarks a single reward tier as redeemed for one profile.
+  async function toggleRewardRedeemed(profileId,level){
+    const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
+    const current=redeemedLevelsFor(p);
+    const next=new Set(current);
+    if(current.has(level))next.delete(level);else next.add(level);
+    const nextArr=Array.from(next).sort((a,b)=>a-b);
+    // Also recompute the legacy high-water mark so older code paths stay
+    // consistent. It's the largest contiguous-from-1 prefix in nextArr.
+    let hwm=0;for(let i=1;i<=Math.max(...nextArr,0);i++){if(next.has(i))hwm=i;else break;}
+    const {error}=await supabase.from('profiles').update({rewards_redeemed_levels:nextArr,rewards_delivered_level:hwm}).eq('id',profileId);
     if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
-    setAllProfiles(prev=>prev.map(p=>p.id===profileId?{...p,rewards_delivered_level:toLevel}:p));
+    setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,rewards_redeemed_levels:nextArr,rewards_delivered_level:hwm}:x));
+    toast(current.has(level)?'Unmarked':'Marked redeemed ✓','ok');
+  }
+  // Marks every tier from 1..targetLevel as redeemed for one profile — the
+  // 'Mark all delivered' per-row button.
+  async function markRewardsDeliveredThrough(profileId,targetLevel){
+    const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
+    const current=redeemedLevelsFor(p);
+    const next=new Set(current);
+    for(let i=1;i<=targetLevel;i++)next.add(i);
+    const nextArr=Array.from(next).sort((a,b)=>a-b);
+    const {error}=await supabase.from('profiles').update({rewards_redeemed_levels:nextArr,rewards_delivered_level:targetLevel}).eq('id',profileId);
+    if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
+    setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,rewards_redeemed_levels:nextArr,rewards_delivered_level:targetLevel}:x));
     toast('Marked delivered ✓','ok');
   }
-  // Bulk-set every pending profile's rewards_delivered_level to their current
-  // calculated level.
+  // Bulk-mark every currently-owed tier (across all profiles) as redeemed.
   async function markAllRewardsDelivered(){
-    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0));
+    const pending=allProfiles.filter(p=>{const ach=achievedLevel(p.xp,rewards);const red=redeemedLevelsFor(p);for(let l=1;l<=ach;l++)if(!red.has(l))return true;return false;});
     if(pending.length===0){toast('Nothing to mark','info');return;}
-    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
-    for(const u of updates){
-      await supabase.from('profiles').update({rewards_delivered_level:u.level}).eq('id',u.id);
+    for(const p of pending){
+      const ach=achievedLevel(p.xp,rewards);
+      const current=redeemedLevelsFor(p);
+      const next=new Set(current);for(let l=1;l<=ach;l++)next.add(l);
+      const nextArr=Array.from(next).sort((a,b)=>a-b);
+      await supabase.from('profiles').update({rewards_redeemed_levels:nextArr,rewards_delivered_level:ach}).eq('id',p.id);
     }
-    setAllProfiles(prev=>prev.map(p=>{const u=updates.find(x=>x.id===p.id);return u?{...p,rewards_delivered_level:u.level}:p;}));
+    setAllProfiles(prev=>prev.map(p=>{const ach=achievedLevel(p.xp,rewards);const current=redeemedLevelsFor(p);const next=new Set(current);for(let l=1;l<=ach;l++)next.add(l);const nextArr=Array.from(next).sort((a,b)=>a-b);return{...p,rewards_redeemed_levels:nextArr,rewards_delivered_level:ach};}));
     toast(`Marked ${pending.length} as delivered ✓`,'ok');
   }
   async function generatePayouts(){
@@ -1995,13 +2029,13 @@ body,html{margin:0;padding:0;background:#070710;}
             // user's own xp_events to find when each reward threshold was
             // first crossed.
             const myUnlocks=computeUnlockDates(xpEvents,rewards);
-            const deliveredThrough=profile?.rewards_delivered_level??0;
+            const myRedeemed=redeemedLevelsFor(profile);
             return rewards.map((r,i)=>{
               const un=profile.xp>=r.xp_required;
               const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
               const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
               const need=Math.max(0,r.xp_required-profile.xp);
-              const delivered=un&&r.level<=deliveredThrough;
+              const delivered=un&&myRedeemed.has(r.level);
               const waited=un?daysSince(myUnlocks[r.level]):null;
               const badgeText=delivered?'✅ DELIVERED':un?'✓ UNLOCKED':isCur?'IN PROGRESS':'🔒';
               return(
@@ -3153,24 +3187,25 @@ body,html{margin:0;padding:0;background:#070710;}
           // Build per-level lookup of name + value from the rewards collection.
           const rewardByLevel={};
           rewards.forEach(r=>{rewardByLevel[r.level]={name:r.name,value:Number(r.value||0),image:r.image_url};});
-          // Compute owed tiers per affiliate. _curLevel = highest reward tier
-          // they've crossed the XP threshold for (achievedLevel), NOT the tier
-          // they're 'in' per getLv (which would over-count by 1).
+          // Compute owed tiers per affiliate. Owed = any reward tier the
+          // affiliate has achieved (xp >= xp_required) but is NOT in their
+          // redeemed-levels set. Order is preserved by level so the rows
+          // read L1, L2, L3 etc.
           const enriched=allProfiles.map(p=>{
             const cur=achievedLevel(p.xp,rewards);
-            const last=p.rewards_delivered_level??0;
+            const redeemed=redeemedLevelsFor(p);
             const owedLevels=[];
-            for(let l=last+1;l<=cur;l++){if(rewardByLevel[l])owedLevels.push({level:l,...rewardByLevel[l]});}
+            for(let l=1;l<=cur;l++){if(rewardByLevel[l]&&!redeemed.has(l))owedLevels.push({level:l,...rewardByLevel[l]});}
             const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
-            return{...p,_curLevel:cur,_lastLevel:last,_owedLevels:owedLevels,_owedValue:owedValue};
+            const redeemedValue=Array.from(redeemed).reduce((s,l)=>s+((rewardByLevel[l]?.value)||0),0);
+            return{...p,_curLevel:cur,_redeemed:redeemed,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue};
           });
           const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>b._owedValue-a._owedValue);
           const delivered=enriched.filter(p=>p._owedLevels.length===0);
           // Hero totals.
           const totalOwedValue=pending.reduce((s,p)=>s+p._owedValue,0);
-          const totalDeliveredValue=delivered.reduce((s,p)=>{
-            // Sum reward values for every level the affiliate has been delivered through.
-            let v=0;for(let l=1;l<=(p._lastLevel||0);l++){if(rewardByLevel[l])v+=rewardByLevel[l].value||0;}return s+v;
+          const totalDeliveredValue=enriched.reduce((s,p)=>{
+            return s+p._redeemedValue;
           },0);
           const missingValues=rewards.filter(r=>!r.value||Number(r.value)===0).length;
           return(<>
@@ -3228,34 +3263,52 @@ body,html{margin:0;padding:0;background:#070710;}
                         <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:2,fontWeight:700}}>owed</div>
                       </div>
                     </div>
-                    {/* Owed-tiers list */}
+                    {/* Owed-tiers list — each row has its own ✓ Redeem button so
+                        tiers can be ticked off individually in any order. */}
                     <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10,padding:'8px 10px',background:'var(--card2)',borderRadius:8}}>
                       {p._owedLevels.map(r=>{
                         const waited=daysSince(affiliateUnlockDates[p.id]?.[r.level]);
                         const remaining=waited==null?null:REWARD_DELIVERY_DAYS-waited;
-                        // Countdown styling — green when comfortable, yellow when
-                        // it's getting close, red when within a week or overdue.
                         const overdue=remaining!=null&&remaining<0;
                         const urgent=remaining!=null&&remaining<=7&&!overdue;
                         const warn=remaining!=null&&remaining<=14&&!urgent&&!overdue;
                         const color=overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
                         const bg=overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
                         const border=overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
-                        const label=overdue?`⚠ Overdue ${Math.abs(remaining)}d`:urgent?`⏱ ${remaining}d left`:warn?`⏱ ${remaining}d left`:remaining!=null?`⏱ ${remaining}d left`:null;
+                        const label=overdue?`⚠ Overdue ${Math.abs(remaining)}d`:remaining!=null?`⏱ ${remaining}d left`:null;
                         return(
-                          <div key={r.level} style={{display:'flex',alignItems:'center',gap:9,fontSize:11.5}}>
+                          <div key={r.level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11.5}}>
                             <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
                             <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
                             {label&&<span style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)'}}>{label}</span>}
-                            <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                            <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                            <button onClick={()=>toggleRewardRedeemed(p.id,r.level)} title="Mark this tier as redeemed" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
                           </div>
                         );
                       })}
                     </div>
+                    {/* Already-redeemed tiers — shown as ticked rows so admin can untick if they marked one by mistake. */}
+                    {(()=>{
+                      const redeemedHere=Array.from(p._redeemed).filter(l=>l>=1&&l<=p._curLevel&&rewardByLevel[l]).sort((a,b)=>a-b);
+                      if(redeemedHere.length===0)return null;
+                      return(
+                        <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:10,padding:'7px 10px',background:'rgba(16,185,129,.05)',border:'1px solid rgba(16,185,129,.15)',borderRadius:8}}>
+                          <div style={{fontSize:8,color:'rgba(16,185,129,.7)',textTransform:'uppercase',letterSpacing:1.3,fontWeight:700,marginBottom:2}}>Already redeemed</div>
+                          {redeemedHere.map(level=>{const r=rewardByLevel[level];return(
+                            <div key={level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
+                              <span style={{fontFamily:'var(--fh)',fontSize:10,color:'var(--gr)',letterSpacing:.5,minWidth:22}}>L{level}</span>
+                              <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx3)',textDecoration:'line-through'}}>{r.name}</span>
+                              <span style={{fontFamily:'var(--fh)',fontSize:11,color:'rgba(251,191,36,.7)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                              <button onClick={()=>toggleRewardRedeemed(p.id,level)} title="Undo: move back to pending" style={{padding:'2px 7px',background:'transparent',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:9,cursor:'pointer',borderRadius:5,fontFamily:'var(--fb)',flexShrink:0}}>↶ Undo</button>
+                            </div>
+                          );})}
+                        </div>
+                      );
+                    })()}
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
-                      <div style={{fontSize:10,color:'var(--tx3)',flex:1}}>Last delivered: {p._lastLevel?'L'+p._lastLevel:'—'} · Current: L{p._curLevel}</div>
-                      <button onClick={()=>markRewardsDelivered(p.id,p._curLevel)} style={{padding:'7px 12px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Mark delivered</button>
+                      <div style={{fontSize:10,color:'var(--tx3)',flex:1}}>Achieved: L{p._curLevel} · Redeemed: {p._redeemed.size}/{p._curLevel}</div>
+                      <button onClick={()=>markRewardsDeliveredThrough(p.id,p._curLevel)} style={{padding:'7px 12px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Redeem all owed</button>
                     </div>
                   </div>
                 ))}
@@ -3542,7 +3595,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const myUnlocks=un?computeUnlockDates(xpEvents,rewards):null;
           const unlockIso=myUnlocks?myUnlocks[showReward.level]:null;
           const waited=daysSince(unlockIso);
-          const delivered=un&&profile.rewards_delivered_level!=null&&profile.rewards_delivered_level>=showReward.level;
+          const delivered=un&&redeemedLevelsFor(profile).has(showReward.level);
           return(<div style={{background:'var(--card2)',borderRadius:8,padding:11,marginBottom:11}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)',marginBottom:5}}><span>Progress</span><span>{un?'✅ Unlocked!':`${need.toLocaleString()} XP needed`}</span></div>
             <div className="pw"><div className="pf" style={{width:`${prog}%`}}/></div>
