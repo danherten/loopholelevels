@@ -570,6 +570,7 @@ export default function App(){
   const [referralPeriod,setReferralPeriod]=useState('all');
   const [showReferralTree,setShowReferralTree]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [expandedAdminRow,setExpandedAdminRow]=useState(null);
+  const [expandedReferrer,setExpandedReferrer]=useState(null);
   const [xpExclusions,setXpExclusions]=useState([]);
   const [showExclusions,setShowExclusions]=useState(false);
   const [newExclusionUser,setNewExclusionUser]=useState('');
@@ -2966,23 +2967,27 @@ body,html{margin:0;padding:0;background:#070710;}
           // to events whose profile_id is one of the referrer's referrals.
           const referrers=[...allProfiles].map(p=>{
             const kids=referralsByReferrer[p.id]||[];
-            let refGMV,refOrders,earned;
-            if(refPeriodFrom){
-              const kidIds=new Set(kids.map(k=>k.id));
-              const evts=adminPeriodEvents.filter(e=>kidIds.has(e.profile_id)&&new Date(e.created_at)>=refPeriodFrom);
-              refGMV=evts.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
-              refOrders=evts.reduce((s,e)=>s+(e.orders||0),0);
-              earned=refGMV*0.01;
-            }else{
-              refGMV=kids.reduce((s,k)=>s+Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0)),0);
-              refOrders=kids.reduce((s,k)=>s+(k.total_orders||0),0);
-              // Derive 1% from referred net GMV (same basis as generatePayouts and
-              // the period views) rather than the denormalized referral_earnings
-              // field, which is only credited live at import time and drifts.
-              earned=refGMV*0.01;
-            }
+            // Per-kid breakdown for the drill-down. Net GMV/orders respect the
+            // selected period (events) or fall back to cumulative totals (all-time).
+            const kidStats=kids.map(k=>{
+              let net,orders;
+              if(refPeriodFrom){
+                const evts=adminPeriodEvents.filter(e=>e.profile_id===k.id&&new Date(e.created_at)>=refPeriodFrom);
+                net=evts.reduce((s,e)=>s+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),0);
+                orders=evts.reduce((s,e)=>s+(e.orders||0),0);
+              }else{
+                net=Math.max(0,(k.total_gmv||0)-(k.total_cancelled_gmv||0));
+                orders=k.total_orders||0;
+              }
+              return{...k,_net:net,_orders:orders,_earned:net*0.01};
+            }).sort((a,b)=>b._net-a._net);
+            const refGMV=kidStats.reduce((s,k)=>s+k._net,0);
+            const refOrders=kidStats.reduce((s,k)=>s+k._orders,0);
+            // Derive 1% from referred net GMV (same basis as generatePayouts) rather
+            // than the denormalized referral_earnings field, which drifts.
+            const earned=refGMV*0.01;
             const myPayouts=adminPayouts.filter(po=>po.profile_id===p.id);
-            return{...p,_refs:kids.length,_kids:kids,_refGMV:refGMV,_refOrders:refOrders,_earned:earned,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
+            return{...p,_refs:kids.length,_kids:kids,_kidStats:kidStats,_refGMV:refGMV,_refOrders:refOrders,_earned:earned,_paid:myPayouts.filter(po=>po.paid).reduce((s,po)=>s+(po.amount||0),0),_owed:myPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0)};
           }).filter(p=>p._refs>0).sort((a,b)=>b._refGMV-a._refGMV);
           const totalReferrers=referrers.length;
           const totalReferred=referrers.reduce((s,r)=>s+r._refs,0);
@@ -3051,10 +3056,12 @@ body,html{margin:0;padding:0;background:#070710;}
                   <div style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'10px 14px',borderBottom:'1px solid var(--bo2)',background:'rgba(255,255,255,.025)',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,alignItems:'center',minWidth:780}}>
                     <span>#</span><span>Referrer</span><span style={{textAlign:'right'}}>Refs</span><span style={{textAlign:'right'}}>Referred GMV</span><span style={{textAlign:'right'}}>Orders</span><span style={{textAlign:'right'}}>Earned 1%</span><span style={{textAlign:'right'}}>Paid</span><span style={{textAlign:'right'}}>Owed</span>
                   </div>
-                  {referrers.map((p,i)=>(
-                    <div key={p.id} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:i<referrers.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780}}>
+                  {referrers.map((p,i)=>{const open=expandedReferrer===p.id;return(
+                    <React.Fragment key={p.id}>
+                    <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:(open||i<referrers.length-1)?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780,cursor:'pointer',background:open?'rgba(139,92,246,.06)':'transparent'}}>
                       <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
+                        <span style={{fontSize:10,color:'var(--tx3)',transform:open?'rotate(90deg)':'none',transition:'transform .18s ease',flexShrink:0}}>▸</span>
                         <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                         <div style={{minWidth:0}}>
                           <div style={{fontSize:13,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
@@ -3068,27 +3075,66 @@ body,html{margin:0;padding:0;background:#070710;}
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBPc(p._paid)}</span>
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:p._owed>0?'var(--go)':'var(--tx3)'}}>{fmtGBPc(p._owed)}</span>
                     </div>
-                  ))}
+                    {open&&(
+                      <div style={{borderBottom:i<referrers.length-1?'1px solid var(--bo)':'none',background:'rgba(0,0,0,.18)',padding:'4px 14px 10px 44px',minWidth:780}}>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,padding:'8px 0 4px'}}>Referred creators · {p._kidStats.length}</div>
+                        <div style={{display:'grid',gridTemplateColumns:'minmax(160px,1fr) 110px 90px 100px',gap:6,padding:'0 0 6px',fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,fontWeight:600}}>
+                          <span>Creator</span><span style={{textAlign:'right'}}>Net GMV</span><span style={{textAlign:'right'}}>Orders</span><span style={{textAlign:'right'}}>Earned 1%</span>
+                        </div>
+                        {p._kidStats.map(k=>(
+                          <div key={k.id} style={{display:'grid',gridTemplateColumns:'minmax(160px,1fr) 110px 90px 100px',gap:6,padding:'7px 0',borderTop:'1px solid var(--bo)',alignItems:'center',fontSize:12}}>
+                            <div style={{display:'flex',gap:8,alignItems:'center',minWidth:0}}>
+                              <div style={{width:24,height:24,borderRadius:'50%',background:k.avatar_url?'transparent':avc(k.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:9,color:'#fff',flexShrink:0,overflow:'hidden'}}>{k.avatar_url?<img src={k.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(k.username)}</div>
+                              <div style={{minWidth:0}}>
+                                <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{k.username}</div>
+                                <div style={{fontSize:9.5,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(k.tiktok_handles||[]).slice(0,1).join('')||'—'}</div>
+                              </div>
+                            </div>
+                            <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--gr)'}}>{fmtGBPc(k._net)}</span>
+                            <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--cy)'}}>{k._orders.toLocaleString()}</span>
+                            <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBPc(k._earned)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    </React.Fragment>
+                  );})}
                 </div>
               ):(
                 /* Mobile — stacked cards */
-                referrers.map((p,i)=>(
+                referrers.map((p,i)=>{const open=expandedReferrer===p.id;return(
                   <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:12,marginBottom:8}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                    <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8,cursor:'pointer'}}>
                       <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:600}}>{p.username}</div>
                         <div style={{fontSize:10,color:'var(--tx3)'}}>{(p.tiktok_handles||[]).slice(0,1).join('')||'—'} · {p._refs} referred</div>
                       </div>
+                      <span style={{fontSize:11,color:'var(--tx3)',transform:open?'rotate(90deg)':'none',transition:'transform .18s ease'}}>▸</span>
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
                       <div className="asub"><div className="asubl">Ref GMV</div><div className="asubv" style={{color:'var(--gr)'}}>{fmtGBPc(p._refGMV)}</div></div>
                       <div className="asub"><div className="asubl">Earned</div><div className="asubv" style={{color:'var(--go)'}}>{fmtGBPc(p._earned)}</div></div>
                       <div className="asub"><div className="asubl">Owed</div><div className="asubv" style={{color:p._owed>0?'var(--go)':'var(--tx3)'}}>{fmtGBPc(p._owed)}</div></div>
                     </div>
+                    {open&&(
+                      <div style={{marginTop:10,paddingTop:8,borderTop:'1px solid var(--bo2)'}}>
+                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:700,marginBottom:4}}>Referred creators · {p._kidStats.length}</div>
+                        {p._kidStats.map(k=>(
+                          <div key={k.id} style={{display:'flex',alignItems:'center',gap:9,padding:'7px 0',borderTop:'1px solid var(--bo)'}}>
+                            <div style={{width:26,height:26,borderRadius:'50%',background:k.avatar_url?'transparent':avc(k.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:9,color:'#fff',flexShrink:0,overflow:'hidden'}}>{k.avatar_url?<img src={k.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(k.username)}</div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{k.username}</div>
+                              <div style={{fontSize:9.5,color:'var(--tx3)'}}>{fmtGBPc(k._net)} net · {k._orders.toLocaleString()} orders</div>
+                            </div>
+                            <span style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--go)',flexShrink:0}}>{fmtGBPc(k._earned)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))
+                );})
               )}
             </div>
             {/* RECENT REFERRAL SIGNUPS */}
