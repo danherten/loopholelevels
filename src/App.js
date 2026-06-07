@@ -1315,7 +1315,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='home'||pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -1991,16 +1991,18 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
         </div>
 
-        {/* REFERRAL EARNINGS - only if they have some */}
-        {(profile.referral_earnings>0)&&(
+        {/* REFERRAL EARNINGS - only if they have some. Derive 1% of referred
+            net GMV (same basis as the admin Referrals table and generatePayouts)
+            rather than the denormalized referral_earnings field, which drifts. */}
+        {(()=>{const ltNet=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));const earn=parseFloat((ltNet*0.01).toFixed(2));return earn>0&&(
           <div onClick={()=>navTo('referrals')} style={{background:'rgba(139,92,246,.07)',border:'1px solid rgba(139,92,246,.18)',borderRadius:'var(--rsm)',padding:'12px 14px',marginBottom:11,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
             <div>
               <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.7px',marginBottom:3}}>Referral Earnings</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--pu2)'}}>{fmtGBP(profile.referral_earnings)}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--pu2)'}}>{fmtGBP(earn)}</div>
             </div>
             <span style={{fontSize:18,opacity:.6}}>👥 ›</span>
           </div>
-        )}
+        );})()}
 
         {/* NEXT REWARD PROGRESS */}
         {(()=>{
@@ -2394,7 +2396,7 @@ body,html{margin:0;padding:0;background:#070710;}
               <div style={{height:3,background:'linear-gradient(90deg,#8b5cf6,#06b6d4,#10b981)'}}/>
               <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
                 <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Referral Earnings{isRefFiltered?'':' · All Time'}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1,marginBottom:20}}>{fmtGBP(isRefFiltered?refEarnings:(profile.referral_earnings||0))}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1,marginBottom:20}}>{fmtGBP(isRefFiltered?refEarnings:parseFloat((lifetimeNetGMV*0.01).toFixed(2)))}</div>
                 <div style={{display:'flex',gap:0}}>
                   {[
                     {label:'Their Net GMV',val:fmtGBP(isRefFiltered?netRefGMV:lifetimeNetGMV),color:'#10b981',bg:'rgba(16,185,129,.08)'},
