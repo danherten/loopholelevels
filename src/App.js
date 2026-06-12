@@ -1440,13 +1440,13 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{height:3,background:'linear-gradient(90deg,#f59e0b,#f97316)'}}/>
           <div style={{background:'var(--card)',padding:'14px 16px'}}>
             <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10,fontWeight:500}}>🏆 Top Products</div>
-            {(isFiltered?filteredProducts:topProducts).length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
+            {(()=>{const list=isFiltered?filteredProducts.slice(0,3):topProducts;return list.length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
               <div style={{width:44,height:44,borderRadius:10,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0,opacity:.4}}>📦</div>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:3}}>No data yet</div>
                 <div style={{fontSize:11,color:'var(--tx3)'}}>Your top products will appear here after your first import</div>
               </div>
-            </div>):(topProducts.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,paddingBottom:i<topProducts.length-1?10:0,marginBottom:i<topProducts.length-1?10:0,borderBottom:i<topProducts.length-1?'1px solid rgba(255,255,255,.04)':'none'}}>
+            </div>):(list.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,paddingBottom:i<list.length-1?10:0,marginBottom:i<list.length-1?10:0,borderBottom:i<list.length-1?'1px solid rgba(255,255,255,.04)':'none'}}>
               <div style={{width:28,fontFamily:'var(--fh)',fontSize:15,color:i===0?'#f59e0b':i===1?'#94a3b8':'#cd7f32',flexShrink:0,textAlign:'center'}}>{i+1}</div>
               {prod?.image_url?<img src={prod.image_url} alt="" style={{width:42,height:42,borderRadius:9,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.06)'}}/>:<div style={{width:42,height:42,borderRadius:9,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>}
               <div style={{flex:1,minWidth:0}}>
@@ -1456,7 +1456,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#10b981'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>GMV</div></div>
                 </div>
               </div>
-            </div>);}))}
+            </div>);}));})()}
           </div>
         </div>
 
