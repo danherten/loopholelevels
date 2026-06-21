@@ -594,6 +594,7 @@ export default function App(){
   // Per-profile per-level unlock timestamps. Shape: { profileId: { 1: ISO, 2: ISO, ... } }.
   // Drives the 'waiting X days' badges in the admin Rewards Owed tab.
   const [affiliateUnlockDates,setAffiliateUnlockDates]=useState({});
+  const [adminRewardValuesError,setAdminRewardValuesError]=useState(null);
   // Period filter for the Referrals tab. Defaults to 'all' because referral
   // signups are slow-moving — most people want lifetime totals first.
   const [referralPeriod,setReferralPeriod]=useState('all');
@@ -970,7 +971,12 @@ export default function App(){
   // caller's profiles.is_admin and raises 'Not authorized' otherwise.
   async function loadAdminRewardValues(){
     const {data,error}=await supabase.rpc('admin_get_reward_values');
-    if(error){console.warn('admin_get_reward_values:',error.message);return;}
+    if(error){
+      console.warn('admin_get_reward_values:',error.message);
+      setAdminRewardValuesError(error.message||'Could not load reward £ values — set profiles.is_admin = TRUE or run migration 0005.');
+      return;
+    }
+    setAdminRewardValuesError(null);
     if(!data)return;
     setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
   }
@@ -1024,12 +1030,21 @@ export default function App(){
   // profile's events chronologically to build a {level: ISO} unlock map.
   // Powers the 'waiting Xd' badges in the admin Rewards Owed tab.
   async function loadAffiliateUnlockDates(){
+    // Fetch rewards fresh inside this function so we don't depend on the
+    // `rewards` state being already populated — otherwise unlock dates can
+    // come back empty if the admin tab opens before loadRewards finishes.
+    let rwds=rewards;
+    if(!rwds||!rwds.length){
+      const {data:rdata}=await supabase.from('rewards').select('id,level,xp_required').order('level');
+      rwds=rdata||[];
+    }
+    if(!rwds.length)return;
     const {data}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true});
     if(!data)return;
     const byProfile={};
     data.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
     const unlocks={};
-    for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rewards);}
+    for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rwds);}
     setAffiliateUnlockDates(unlocks);
   }
   // Pulls the last 60 days of import xp_events for period-toggle deltas on the
@@ -3394,8 +3409,19 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div className="ahk"><div className="ahkl">Up to date</div><div className="ahkv" style={{color:'var(--gr)'}}>{delivered.length}</div><div className="ahkd"><span className="vs">level rewards delivered</span></div></div>
               </div>
             </div>
+            {/* Admin RPC failure — surfaces when the client couldn't fetch the
+                gated rewards.value column (is_admin not set, migration not run, etc). */}
+            {adminRewardValuesError&&(
+              <div className="asec" style={{padding:'12px 14px',background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.35)',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <span style={{fontSize:18}}>🔒</span>
+                <div style={{flex:1,fontSize:12,color:'var(--tx2)',lineHeight:1.5}}>
+                  <strong style={{color:'#fda4af'}}>Couldn't load reward £ values.</strong>{' '}
+                  Check: <code style={{background:'rgba(255,255,255,.05)',padding:'1px 5px',borderRadius:4,fontSize:11}}>{"UPDATE profiles SET is_admin = TRUE WHERE id = '<your-auth-id>'"}</code> in Supabase, and that migration <code style={{background:'rgba(255,255,255,.05)',padding:'1px 5px',borderRadius:4,fontSize:11}}>0005</code> has been applied. Server said: <em style={{color:'var(--tx3)'}}>{adminRewardValuesError}</em>
+                </div>
+              </div>
+            )}
             {/* Missing values nudge */}
-            {missingValues>0&&(
+            {missingValues>0&&!adminRewardValuesError&&(
               <div className="asec" style={{padding:'12px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.3)',display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:18}}>⚠️</span>
                 <div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>{missingValues} reward tier{missingValues===1?'':'s'} {missingValues===1?'has':'have'} no £ value set — owed totals won't include {missingValues===1?'it':'them'} until {missingValues===1?'it\'s':'they\'re'} filled in.</div>
