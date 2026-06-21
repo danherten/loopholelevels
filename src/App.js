@@ -1012,7 +1012,7 @@ export default function App(){
   // delta calculation; longer toggles use cumulative `profiles` totals.
   async function loadAdminPeriodEvents(){
     const since=new Date(Date.now()-60*24*60*60*1000).toISOString();
-    const {data}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission,cancelled_gmv,orders,created_at').eq('reason','import').gte('created_at',since).order('created_at',{ascending:false});
+    const {data}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission,cancelled_gmv,cancelled,sales,orders,created_at').eq('reason','import').gte('created_at',since).order('created_at',{ascending:false});
     if(data)setAdminPeriodEvents(data);
   }
   async function togglePayout(payoutId,paid){
@@ -2616,7 +2616,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const avgLevel=allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0';
           const totalOwed=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
           // === Period aggregates from adminPeriodEvents (60-day import window) ===
-          const sumEvts=(from,to)=>adminPeriodEvents.filter(e=>{const d=new Date(e.created_at);return d>=from&&d<to;}).reduce((a,e)=>({gmv:a.gmv+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),comm:a.comm+(e.commission||0),orders:a.orders+(e.orders||0),xp:a.xp+(e.amount||0),profs:a.profs.add(e.profile_id)}),{gmv:0,comm:0,orders:0,xp:0,profs:new Set()});
+          const sumEvts=(from,to)=>adminPeriodEvents.filter(e=>{const d=new Date(e.created_at);return d>=from&&d<to;}).reduce((a,e)=>({gmv:a.gmv+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),comm:a.comm+(e.commission||0),orders:a.orders+(e.orders||0),xp:a.xp+(e.amount||0),units:a.units+(e.sales||0),canc:a.canc+(e.cancelled||0),cancGmv:a.cancGmv+(e.cancelled_gmv||0),profs:a.profs.add(e.profile_id)}),{gmv:0,comm:0,orders:0,xp:0,units:0,canc:0,cancGmv:0,profs:new Set()});
           const pw=periodWindow(adminPeriod);
           let curPeriod=null,prevPeriod=null;
           if(pw){curPeriod=sumEvts(pw.from,pw.to);prevPeriod=sumEvts(pw.prevFrom,pw.prevTo);}
@@ -2626,6 +2626,12 @@ body,html{margin:0;padding:0;background:#070710;}
           const dispOrders=useP?curPeriod.orders:totalOrders;
           const dispXP=useP?curPeriod.xp:totalXP;
           const dispAff=useP?curPeriod.profs.size:allProfiles.length;
+          const dispUnits=useP?curPeriod.units:totalUnits;
+          const dispCanc=useP?curPeriod.canc:totalCanc;
+          const dispCancGMV=useP?curPeriod.cancGmv:totalCancGMV;
+          // Snapshot-style chips scoped to in-period profiles so the row tells the same story as the hero.
+          const dispReferred=useP?[...curPeriod.profs].filter(pid=>{const p=profileById[pid];return p&&p.referred_by&&profileById[p.referred_by];}).length:totalReferred;
+          const dispAvgLevel=useP?(curPeriod.profs.size>0?([...curPeriod.profs].reduce((s,pid)=>{const p=profileById[pid];return s+(p?getLv(p.xp,LEVELS).level:0);},0)/curPeriod.profs.size).toFixed(1):'0'):avgLevel;
           const dNet=useP?(curPeriod.gmv-prevPeriod.gmv):null;
           const dComm=useP?(curPeriod.comm-prevPeriod.comm):null;
           const dOrders=useP?(curPeriod.orders-prevPeriod.orders):null;
@@ -2723,11 +2729,11 @@ body,html{margin:0;padding:0;background:#070710;}
                 <HeroTile label="Affiliates" value={dispAff.toLocaleString()} delta={dAff} accent="var(--tx)"/>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(5, 1fr)':'1fr 1fr',gap:8,marginTop:12,position:'relative'}}>
-                <div className="asub"><div className="asubl">Units Sold</div><div className="asubv" style={{color:'var(--cy)'}}>{totalUnits.toLocaleString()}</div></div>
-                <div className="asub"><div className="asubl">Returns</div><div className="asubv" style={{color:'var(--re)'}}>{totalCanc} · {fmtGBPc(totalCancGMV)}</div></div>
-                <div className="asub"><div className="asubl">Referrals</div><div className="asubv" style={{color:'var(--gr)'}}>{totalReferred}</div></div>
-                <div className="asub"><div className="asubl">Owed</div><div className="asubv" style={{color:'var(--go)'}}>{fmtGBPc(totalOwed)}</div></div>
-                <div className="asub"><div className="asubl">Avg Level</div><div className="asubv">{avgLevel}</div></div>
+                <div className="asub"><div className="asubl">Units Sold</div><div className="asubv" style={{color:'var(--cy)'}}>{dispUnits.toLocaleString()}</div></div>
+                <div className="asub"><div className="asubl">Returns</div><div className="asubv" style={{color:'var(--re)'}}>{dispCanc} · {fmtGBPc(dispCancGMV)}</div></div>
+                <div className="asub"><div className="asubl">{useP?'Active Refs':'Referrals'}</div><div className="asubv" style={{color:'var(--gr)'}}>{dispReferred}</div></div>
+                <div className="asub"><div className="asubl">Owed</div><div className="asubv" style={{color:'var(--go)'}} title="Cumulative — unpaid referral payouts">{fmtGBPc(totalOwed)}</div></div>
+                <div className="asub"><div className="asubl">{useP?'Avg Lv (Active)':'Avg Level'}</div><div className="asubv">{dispAvgLevel}</div></div>
               </div>
             </div>
             {/* NEEDS ATTENTION */}
