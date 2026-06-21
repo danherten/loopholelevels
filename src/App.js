@@ -1039,10 +1039,21 @@ export default function App(){
       rwds=rdata||[];
     }
     if(!rwds.length)return;
-    const {data}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true});
-    if(!data)return;
+    // Page through xp_events in chunks — Supabase default cap is 1000 rows, but
+    // with daily-per-product imports a real account easily hits several thousand.
+    // If we truncated we'd miss the level-cross event and the wrong cross date
+    // (or none at all) would land in the unlock map.
+    const all=[];const PAGE=1000;let from=0;
+    while(true){
+      const {data,error}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true}).range(from,from+PAGE-1);
+      if(error||!data)break;
+      all.push(...data);
+      if(data.length<PAGE)break;
+      from+=PAGE;
+      if(from>200000)break; // hard ceiling — catastrophic safety stop
+    }
     const byProfile={};
-    data.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
+    all.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
     const unlocks={};
     for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rwds);}
     setAffiliateUnlockDates(unlocks);
@@ -3476,7 +3487,7 @@ body,html{margin:0;padding:0;background:#070710;}
                             <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
                             <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
-                            {label&&<span style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)'}}>{label}</span>}
+                            {label&&<span title={r.crossedAt?`Crossed ${new Date(r.crossedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`:''} style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)',cursor:'help'}}>{label}</span>}
                             <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
                             <button onClick={()=>toggleRewardRedeemed(p.id,r.level)} title="Mark this tier as redeemed" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
                           </div>
