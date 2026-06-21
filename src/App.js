@@ -8,10 +8,6 @@ import { toPng } from 'html-to-image';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'LoopholeLads123';
 const XP_PER_10_GMV = 100;
-// Reward delivery window in days. Affiliates expect the physical reward
-// within this many days of crossing the level threshold; UI surfaces the
-// time remaining (and 'OVERDUE' when negative).
-const REWARD_DELIVERY_DAYS = 37;
 const DEFAULT_MILESTONES = [
   { id:1, days:3,   xp_bonus:50,   label:'3 Day Streak' },
   { id:2, days:7,   xp_bonus:100,  label:'1 Week Streak' },
@@ -215,6 +211,11 @@ function periodWindow(period,customStart,customEnd){
 }
 // Whole days elapsed since an ISO timestamp. Negative input → null.
 function daysSince(iso){if(!iso)return null;const d=new Date(iso).getTime();if(!d||isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d)/86400000));}
+// Monthly batch payout cadence: anything that happens in month N is due on
+// the last day of month N+1. May crossings → due 30 June, June → 31 July, etc.
+function payoutDueDate(iso){if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;return new Date(d.getFullYear(),d.getMonth()+2,0,23,59,59,999);}
+function daysUntil(d){if(!d)return null;return Math.ceil((d.getTime()-Date.now())/86400000);}
+function fmtDueDate(d){return d?d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';}
 // Walks a profile's xp_events in chronological order and finds the first event
 // whose running XP total crosses each reward.xp_required threshold. Returns
 // { level: ISO timestamp } for every level the profile has unlocked.
@@ -1123,11 +1124,15 @@ export default function App(){
     setAllProfiles(prev=>prev.map(p=>{const ach=achievedLevel(p.xp,rewards);const current=redeemedLevelsFor(p);const next=new Set(current);for(let l=1;l<=ach;l++)next.add(l);const nextArr=Array.from(next).sort((a,b)=>a-b);return{...p,rewards_redeemed_levels:nextArr,rewards_delivered_level:ach};}));
     toast(`Marked ${pending.length} as delivered ✓`,'ok');
   }
-  async function generatePayouts(){
-    // Generate payout records for each affiliate for each month they have referral earnings
+  async function generatePayouts(opts={}){
+    // Generate payout records for each affiliate for each completed month they
+    // have referral earnings. Idempotent — already-existing (profile,month) rows
+    // are skipped. `silent` skips the toast for the auto-gen-on-load path.
     const {data:allP}=await supabase.from('profiles').select('id,username,referred_by');
     const {data:allEvts}=await supabase.from('xp_events').select('profile_id,gmv,cancelled_gmv,created_at,reason').eq('reason','import');
     if(!allP||!allEvts)return;
+    // Only bill *completed* months — never the in-progress current month.
+    const currentMonth=new Date().toISOString().slice(0,7);
     // For each profile that has a referrer, group their GMV by month
     const referrers={};
     allP.forEach(p=>{if(p.referred_by)referrers[p.id]=p.referred_by;});
@@ -1142,6 +1147,7 @@ export default function App(){
     });
     let created=0;
     for(const rec of Object.values(byReferrerMonth)){
+      if(rec.month>=currentMonth)continue; // in-progress month — wait till it closes
       const netGMV=Math.max(0,rec.gmv-rec.cancelled_gmv);
       const amount=parseFloat((netGMV*0.01).toFixed(2));
       if(amount<=0)continue;
@@ -1151,8 +1157,8 @@ export default function App(){
         created++;
       }
     }
-    toast(`Generated ${created} new payout records`,'ok');
-    loadAdminPayouts();
+    if(!opts.silent)toast(created>0?`Generated ${created} new payout record${created===1?'':'s'}`:'No new payouts — already up to date','ok');
+    if(created>0||!opts.silent)loadAdminPayouts();
   }
   async function loadLastUpdated(){
     try{const {data}=await supabase.from('app_meta').select('*').eq('key','last_import').maybeSingle();if(data)setLastUpdated({time:data.updated_at,user:data.value});}catch(e){}
@@ -1359,7 +1365,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='home'||pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();generatePayouts({silent:true});}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='home'||pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -2138,13 +2144,14 @@ body,html{margin:0;padding:0;background:#070710;}
                     <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
                     <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
                     {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
-                    {un&&waited!=null&&(()=>{
-                      const remaining=REWARD_DELIVERY_DAYS-waited;
-                      const overdue=!delivered&&remaining<0;
-                      const urgent=!delivered&&remaining<=7&&!overdue;
-                      const warn=!delivered&&remaining<=14&&!urgent&&!overdue;
+                    {un&&myUnlocks[r.level]&&(()=>{
+                      const due=payoutDueDate(myUnlocks[r.level]);
+                      const daysLeft=due?daysUntil(due):null;
+                      const overdue=!delivered&&due&&due.getTime()<Date.now();
+                      const urgent=!delivered&&daysLeft!=null&&daysLeft>=0&&daysLeft<=7;
+                      const warn=!delivered&&daysLeft!=null&&daysLeft>7&&daysLeft<=14;
                       const color=delivered?'var(--gr)':overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Redeem in ${remaining}d`;
+                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Redeem by ${fmtDueDate(due)}`;
                       return(
                         <div style={{fontSize:10.5,marginTop:5,fontWeight:600,letterSpacing:.2,color}}>{text}</div>
                       );
@@ -2671,7 +2678,6 @@ body,html{margin:0;padding:0;background:#070710;}
           const today0=new Date();today0.setHours(0,0,0,0);
           const expiredEx=xpExclusions.filter(e=>e.end_date&&new Date(e.end_date)<today0);
           const unpaid=adminPayouts.filter(po=>!po.paid);
-          if(adminPayouts.length===0&&allProfiles.some(p=>p.referred_by))tasks.push({k:'crit',e:'💷',t:'Generate first payout records',n:'Referral payouts haven\'t been created yet',cta:'Generate',fn:generatePayouts});
           if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>setAdminTab('payouts')});
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
           // Discord role-update reminders: any profile whose computed level is
@@ -2812,7 +2818,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div>
                   <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.9,fontWeight:700,marginBottom:6}}>Payouts Due</div>
                   {byOwed.length===0?(
-                    <div style={{fontSize:11,color:'var(--tx3)',padding:'14px 4px',lineHeight:1.5}}>{adminPayouts.length===0?<>No payout records yet.<br/><span style={{color:'var(--pu2)',fontWeight:600,cursor:'pointer',fontSize:10}} onClick={()=>generatePayouts()}>Generate now →</span></>:'All payouts marked paid 🎉'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',padding:'14px 4px',lineHeight:1.5}}>{adminPayouts.length===0?<>No completed months yet — payout records are auto-generated at the end of each month.</>:'All payouts marked paid 🎉'}</div>
                   ):byOwed.map((p,i)=><PodRow key={p.id} p={p} i={i} right={fmtGBPc(p._owed)} rightLabel="Owed" rightColor="var(--go)"/>)}
                 </div>
               </div>
@@ -2825,7 +2831,7 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
               <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
                 <button className="aqab" onClick={()=>setAdminTab('imports')}>📥 Import files</button>
-                <button className="aqab" onClick={generatePayouts}>💷 Generate payouts</button>
+                <button className="aqab" onClick={()=>generatePayouts()} title="Auto-runs on admin load. Tap to force a rescan if something looks off.">💷 Rescan payouts</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
@@ -3345,12 +3351,24 @@ body,html{margin:0;padding:0;background:#070710;}
             const cur=achievedLevel(p.xp,rewards);
             const redeemed=redeemedLevelsFor(p);
             const owedLevels=[];
-            for(let l=1;l<=cur;l++){if(rewardByLevel[l]&&!redeemed.has(l))owedLevels.push({level:l,...rewardByLevel[l]});}
+            for(let l=1;l<=cur;l++){
+              if(rewardByLevel[l]&&!redeemed.has(l)){
+                const crossedAt=affiliateUnlockDates[p.id]?.[l]||null;
+                owedLevels.push({level:l,...rewardByLevel[l],crossedAt,dueDate:payoutDueDate(crossedAt)});
+              }
+            }
             const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
             const redeemedValue=Array.from(redeemed).reduce((s,l)=>s+((rewardByLevel[l]?.value)||0),0);
-            return{...p,_curLevel:cur,_redeemed:redeemed,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue};
+            // Earliest due date drives sort priority (most overdue first).
+            const earliestDue=owedLevels.reduce((m,r)=>!r.dueDate?m:(m==null||r.dueDate.getTime()<m?r.dueDate.getTime():m),null);
+            return{...p,_curLevel:cur,_redeemed:redeemed,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_earliestDue:earliestDue};
           });
-          const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>b._owedValue-a._owedValue);
+          const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>{
+            if(a._earliestDue==null&&b._earliestDue==null)return b._owedValue-a._owedValue;
+            if(a._earliestDue==null)return 1;
+            if(b._earliestDue==null)return -1;
+            return a._earliestDue-b._earliestDue;
+          });
           const delivered=enriched.filter(p=>p._owedLevels.length===0);
           // Hero totals.
           const totalOwedValue=pending.reduce((s,p)=>s+p._owedValue,0);
@@ -3398,7 +3416,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{pending.length}</span>
                   <button onClick={markAllRewardsDelivered} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all delivered</button>
                 </div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Dispatch the reward, then tick the affiliate off. First-time users: 'Mark all delivered' to bulk-acknowledge everyone at their current level.</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Monthly batch: a tier crossed in month <em>N</em> is due by the last day of month <em>N+1</em>. Dispatch the reward then tick the affiliate off. 'Mark all delivered' bulk-acknowledges everyone at their current level.</div>
                 {pending.map((p,i)=>(
                   <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:'12px 13px',marginBottom:8}}>
                     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
@@ -3417,15 +3435,16 @@ body,html{margin:0;padding:0;background:#070710;}
                         tiers can be ticked off individually in any order. */}
                     <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10,padding:'8px 10px',background:'var(--card2)',borderRadius:8}}>
                       {p._owedLevels.map(r=>{
-                        const waited=daysSince(affiliateUnlockDates[p.id]?.[r.level]);
-                        const remaining=waited==null?null:REWARD_DELIVERY_DAYS-waited;
-                        const overdue=remaining!=null&&remaining<0;
-                        const urgent=remaining!=null&&remaining<=7&&!overdue;
-                        const warn=remaining!=null&&remaining<=14&&!urgent&&!overdue;
-                        const color=overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                        const bg=overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
-                        const border=overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
-                        const label=overdue?`⚠ Overdue ${Math.abs(remaining)}d`:remaining!=null?`⏱ ${remaining}d left`:null;
+                        const due=r.dueDate;
+                        const daysLeft=due?daysUntil(due):null;
+                        const overdue=due!=null&&due.getTime()<Date.now();
+                        const dueToday=daysLeft===0;
+                        const urgent=daysLeft!=null&&daysLeft>0&&daysLeft<=7;
+                        const warn=daysLeft!=null&&daysLeft>7&&daysLeft<=14;
+                        const color=overdue||urgent||dueToday?'#f43f5e':warn?'#fbbf24':'#10b981';
+                        const bg=overdue||urgent||dueToday?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
+                        const border=overdue||urgent||dueToday?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                        const label=!due?null:overdue?`⚠ Overdue ${Math.abs(daysLeft)}d`:dueToday?'⚠ Due today':`⏱ Due ${fmtDueDate(due)}`;
                         return(
                           <div key={r.level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11.5}}>
                             <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
@@ -3528,7 +3547,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* REFERRAL PAYOUTS MANAGEMENT */}
         {adminTab==='payouts'&&(<div className="asec">
           <div className="asect">Referral Payouts</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Mark referral payouts as paid for each affiliate. Use the Generate payouts quick-action in the Overview tab to create records from import data.</div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer. Need to force a rescan? Use the Rescan payouts quick-action.</div>
           {adminPayouts.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No payout records yet — generate them first.</div>:(()=>{
             // Group by profile
             const byProfile={};
@@ -3753,11 +3772,12 @@ body,html{margin:0;padding:0;background:#070710;}
             {un&&(
               <div style={{marginTop:8,background:delivered?'rgba(16,185,129,.09)':'rgba(139,92,246,.1)',border:`1px solid ${delivered?'rgba(16,185,129,.2)':'rgba(139,92,246,.25)'}`,borderRadius:7,padding:10,textAlign:'center',fontSize:12,color:delivered?'var(--gr)':'var(--pu2)',lineHeight:1.45}}>
                 {delivered?(<>✅ <strong>Delivered</strong> — enjoy your reward!</>):(<>🎉 <strong>Unlocked!</strong> Contact Loophole to claim — or swap it for <strong style={{color:'#fff'}}>80% cash</strong>.</>)}
-                {waited!=null&&!delivered&&(()=>{
-                  const remaining=REWARD_DELIVERY_DAYS-waited;
-                  const overdue=remaining<0;
-                  const c=overdue||remaining<=7?'#f43f5e':remaining<=14?'#fbbf24':'#10b981';
-                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Redeem in ${remaining} day${remaining===1?'':'s'}`}</div>);
+                {unlockIso&&!delivered&&(()=>{
+                  const due=payoutDueDate(unlockIso);
+                  const daysLeft=due?daysUntil(due):null;
+                  const overdue=due&&due.getTime()<Date.now();
+                  const c=overdue||(daysLeft!=null&&daysLeft<=7)?'#f43f5e':daysLeft!=null&&daysLeft<=14?'#fbbf24':'#10b981';
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Redeem by ${fmtDueDate(due)}`}</div>);
                 })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
