@@ -191,9 +191,17 @@ function tdy(){return new Date().toISOString().slice(0,10)}
 // 'today' means the full calendar day BEFORE today ("Yesterday") because imports
 // are back-stamped to noon of the import date — a rolling last-24h-from-now window
 // would miss yesterday's noon-stamped events. 7d/30d stay rolling from now. 'all'→null.
-function periodWindow(period){
+function periodWindow(period,customStart,customEnd){
   if(!period||period==='all')return null;
   const dayMs=86400000;
+  if(period==='custom'){
+    if(!customStart||!customEnd)return null;
+    const from=new Date(customStart);from.setHours(0,0,0,0);
+    const to=new Date(customEnd);to.setHours(23,59,59,999);
+    if(to<=from)return null;
+    const span=to.getTime()-from.getTime();
+    return{from,to,prevFrom:new Date(from.getTime()-span-1),prevTo:new Date(from.getTime()-1)};
+  }
   if(period==='today'){
     const todayStart=new Date();todayStart.setHours(0,0,0,0);
     const from=new Date(todayStart.getTime()-dayMs);
@@ -580,12 +588,16 @@ export default function App(){
   const [adminTab,setAdminTab]=useState('overview');
   const [adminPeriod,setAdminPeriod]=useState('30d');
   const [adminPeriodEvents,setAdminPeriodEvents]=useState([]);
+  const [adminCustomStart,setAdminCustomStart]=useState('');
+  const [adminCustomEnd,setAdminCustomEnd]=useState('');
   // Per-profile per-level unlock timestamps. Shape: { profileId: { 1: ISO, 2: ISO, ... } }.
   // Drives the 'waiting X days' badges in the admin Rewards Owed tab.
   const [affiliateUnlockDates,setAffiliateUnlockDates]=useState({});
   // Period filter for the Referrals tab. Defaults to 'all' because referral
   // signups are slow-moving — most people want lifetime totals first.
   const [referralPeriod,setReferralPeriod]=useState('all');
+  const [referralCustomStart,setReferralCustomStart]=useState('');
+  const [referralCustomEnd,setReferralCustomEnd]=useState('');
   const [showReferralTree,setShowReferralTree]=useState(()=>typeof window!=='undefined'&&window.innerWidth>=768);
   const [expandedAdminRow,setExpandedAdminRow]=useState(null);
   const [expandedReferrer,setExpandedReferrer]=useState(null);
@@ -776,6 +788,18 @@ export default function App(){
     const t=setTimeout(()=>setDiscordCountdown(n=>n-1),1000);
     return()=>clearTimeout(t);
   },[showDiscordCta,discordCountdown]);
+  // If either admin custom range extends older than the default 60-day window,
+  // refetch with the earlier lower bound so the period sums see those events.
+  useEffect(()=>{
+    if(!adminUnlocked||page!=='admin')return;
+    const starts=[];
+    if(adminPeriod==='custom'&&adminCustomStart)starts.push(new Date(adminCustomStart));
+    if(referralPeriod==='custom'&&referralCustomStart)starts.push(new Date(referralCustomStart));
+    if(!starts.length)return;
+    const earliest=new Date(Math.min(...starts.map(d=>d.getTime())));
+    const sixtyAgo=new Date(Date.now()-60*86400000);
+    if(earliest<sixtyAgo)loadAdminPeriodEvents(earliest);
+  },[adminPeriod,adminCustomStart,referralPeriod,referralCustomStart,adminUnlocked,page]);
 
   async function loadProfile(id){const {data}=await supabase.from('profiles').select('*').eq('id',id).single();if(data){setProfile(data);await loadXpEvents(id);}}
   // Aggregates a user's previous-month import events into a Monthly Recap card.
@@ -1010,8 +1034,9 @@ export default function App(){
   // Pulls the last 60 days of import xp_events for period-toggle deltas on the
   // admin overview. 60 days covers the 30d window plus the prior 30d for the
   // delta calculation; longer toggles use cumulative `profiles` totals.
-  async function loadAdminPeriodEvents(){
-    const since=new Date(Date.now()-60*24*60*60*1000).toISOString();
+  async function loadAdminPeriodEvents(sinceOverride){
+    const defaultSince=new Date(Date.now()-60*24*60*60*1000);
+    const since=(sinceOverride&&sinceOverride<defaultSince?sinceOverride:defaultSince).toISOString();
     const {data}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission,cancelled_gmv,cancelled,sales,orders,created_at').eq('reason','import').gte('created_at',since).order('created_at',{ascending:false});
     if(data)setAdminPeriodEvents(data);
   }
@@ -2617,7 +2642,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const totalOwed=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
           // === Period aggregates from adminPeriodEvents (60-day import window) ===
           const sumEvts=(from,to)=>adminPeriodEvents.filter(e=>{const d=new Date(e.created_at);return d>=from&&d<to;}).reduce((a,e)=>({gmv:a.gmv+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),comm:a.comm+(e.commission||0),orders:a.orders+(e.orders||0),xp:a.xp+(e.amount||0),units:a.units+(e.sales||0),canc:a.canc+(e.cancelled||0),cancGmv:a.cancGmv+(e.cancelled_gmv||0),profs:a.profs.add(e.profile_id)}),{gmv:0,comm:0,orders:0,xp:0,units:0,canc:0,cancGmv:0,profs:new Set()});
-          const pw=periodWindow(adminPeriod);
+          const pw=periodWindow(adminPeriod,adminCustomStart,adminCustomEnd);
           let curPeriod=null,prevPeriod=null;
           if(pw){curPeriod=sumEvts(pw.from,pw.to);prevPeriod=sumEvts(pw.prevFrom,pw.prevTo);}
           const useP=adminPeriod!=='all'&&curPeriod;
@@ -2712,13 +2737,20 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.3))'}}>📊</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>PERFORMANCE</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Yesterday':adminPeriod==='7d'?'Last 7 days':'Last 30 days'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Yesterday':adminPeriod==='7d'?'Last 7 days':adminPeriod==='30d'?'Last 30 days':adminCustomStart&&adminCustomEnd?`${new Date(adminCustomStart).toLocaleDateString('en-GB')} → ${new Date(adminCustomEnd).toLocaleDateString('en-GB')}`:'Pick a custom range'}</div>
                   </div>
                 </div>
-                <div className="aseg">
-                  {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
-                    <button key={v} className={adminPeriod===v?'on':''} onClick={()=>setAdminPeriod(v)}>{l}</button>
-                  ))}
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <div className="aseg">
+                    {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time'],['custom','Custom']].map(([v,l])=>(
+                      <button key={v} className={adminPeriod===v?'on':''} onClick={()=>setAdminPeriod(v)}>{l}</button>
+                    ))}
+                  </div>
+                  {adminPeriod==='custom'&&(<>
+                    <input type="date" value={adminCustomStart} onChange={e=>setAdminCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                    <span style={{color:'var(--tx3)',fontSize:11}}>→</span>
+                    <input type="date" value={adminCustomEnd} onChange={e=>setAdminCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                  </>)}
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(5, 1fr)':'1fr 1fr',gap:10,position:'relative'}}>
@@ -2987,7 +3019,7 @@ body,html{margin:0;padding:0;background:#070710;}
           // Period filter — when set, GMV/Orders/Earned reflect activity within
           // the window only. Paid/Owed stay cumulative because payouts are
           // monthly artefacts that don't map cleanly to rolling-day windows.
-          const refWin=periodWindow(referralPeriod);
+          const refWin=periodWindow(referralPeriod,referralCustomStart,referralCustomEnd);
           // Per-referrer roll-up. When a period is selected, derive GMV/orders
           // from adminPeriodEvents (already loaded for last 60 days) filtered
           // to events whose profile_id is one of the referrer's referrals.
@@ -3050,13 +3082,20 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Yesterday\'s referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':'Last 30 days of referral activity'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Yesterday\'s referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':referralPeriod==='30d'?'Last 30 days of referral activity':referralCustomStart&&referralCustomEnd?`${new Date(referralCustomStart).toLocaleDateString('en-GB')} → ${new Date(referralCustomEnd).toLocaleDateString('en-GB')}`:'Pick a custom range'}</div>
                   </div>
                 </div>
-                <div className="aseg">
-                  {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time']].map(([v,l])=>(
-                    <button key={v} className={referralPeriod===v?'on':''} onClick={()=>setReferralPeriod(v)}>{l}</button>
-                  ))}
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <div className="aseg">
+                    {[['today','Yesterday'],['7d','7d'],['30d','30d'],['all','All-time'],['custom','Custom']].map(([v,l])=>(
+                      <button key={v} className={referralPeriod===v?'on':''} onClick={()=>setReferralPeriod(v)}>{l}</button>
+                    ))}
+                  </div>
+                  {referralPeriod==='custom'&&(<>
+                    <input type="date" value={referralCustomStart} onChange={e=>setReferralCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                    <span style={{color:'var(--tx3)',fontSize:11}}>→</span>
+                    <input type="date" value={referralCustomEnd} onChange={e=>setReferralCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                  </>)}
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(6, 1fr)':'1fr 1fr',gap:10,position:'relative'}}>
