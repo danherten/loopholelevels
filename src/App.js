@@ -2563,6 +2563,34 @@ body,html{margin:0;padding:0;background:#070710;}
           </>);
         })()}
 
+        {/* PAYOUT BREAKDOWN — three buckets: paid / invoiced+pending / still accruing.
+            Each rounds independently so the three may not exactly equal lifetime — close enough for a summary. */}
+        {(()=>{
+          const lifetimeNetGMV=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
+          const earned=parseFloat((lifetimeNetGMV*0.01).toFixed(2));
+          const paid=payouts.filter(p=>p.paid).reduce((s,p)=>s+(p.amount||0),0);
+          const pending=payouts.filter(p=>!p.paid).reduce((s,p)=>s+(p.amount||0),0);
+          const accruing=Math.max(0,parseFloat((earned-paid-pending).toFixed(2)));
+          return(<div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
+            <div style={{height:3,background:'linear-gradient(90deg,#10b981,#f59e0b,#f43f5e,#8b5cf6)'}}/>
+            <div style={{background:'var(--card)',padding:'14px 16px'}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:10,fontWeight:500}}>📊 Payout Breakdown</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
+                {[
+                  {l:'Earned',v:fmtGBP(earned),c:'#fff',bg:'rgba(255,255,255,.04)'},
+                  {l:'Paid',v:fmtGBP(paid),c:'var(--gr)',bg:'rgba(16,185,129,.08)'},
+                  {l:'Awaiting',v:fmtGBP(pending),c:'var(--go)',bg:'rgba(245,158,11,.08)'},
+                  {l:'This Month',v:fmtGBP(accruing),c:'var(--pu2)',bg:'rgba(139,92,246,.08)'},
+                ].map((b,i)=>(
+                  <div key={i} style={{background:b.bg,borderRadius:9,padding:'9px 6px',textAlign:'center'}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.3,color:b.c,lineHeight:1.1}}>{b.v}</div>
+                    <div style={{fontSize:8.5,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.7,fontWeight:600}}>{b.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>);
+        })()}
         {/* PAYOUT INVOICES */}
         <div className="asec" style={{marginBottom:11}}>
           <div className="asect">Payout History</div>
@@ -2882,7 +2910,6 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
               <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
                 <button className="aqab" onClick={()=>setAdminTab('imports')}>📥 Import files</button>
-                <button className="aqab" onClick={()=>generatePayouts()} title="Auto-runs on admin load. Tap to force a rescan if something looks off.">💷 Rescan payouts</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
@@ -3609,7 +3636,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* REFERRAL PAYOUTS MANAGEMENT */}
         {adminTab==='payouts'&&(<div className="asec">
           <div className="asect">Referral Payouts</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer. Need to force a rescan? Use the Rescan payouts quick-action.</div>
+          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer.</div>
           {adminPayouts.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No payout records yet — generate them first.</div>:(()=>{
             // Group by profile
             const byProfile={};
