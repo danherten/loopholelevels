@@ -2132,6 +2132,14 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:3}}>LEVEL REWARDS</div>
           <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)',letterSpacing:1}}>Level {lv.level}</div>
         </div>
+        {/* Payout schedule — front-and-centre so creators always know when their reward lands. */}
+        <div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:13}}>
+          <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))'}}>📅</span>
+          <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
+            <div style={{fontSize:11.5,color:'var(--tx2)'}}>Rewards unlocked this month are sent on the <strong style={{color:'var(--pu2)'}}>15th of next month</strong>. Buffers returns and gives one clear payday.</div>
+          </div>
+        </div>
         <div style={{margin:'0 13px 11px',padding:'11px 14px',background:'linear-gradient(135deg,rgba(16,185,129,.12) 0%,rgba(245,158,11,.07) 100%)',border:'1px solid rgba(16,185,129,.3)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:11}}>
           <span style={{fontSize:22,flexShrink:0}}>💷</span>
           <div style={{flex:1,minWidth:0,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
@@ -2179,9 +2187,19 @@ body,html{margin:0;padding:0;background:#070710;}
                       const urgent=!delivered&&daysLeft!=null&&daysLeft>=0&&daysLeft<=7;
                       const warn=!delivered&&daysLeft!=null&&daysLeft>7&&daysLeft<=14;
                       const color=delivered?'var(--gr)':overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Redeem by ${fmtDueDate(due)}`;
+                      const bg=delivered?'rgba(16,185,129,.12)':overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
+                      const border=delivered?'rgba(16,185,129,.32)':overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                      const icon=delivered?'✅':overdue?'⚠':'📅';
+                      const main=delivered?'DELIVERED':overdue?'OVERDUE':`PAYS ${fmtDueDate(due).toUpperCase()}`;
+                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Contact Loophole':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
                       return(
-                        <div style={{fontSize:10.5,marginTop:5,fontWeight:600,letterSpacing:.2,color}}>{text}</div>
+                        <div style={{marginTop:7,padding:'7px 10px',background:bg,border:`1px solid ${border}`,borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
+                          <div style={{flex:1,minWidth:0,lineHeight:1.15}}>
+                            <div style={{fontFamily:'var(--fh)',fontSize:13,letterSpacing:.6,color}}>{main}</div>
+                            <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,fontWeight:500}}>{sub}</div>
+                          </div>
+                        </div>
                       );
                     })()}
                   </div>
