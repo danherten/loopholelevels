@@ -512,6 +512,8 @@ export default function App(){
   const [showDaily,setShowDaily]=useState(false);
   const [grossOpen,setGrossOpen]=useState(false);
   const [showReward,setShowReward]=useState(null);
+  // Active redeem-pick prompt — null means closed. Shape: {profileId, level, name, value, image}.
+  const [redeemPick,setRedeemPick]=useState(null);
   const [showFlashSale,setShowFlashSale]=useState(false);
   // Ticks persist across reloads via localStorage so working through a long
   // flash-sale setup over multiple sessions doesn't lose progress. The Reset
@@ -1121,23 +1123,33 @@ export default function App(){
     for(let i=1;i<=hwm;i++)set.add(i);
     return set;
   }
-  // Marks/unmarks a single reward tier as redeemed for one profile.
-  async function toggleRewardRedeemed(profileId,level){
+  // Levels in rewards_redeemed_cash_levels — the subset of redeemed tiers the
+  // affiliate took as the 80% cash alternative rather than the physical reward.
+  function redeemedCashLevelsFor(p){return new Set(p?.rewards_redeemed_cash_levels||[]);}
+  // Marks/unmarks a single reward tier as redeemed for one profile. `mode` is
+  // 'product' (default) or 'cash' — drives the cash-levels array. When
+  // unmarking, also clears any cash flag for that level.
+  async function toggleRewardRedeemed(profileId,level,mode='product'){
     const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
     const current=redeemedLevelsFor(p);
+    const cashCurrent=redeemedCashLevelsFor(p);
     const next=new Set(current);
-    if(current.has(level))next.delete(level);else next.add(level);
+    const cashNext=new Set(cashCurrent);
+    const wasRedeemed=current.has(level);
+    if(wasRedeemed){next.delete(level);cashNext.delete(level);}
+    else{next.add(level);if(mode==='cash')cashNext.add(level);}
     const nextArr=Array.from(next).sort((a,b)=>a-b);
+    const cashArr=Array.from(cashNext).sort((a,b)=>a-b);
     // Also recompute the legacy high-water mark so older code paths stay
     // consistent. It's the largest contiguous-from-1 prefix in nextArr.
     let hwm=0;for(let i=1;i<=Math.max(...nextArr,0);i++){if(next.has(i))hwm=i;else break;}
-    const {error}=await supabase.from('profiles').update({rewards_redeemed_levels:nextArr,rewards_delivered_level:hwm}).eq('id',profileId);
+    const {error}=await supabase.from('profiles').update({rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_delivered_level:hwm}).eq('id',profileId);
     if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
-    setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,rewards_redeemed_levels:nextArr,rewards_delivered_level:hwm}:x));
-    toast(current.has(level)?'Unmarked':'Marked redeemed ✓','ok');
+    setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_delivered_level:hwm}:x));
+    toast(wasRedeemed?'Unmarked':(mode==='cash'?'Marked redeemed (cash) ✓':'Marked redeemed ✓'),'ok');
   }
   // Marks every tier from 1..targetLevel as redeemed for one profile — the
-  // 'Mark all delivered' per-row button.
+  // 'Mark all delivered' per-row button. All assumed product unless previously flagged cash.
   async function markRewardsDeliveredThrough(profileId,targetLevel){
     const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
     const current=redeemedLevelsFor(p);
@@ -3464,6 +3476,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const enriched=allProfiles.map(p=>{
             const cur=achievedLevel(p.xp,rewards);
             const redeemed=redeemedLevelsFor(p);
+            const redeemedCash=redeemedCashLevelsFor(p);
             const owedLevels=[];
             for(let l=1;l<=cur;l++){
               if(rewardByLevel[l]&&!redeemed.has(l)){
@@ -3472,16 +3485,26 @@ body,html{margin:0;padding:0;background:#070710;}
               }
             }
             const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
-            const redeemedValue=Array.from(redeemed).reduce((s,l)=>s+((rewardByLevel[l]?.value)||0),0);
-            // Earliest due date drives sort priority (most overdue first).
-            const earliestDue=owedLevels.reduce((m,r)=>!r.dueDate?m:(m==null||r.dueDate.getTime()<m?r.dueDate.getTime():m),null);
-            return{...p,_curLevel:cur,_redeemed:redeemed,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_earliestDue:earliestDue};
+            // Delivered value = product tiers at 100%, cash tiers at 80% — reflects
+            // actual £ the business has paid out rather than nominal tier value.
+            const redeemedValue=Array.from(redeemed).reduce((s,l)=>{
+              const v=(rewardByLevel[l]?.value)||0;
+              return s+(redeemedCash.has(l)?v*0.8:v);
+            },0);
+            // Stable sort key — the earliest cross date across ANY achieved tier
+            // for this affiliate. Doesn't change as individual tiers get redeemed,
+            // so the row stays put while the admin works through it.
+            const allCrosses=Object.values(affiliateUnlockDates[p.id]||{}).map(x=>x?new Date(x).getTime():null).filter(x=>x);
+            const oldestCross=allCrosses.length?Math.min(...allCrosses):null;
+            return{...p,_curLevel:cur,_redeemed:redeemed,_redeemedCash:redeemedCash,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_oldestCross:oldestCross};
           });
           const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>{
-            if(a._earliestDue==null&&b._earliestDue==null)return b._owedValue-a._owedValue;
-            if(a._earliestDue==null)return 1;
-            if(b._earliestDue==null)return -1;
-            return a._earliestDue-b._earliestDue;
+            if(a._oldestCross==null&&b._oldestCross==null)return b._owedValue-a._owedValue;
+            if(a._oldestCross==null)return 1;
+            if(b._oldestCross==null)return -1;
+            // Earliest crosser first (longest waiting). Tie-break on id for full
+            // determinism so two affiliates with identical cross times don't swap.
+            return a._oldestCross-b._oldestCross||(a.id<b.id?-1:1);
           });
           const delivered=enriched.filter(p=>p._owedLevels.length===0);
           // Hero totals.
@@ -3576,8 +3599,11 @@ body,html{margin:0;padding:0;background:#070710;}
                             <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
                             {label&&<span title={r.crossedAt?`Crossed ${new Date(r.crossedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`:''} style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)',cursor:'help'}}>{label}</span>}
-                            <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
-                            <button onClick={()=>toggleRewardRedeemed(p.id,r.level)} title="Mark this tier as redeemed" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
+                            <span style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1,flexShrink:0,minWidth:78,textAlign:'right'}}>
+                              <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',lineHeight:1}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                              {r.value>0&&<span style={{fontSize:8.5,color:'var(--tx3)',letterSpacing:.3,fontWeight:600,lineHeight:1}}>or {fmtGBPc(r.value*0.8)} cash</span>}
+                            </span>
+                            <button onClick={()=>setRedeemPick({profileId:p.id,level:r.level,name:r.name,value:r.value,image:r.image})} title="Mark this tier as redeemed — choose product or cash" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
                           </div>
                         );
                       })}
@@ -3589,11 +3615,12 @@ body,html{margin:0;padding:0;background:#070710;}
                       return(
                         <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:10,padding:'7px 10px',background:'rgba(16,185,129,.05)',border:'1px solid rgba(16,185,129,.15)',borderRadius:8}}>
                           <div style={{fontSize:8,color:'rgba(16,185,129,.7)',textTransform:'uppercase',letterSpacing:1.3,fontWeight:700,marginBottom:2}}>Already redeemed</div>
-                          {redeemedHere.map(level=>{const r=rewardByLevel[level];return(
+                          {redeemedHere.map(level=>{const r=rewardByLevel[level];const isCash=p._redeemedCash.has(level);const delivered=r.value*(isCash?0.8:1);return(
                             <div key={level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
                               <span style={{fontFamily:'var(--fh)',fontSize:10,color:'var(--gr)',letterSpacing:.5,minWidth:22}}>L{level}</span>
                               <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx3)',textDecoration:'line-through'}}>{r.name}</span>
-                              <span style={{fontFamily:'var(--fh)',fontSize:11,color:'rgba(251,191,36,.7)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                              <span style={{fontSize:8,padding:'1px 6px',background:isCash?'rgba(245,158,11,.18)':'rgba(16,185,129,.18)',color:isCash?'#fbbf24':'var(--gr)',borderRadius:99,fontWeight:700,letterSpacing:.4,fontFamily:'var(--fb)',flexShrink:0}}>{isCash?'CASH':'PRODUCT'}</span>
+                              <span style={{fontFamily:'var(--fh)',fontSize:11,color:'rgba(251,191,36,.7)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(delivered):'£?'}</span>
                               <button onClick={()=>toggleRewardRedeemed(p.id,level)} title="Undo: move back to pending" style={{padding:'2px 7px',background:'transparent',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:9,cursor:'pointer',borderRadius:5,fontFamily:'var(--fb)',flexShrink:0}}>↶ Undo</button>
                             </div>
                           );})}
@@ -4037,6 +4064,43 @@ body,html{margin:0;padding:0;background:#070710;}
               );
             })}
           </div>
+        </div>
+      </div>);
+    })()}
+    {/* REDEEM PICK — asks the admin whether a tier was delivered as the product
+        or the 80% cash alternative, so the recorded delivered total reflects what
+        the business actually paid out. */}
+    {redeemPick&&(()=>{
+      const v=Number(redeemPick.value||0);
+      const cash=v*0.8;
+      const confirm=async(mode)=>{await toggleRewardRedeemed(redeemPick.profileId,redeemPick.level,mode);setRedeemPick(null);};
+      return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setRedeemPick(null)}>
+        <div className="sheet" style={{maxWidth:380}}>
+          <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:14}}>
+            <div style={{width:46,height:46,borderRadius:10,background:redeemPick.image?'transparent':'rgba(245,158,11,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,overflow:'hidden',flexShrink:0,border:'1px solid var(--bo)'}}>{redeemPick.image?<img src={redeemPick.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.4,textTransform:'uppercase',fontWeight:600}}>L{redeemPick.level}</div>
+              <div style={{fontSize:15,fontWeight:700,color:'var(--tx)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{redeemPick.name||`Level ${redeemPick.level} Reward`}</div>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:'var(--tx2)',marginBottom:13,lineHeight:1.5}}>What did they take?</div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:11}}>
+            <button onClick={()=>confirm('product')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.4)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
+              <span style={{fontSize:22,flexShrink:0}}>📦</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--gr)'}}>Product</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(v)} delivered</div>
+              </div>
+            </button>
+            <button onClick={()=>confirm('cash')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.35)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
+              <span style={{fontSize:22,flexShrink:0}}>💷</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#fbbf24'}}>Cash alternative <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(cash)} delivered</div>
+              </div>
+            </button>
+          </div>
+          <button onClick={()=>setRedeemPick(null)} style={{width:'100%',padding:9,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx2)',fontSize:12,cursor:'pointer',fontFamily:'var(--fb)'}}>Cancel</button>
         </div>
       </div>);
     })()}
