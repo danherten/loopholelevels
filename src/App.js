@@ -2133,13 +2133,24 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)',letterSpacing:1}}>Level {lv.level}</div>
         </div>
         {/* Payout schedule — front-and-centre so creators always know when their reward lands. */}
-        <div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:13}}>
-          <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))'}}>📅</span>
-          <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
-            <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
-            <div style={{fontSize:11.5,color:'var(--tx2)'}}>Rewards unlocked this month are sent on the <strong style={{color:'var(--pu2)'}}>15th of next month</strong>. Buffers returns and gives one clear payday.</div>
-          </div>
-        </div>
+        {(()=>{
+          const now=new Date();
+          const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'}); // last month
+          const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of current
+          const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'}); // this month
+          const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of next
+          return(<div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'flex-start',gap:13}}>
+            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))',lineHeight:1}}>📅</span>
+            <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
+              <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any time you unlock a level, it's paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>.</div>
+              <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'var(--tx3)',lineHeight:1.45}}>
+                <div>· Unlock any time in <strong style={{color:'var(--tx2)'}}>{m1}</strong> → paid <strong style={{color:'var(--gr)'}}>{m1pay}</strong></div>
+                <div>· Unlock any time in <strong style={{color:'var(--tx2)'}}>{m2}</strong> → paid <strong style={{color:'var(--gr)'}}>{m2pay}</strong></div>
+              </div>
+            </div>
+          </div>);
+        })()}
         <div style={{margin:'0 13px 11px',padding:'11px 14px',background:'linear-gradient(135deg,rgba(16,185,129,.12) 0%,rgba(245,158,11,.07) 100%)',border:'1px solid rgba(16,185,129,.3)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:11}}>
           <span style={{fontSize:22,flexShrink:0}}>💷</span>
           <div style={{flex:1,minWidth:0,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
