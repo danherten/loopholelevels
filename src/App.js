@@ -3648,7 +3648,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {adminTab==='payouts'&&(<div className="asec">
           <div className="asect">Referral Payouts</div>
           <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer.</div>
-          {adminPayouts.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No payout records yet — generate them first.</div>:(()=>{
+          {adminPayouts.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No payout records yet — first completed month with referral activity will create them automatically.</div>:(()=>{
             // Group by profile
             const byProfile={};
             adminPayouts.forEach(po=>{if(!byProfile[po.profile_id])byProfile[po.profile_id]=[];byProfile[po.profile_id].push(po);});
