@@ -3648,7 +3648,37 @@ body,html{margin:0;padding:0;background:#070710;}
         {adminTab==='payouts'&&(<div className="asec">
           <div className="asect">Referral Payouts</div>
           <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer.</div>
-          {adminPayouts.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No payout records yet — first completed month with referral activity will create them automatically.</div>:(()=>{
+          {adminPayouts.length===0?(()=>{
+            // Show whether the current in-progress month is accruing anything so the
+            // admin can tell "empty because nothing happened yet" vs "empty because
+            // June isn't closed". Sums 1% of net GMV for referred-users' events in
+            // the current calendar month.
+            const cm=new Date().toISOString().slice(0,7);
+            const referrerById={};allProfiles.forEach(p=>{if(p.referred_by)referrerById[p.id]=p.referred_by;});
+            const accruing={};
+            adminPeriodEvents.forEach(e=>{
+              const refId=referrerById[e.profile_id];if(!refId)return;
+              if((e.created_at||'').slice(0,7)!==cm)return;
+              if(!accruing[refId])accruing[refId]=0;
+              accruing[refId]+=Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0))*0.01;
+            });
+            const accruingTotal=Object.values(accruing).reduce((s,v)=>s+v,0);
+            const accruingCount=Object.keys(accruing).length;
+            const monthName=new Date().toLocaleDateString('en-GB',{month:'long'});
+            return(
+              <div style={{padding:'18px 16px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:10}}>
+                <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>No payout records yet</div>
+                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,marginBottom:accruingTotal>0?12:0}}>Records auto-generate at the end of each calendar month. {monthName} is still in progress.</div>
+                {accruingTotal>0&&(
+                  <div style={{padding:'10px 12px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:8}}>
+                    <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:4,fontWeight:600}}>Accruing this month</div>
+                    <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--go)',letterSpacing:.3}}>{fmtGBPc(accruingTotal)}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{accruingCount} referrer{accruingCount===1?'':'s'} — will batch on the 1st of next month</div>
+                  </div>
+                )}
+              </div>
+            );
+          })():(()=>{
             // Group by profile
             const byProfile={};
             adminPayouts.forEach(po=>{if(!byProfile[po.profile_id])byProfile[po.profile_id]=[];byProfile[po.profile_id].push(po);});
