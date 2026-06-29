@@ -2190,8 +2190,8 @@ body,html{margin:0;padding:0;background:#070710;}
                       const bg=delivered?'rgba(16,185,129,.12)':overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
                       const border=delivered?'rgba(16,185,129,.32)':overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
                       const icon=delivered?'✅':overdue?'⚠':'📅';
-                      const main=delivered?'DELIVERED':overdue?'OVERDUE':`PAYS ${fmtDueDate(due).toUpperCase()}`;
-                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Contact Loophole':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
+                      const main=delivered?'DELIVERED':`PAYS ${fmtDueDate(due).toUpperCase()}`;
+                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Past due — contact Loophole':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
                       return(
                         <div style={{marginTop:7,padding:'7px 10px',background:bg,border:`1px solid ${border}`,borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
                           <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
@@ -3834,7 +3834,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   const daysLeft=due?daysUntil(due):null;
                   const overdue=due&&due.getTime()<Date.now();
                   const c=overdue||(daysLeft!=null&&daysLeft<=7)?'#f43f5e':daysLeft!=null&&daysLeft<=14?'#fbbf24':'#10b981';
-                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Redeem by ${fmtDueDate(due)}`}</div>);
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Pays ${fmtDueDate(due)} · past due, contact Loophole`:`⏱ Pays ${fmtDueDate(due)}`}</div>);
                 })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
