@@ -2190,7 +2190,7 @@ body,html{margin:0;padding:0;background:#070710;}
                       const bg=delivered?'rgba(16,185,129,.12)':overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
                       const border=delivered?'rgba(16,185,129,.32)':overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
                       const icon=delivered?'✅':overdue?'⚠':'📅';
-                      const main=delivered?'DELIVERED':overdue?`DUE ${fmtDueDate(due).toUpperCase()}`:`PAYS ${fmtDueDate(due).toUpperCase()}`;
+                      const main=delivered?'DELIVERED':`DUE ${fmtDueDate(due).toUpperCase()}`;
                       const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Past due — contact Loophole':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
                       return(
                         <div style={{marginTop:7,padding:'7px 10px',background:bg,border:`1px solid ${border}`,borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
@@ -2566,17 +2566,22 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* PAYOUT INVOICES */}
         <div className="asec" style={{marginBottom:11}}>
           <div className="asect">Payout History</div>
-          {payouts.length===0?(<div style={{fontSize:12,color:'var(--tx3)',padding:'10px 0'}}>No payouts yet — earnings are paid 30 days after the end of each month.</div>):(
+          {payouts.length===0?(<div style={{fontSize:12,color:'var(--tx3)',padding:'10px 0'}}>No payouts yet — earnings are paid on the 15th of the month after they're generated.</div>):(
             payouts.map((po,i)=>{
               const monthLabel=new Date(po.month+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+              // payout.month is "YYYY-MM" (the month earnings were generated in).
+              // Due date = 15th of next month.
+              const due=payoutDueDate(po.month+'-15');
+              const dueLabel=due?fmtDueDate(due):'';
+              const overdue=!po.paid&&due&&due.getTime()<Date.now();
               return(
                 <div key={po.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<payouts.length-1?'1px solid var(--bo)':'none'}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(16,185,129,.1)':'rgba(245,158,11,.1)',border:`1px solid ${po.paid?'rgba(16,185,129,.25)':'rgba(245,158,11,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':'⏳'}</div>
+                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(16,185,129,.1)':overdue?'rgba(244,63,94,.1)':'rgba(245,158,11,.1)',border:`1px solid ${po.paid?'rgba(16,185,129,.25)':overdue?'rgba(244,63,94,.3)':'rgba(245,158,11,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':overdue?'⚠':'⏳'}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:600}}>{monthLabel}</div>
-                    <div style={{fontSize:10,color:po.paid?'var(--gr)':'var(--go)',marginTop:2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:('Due end of '+new Date(new Date(po.month+'-01').setMonth(new Date(po.month+'-01').getMonth()+1)).toLocaleDateString('en-GB',{month:'long',year:'numeric'}))}</div>
+                    <div style={{fontSize:10,color:po.paid?'var(--gr)':overdue?'#f43f5e':'var(--go)',marginTop:2,fontWeight:600,letterSpacing:.2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:`Due ${dueLabel}${overdue?' · past due, contact Loophole':''}`}</div>
                   </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':overdue?'#f43f5e':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
                 </div>
               );
             })
@@ -2586,7 +2591,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* Earnings note */}
         <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'13px',marginBottom:11}}>
           <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>💰 Payment Terms</div>
-          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>All referral earnings are paid <strong style={{color:'var(--tx2)'}}>30 days after the end of the month</strong> they were generated in — this allows time for returns and cancellations to be processed.</div>
+          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>All referral earnings are paid on the <strong style={{color:'var(--tx2)'}}>15th of the month after</strong> they were generated in — this allows time for returns and cancellations to be processed.</div>
           <div style={{fontSize:11,color:'var(--tx3)',marginTop:7,padding:'8px 10px',background:'var(--card2)',borderRadius:'var(--rxs)',lineHeight:1.5}}>Example: referral commission you earn in <strong style={{color:'var(--tx2)'}}>April</strong> will be paid out by the <strong style={{color:'var(--tx2)'}}>end of May</strong>.</div>
         </div>
         {/* How it works */}
@@ -3834,7 +3839,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   const daysLeft=due?daysUntil(due):null;
                   const overdue=due&&due.getTime()<Date.now();
                   const c=overdue||(daysLeft!=null&&daysLeft<=7)?'#f43f5e':daysLeft!=null&&daysLeft<=14?'#fbbf24':'#10b981';
-                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Due ${fmtDueDate(due)} · past due, contact Loophole`:`⏱ Pays ${fmtDueDate(due)}`}</div>);
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Due ${fmtDueDate(due)} · past due, contact Loophole`:`⏱ Due ${fmtDueDate(due)}`}</div>);
                 })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
