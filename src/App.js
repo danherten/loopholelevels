@@ -512,6 +512,9 @@ export default function App(){
   const [showDaily,setShowDaily]=useState(false);
   const [grossOpen,setGrossOpen]=useState(false);
   const [showReward,setShowReward]=useState(null);
+  const [showFlashSale,setShowFlashSale]=useState(false);
+  const [flashCopied,setFlashCopied]=useState(()=>new Set());
+  const [flashSearch,setFlashSearch]=useState('');
   const [showAdminGate,setShowAdminGate]=useState(false);
   const [authTab,setAuthTab]=useState('login');
   const [loginUser,setLoginUser]=useState('');
@@ -2934,6 +2937,7 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
               <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
                 <button className="aqab" onClick={()=>setAdminTab('imports')}>📥 Import files</button>
+                <button className="aqab" onClick={()=>{setFlashCopied(new Set());setFlashSearch('');setShowFlashSale(true);}} title="Pull every TikTok handle as a tickable checklist for setting up flash sales">🚀 Flash sale handles</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
@@ -3966,6 +3970,66 @@ body,html{margin:0;padding:0;background:#070710;}
       );
     })()}
 
+    {/* FLASH SALE HANDLE PICKER — tick-off list of every TikTok handle on the
+        platform, so the admin can copy them into TikTok Shop Flash Sale setup
+        without losing their place. */}
+    {showFlashSale&&(()=>{
+      // Build a flat, alphabetised, deduped list of {handle, username} pairs.
+      const rows=[];const seen=new Set();
+      allProfiles.forEach(p=>{
+        (p.tiktok_handles||[]).forEach(raw=>{
+          const h=(raw||'').trim();if(!h)return;
+          const norm=(h.startsWith('@')?h.slice(1):h).toLowerCase();
+          if(seen.has(norm))return;seen.add(norm);
+          rows.push({display:h.startsWith('@')?h:'@'+h,copyVal:h.startsWith('@')?h:'@'+h,username:p.username||'—'});
+        });
+      });
+      rows.sort((a,b)=>a.display.localeCompare(b.display,'en',{sensitivity:'base'}));
+      const filtered=flashSearch.trim()?rows.filter(r=>r.display.toLowerCase().includes(flashSearch.toLowerCase())||r.username.toLowerCase().includes(flashSearch.toLowerCase())):rows;
+      const copiedCount=rows.filter(r=>flashCopied.has(r.copyVal)).length;
+      const copyOne=(val)=>{navigator.clipboard.writeText(val);setFlashCopied(prev=>{const n=new Set(prev);n.add(val);return n;});};
+      const copyAll=()=>{navigator.clipboard.writeText(rows.map(r=>r.copyVal).join('\n'));setFlashCopied(new Set(rows.map(r=>r.copyVal)));toast(`Copied all ${rows.length} handles 📋`,'ok');};
+      const allDone=copiedCount===rows.length&&rows.length>0;
+      return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowFlashSale(false)}>
+        <div className="sheet" style={{maxWidth:520,maxHeight:'85vh',display:'flex',flexDirection:'column'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+            <span style={{fontSize:24,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>🚀</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:2,lineHeight:1}}>FLASH SALE HANDLES</div>
+              <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{copiedCount} / {rows.length} copied · click a handle to copy</div>
+            </div>
+            <button onClick={()=>setShowFlashSale(false)} style={{background:'transparent',border:'none',color:'var(--tx3)',fontSize:22,cursor:'pointer',padding:'0 4px',lineHeight:1}} aria-label="Close">×</button>
+          </div>
+          {allDone&&(
+            <div style={{margin:'10px 0 6px',padding:'9px 12px',background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.32)',borderRadius:8,fontSize:12,color:'var(--gr)',fontWeight:600,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:16}}>✓</span> All handles copied — ready to paste into TikTok Shop.
+            </div>
+          )}
+          <div style={{display:'flex',gap:6,margin:'12px 0 10px'}}>
+            <input className="inp" placeholder="Search handle or creator…" value={flashSearch} onChange={e=>setFlashSearch(e.target.value)} style={{flex:1,fontSize:13}}/>
+            <button onClick={copyAll} style={{padding:'8px 12px',background:'var(--pu)',border:'none',borderRadius:'var(--rxs)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',whiteSpace:'nowrap'}} title="Copy every handle, newline-separated">📋 All</button>
+            <button onClick={()=>setFlashCopied(new Set())} style={{padding:'8px 12px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:'var(--rxs)',color:'var(--tx2)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',whiteSpace:'nowrap'}} title="Clear all green ticks">↺ Reset</button>
+          </div>
+          <div style={{flex:1,overflowY:'auto',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:10}}>
+            {filtered.length===0?(
+              <div style={{padding:'22px 14px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>{rows.length===0?'No TikTok handles on file yet.':'No matches.'}</div>
+            ):filtered.map((r,i)=>{
+              const done=flashCopied.has(r.copyVal);
+              return(
+                <div key={r.copyVal} onClick={()=>copyOne(r.copyVal)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:i<filtered.length-1?'1px solid var(--bo)':'none',background:done?'rgba(16,185,129,.08)':'transparent',cursor:'pointer',transition:'background .12s'}}>
+                  <div style={{width:22,height:22,borderRadius:'50%',border:`1.5px solid ${done?'var(--gr)':'var(--bo)'}`,background:done?'var(--gr)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,color:'#fff',fontWeight:700}}>{done?'✓':''}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13.5,fontWeight:600,color:done?'var(--gr)':'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.display}</div>
+                    <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.username}</div>
+                  </div>
+                  <span style={{fontSize:10,color:done?'var(--gr)':'var(--tx3)',letterSpacing:.5,fontWeight:600,flexShrink:0}}>{done?'COPIED':'COPY'}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>);
+    })()}
     {showAdminGate&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdminGate(false)}>
       <div className="sheet">
         <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>🔐 ADMIN</div>
