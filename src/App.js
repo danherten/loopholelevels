@@ -3979,9 +3979,11 @@ body,html{margin:0;padding:0;background:#070710;}
       allProfiles.forEach(p=>{
         (p.tiktok_handles||[]).forEach(raw=>{
           const h=(raw||'').trim();if(!h)return;
-          const norm=(h.startsWith('@')?h.slice(1):h).toLowerCase();
+          const noAt=h.startsWith('@')?h.slice(1):h;
+          const norm=noAt.toLowerCase();
           if(seen.has(norm))return;seen.add(norm);
-          rows.push({display:h.startsWith('@')?h:'@'+h,copyVal:h.startsWith('@')?h:'@'+h,username:p.username||'—'});
+          // display keeps the @ for the UI, copyVal is bare so it pastes clean into TikTok Shop.
+          rows.push({display:'@'+noAt,copyVal:noAt,username:p.username||'—'});
         });
       });
       rows.sort((a,b)=>a.display.localeCompare(b.display,'en',{sensitivity:'base'}));
