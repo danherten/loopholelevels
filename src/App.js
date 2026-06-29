@@ -2627,12 +2627,25 @@ body,html{margin:0;padding:0;background:#070710;}
           )}
         </div>
 
-        {/* Earnings note */}
-        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'13px',marginBottom:11}}>
-          <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>💰 Payment Terms</div>
-          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>All referral earnings are paid on the <strong style={{color:'var(--tx2)'}}>15th of the month after</strong> they were generated in — this allows time for returns and cancellations to be processed.</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginTop:7,padding:'8px 10px',background:'var(--card2)',borderRadius:'var(--rxs)',lineHeight:1.5}}>Example: referral commission you earn in <strong style={{color:'var(--tx2)'}}>April</strong> will be paid out by the <strong style={{color:'var(--tx2)'}}>end of May</strong>.</div>
-        </div>
+        {/* Earnings note — mirrors the rewards page banner with live monthly examples. */}
+        {(()=>{
+          const now=new Date();
+          const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'});
+          const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+          const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'});
+          const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+          return(<div style={{background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11,display:'flex',alignItems:'flex-start',gap:13}}>
+            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))',lineHeight:1}}>📅</span>
+            <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
+              <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any commission you earn from a referred creator is paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>. Buffers returns and gives one clear payday.</div>
+              <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'var(--tx3)',lineHeight:1.45}}>
+                <div>· Earn any time in <strong style={{color:'var(--tx2)'}}>{m1}</strong> → paid <strong style={{color:'var(--gr)'}}>{m1pay}</strong></div>
+                <div>· Earn any time in <strong style={{color:'var(--tx2)'}}>{m2}</strong> → paid <strong style={{color:'var(--gr)'}}>{m2pay}</strong></div>
+              </div>
+            </div>
+          </div>);
+        })()}
         {/* How it works */}
         <div className="asec">
           <div className="asect">How It Works</div>
