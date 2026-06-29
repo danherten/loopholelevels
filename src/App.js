@@ -212,8 +212,10 @@ function periodWindow(period,customStart,customEnd){
 // Whole days elapsed since an ISO timestamp. Negative input → null.
 function daysSince(iso){if(!iso)return null;const d=new Date(iso).getTime();if(!d||isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d)/86400000));}
 // Monthly batch payout cadence: anything that happens in month N is due on
-// the last day of month N+1. May crossings → due 30 June, June → 31 July, etc.
-function payoutDueDate(iso){if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;return new Date(d.getFullYear(),d.getMonth()+2,0,23,59,59,999);}
+// the 15th of month N+1. May crossings → due 15 June, June → 15 July, etc.
+// Picked so the minimum wait (cross on month-end) is ~15 days — enough buffer
+// past the TikTok Shop return window without a whole-month delay.
+function payoutDueDate(iso){if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;return new Date(d.getFullYear(),d.getMonth()+1,15,23,59,59,999);}
 function daysUntil(d){if(!d)return null;return Math.ceil((d.getTime()-Date.now())/86400000);}
 function fmtDueDate(d){return d?d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';}
 // Walks a profile's xp_events in chronological order and finds the first event
@@ -3453,7 +3455,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{pending.length}</span>
                   <button onClick={markAllRewardsDelivered} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all delivered</button>
                 </div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Monthly batch: a tier crossed in month <em>N</em> is due by the last day of month <em>N+1</em>. Dispatch the reward then tick the affiliate off. 'Mark all delivered' bulk-acknowledges everyone at their current level.</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Monthly batch: a tier crossed in month <em>N</em> is due by the <em>15th of month N+1</em> — enough buffer past the return window without dragging into a whole-month delay. Dispatch the reward then tick the affiliate off. 'Mark all delivered' bulk-acknowledges everyone at their current level.</div>
                 {pending.map((p,i)=>(
                   <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:'12px 13px',marginBottom:8}}>
                     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
