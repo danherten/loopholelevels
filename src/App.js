@@ -8,10 +8,6 @@ import { toPng } from 'html-to-image';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'LoopholeLads123';
 const XP_PER_10_GMV = 100;
-// Reward delivery window in days. Affiliates expect the physical reward
-// within this many days of crossing the level threshold; UI surfaces the
-// time remaining (and 'OVERDUE' when negative).
-const REWARD_DELIVERY_DAYS = 37;
 const DEFAULT_MILESTONES = [
   { id:1, days:3,   xp_bonus:50,   label:'3 Day Streak' },
   { id:2, days:7,   xp_bonus:100,  label:'1 Week Streak' },
@@ -215,6 +211,13 @@ function periodWindow(period,customStart,customEnd){
 }
 // Whole days elapsed since an ISO timestamp. Negative input → null.
 function daysSince(iso){if(!iso)return null;const d=new Date(iso).getTime();if(!d||isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d)/86400000));}
+// Monthly batch payout cadence: anything that happens in month N is due on
+// the 15th of month N+1. May crossings → due 15 June, June → 15 July, etc.
+// Picked so the minimum wait (cross on month-end) is ~15 days — enough buffer
+// past the TikTok Shop return window without a whole-month delay.
+function payoutDueDate(iso){if(!iso)return null;const d=new Date(iso);if(isNaN(d))return null;return new Date(d.getFullYear(),d.getMonth()+1,15,23,59,59,999);}
+function daysUntil(d){if(!d)return null;return Math.ceil((d.getTime()-Date.now())/86400000);}
+function fmtDueDate(d){return d?d.toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'';}
 // Walks a profile's xp_events in chronological order and finds the first event
 // whose running XP total crosses each reward.xp_required threshold. Returns
 // { level: ISO timestamp } for every level the profile has unlocked.
@@ -509,6 +512,9 @@ export default function App(){
   const [showDaily,setShowDaily]=useState(false);
   const [grossOpen,setGrossOpen]=useState(false);
   const [showReward,setShowReward]=useState(null);
+  const [showFlashSale,setShowFlashSale]=useState(false);
+  const [flashCopied,setFlashCopied]=useState(()=>new Set());
+  const [flashSearch,setFlashSearch]=useState('');
   const [showAdminGate,setShowAdminGate]=useState(false);
   const [authTab,setAuthTab]=useState('login');
   const [loginUser,setLoginUser]=useState('');
@@ -593,6 +599,7 @@ export default function App(){
   // Per-profile per-level unlock timestamps. Shape: { profileId: { 1: ISO, 2: ISO, ... } }.
   // Drives the 'waiting X days' badges in the admin Rewards Owed tab.
   const [affiliateUnlockDates,setAffiliateUnlockDates]=useState({});
+  const [adminRewardValuesError,setAdminRewardValuesError]=useState(null);
   // Period filter for the Referrals tab. Defaults to 'all' because referral
   // signups are slow-moving — most people want lifetime totals first.
   const [referralPeriod,setReferralPeriod]=useState('all');
@@ -969,7 +976,12 @@ export default function App(){
   // caller's profiles.is_admin and raises 'Not authorized' otherwise.
   async function loadAdminRewardValues(){
     const {data,error}=await supabase.rpc('admin_get_reward_values');
-    if(error){console.warn('admin_get_reward_values:',error.message);return;}
+    if(error){
+      console.warn('admin_get_reward_values:',error.message);
+      setAdminRewardValuesError(error.message||'Could not load reward £ values — set profiles.is_admin = TRUE or run migration 0005.');
+      return;
+    }
+    setAdminRewardValuesError(null);
     if(!data)return;
     setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
   }
@@ -1023,12 +1035,32 @@ export default function App(){
   // profile's events chronologically to build a {level: ISO} unlock map.
   // Powers the 'waiting Xd' badges in the admin Rewards Owed tab.
   async function loadAffiliateUnlockDates(){
-    const {data}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true});
-    if(!data)return;
+    // Fetch rewards fresh inside this function so we don't depend on the
+    // `rewards` state being already populated — otherwise unlock dates can
+    // come back empty if the admin tab opens before loadRewards finishes.
+    let rwds=rewards;
+    if(!rwds||!rwds.length){
+      const {data:rdata}=await supabase.from('rewards').select('id,level,xp_required').order('level');
+      rwds=rdata||[];
+    }
+    if(!rwds.length)return;
+    // Page through xp_events in chunks — Supabase default cap is 1000 rows, but
+    // with daily-per-product imports a real account easily hits several thousand.
+    // If we truncated we'd miss the level-cross event and the wrong cross date
+    // (or none at all) would land in the unlock map.
+    const all=[];const PAGE=1000;let from=0;
+    while(true){
+      const {data,error}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true}).range(from,from+PAGE-1);
+      if(error||!data)break;
+      all.push(...data);
+      if(data.length<PAGE)break;
+      from+=PAGE;
+      if(from>200000)break; // hard ceiling — catastrophic safety stop
+    }
     const byProfile={};
-    data.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
+    all.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
     const unlocks={};
-    for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rewards);}
+    for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rwds);}
     setAffiliateUnlockDates(unlocks);
   }
   // Pulls the last 60 days of import xp_events for period-toggle deltas on the
@@ -1123,11 +1155,15 @@ export default function App(){
     setAllProfiles(prev=>prev.map(p=>{const ach=achievedLevel(p.xp,rewards);const current=redeemedLevelsFor(p);const next=new Set(current);for(let l=1;l<=ach;l++)next.add(l);const nextArr=Array.from(next).sort((a,b)=>a-b);return{...p,rewards_redeemed_levels:nextArr,rewards_delivered_level:ach};}));
     toast(`Marked ${pending.length} as delivered ✓`,'ok');
   }
-  async function generatePayouts(){
-    // Generate payout records for each affiliate for each month they have referral earnings
+  async function generatePayouts(opts={}){
+    // Generate payout records for each affiliate for each completed month they
+    // have referral earnings. Idempotent — already-existing (profile,month) rows
+    // are skipped. `silent` skips the toast for the auto-gen-on-load path.
     const {data:allP}=await supabase.from('profiles').select('id,username,referred_by');
     const {data:allEvts}=await supabase.from('xp_events').select('profile_id,gmv,cancelled_gmv,created_at,reason').eq('reason','import');
     if(!allP||!allEvts)return;
+    // Only bill *completed* months — never the in-progress current month.
+    const currentMonth=new Date().toISOString().slice(0,7);
     // For each profile that has a referrer, group their GMV by month
     const referrers={};
     allP.forEach(p=>{if(p.referred_by)referrers[p.id]=p.referred_by;});
@@ -1142,6 +1178,7 @@ export default function App(){
     });
     let created=0;
     for(const rec of Object.values(byReferrerMonth)){
+      if(rec.month>=currentMonth)continue; // in-progress month — wait till it closes
       const netGMV=Math.max(0,rec.gmv-rec.cancelled_gmv);
       const amount=parseFloat((netGMV*0.01).toFixed(2));
       if(amount<=0)continue;
@@ -1151,8 +1188,8 @@ export default function App(){
         created++;
       }
     }
-    toast(`Generated ${created} new payout records`,'ok');
-    loadAdminPayouts();
+    if(!opts.silent)toast(created>0?`Generated ${created} new payout record${created===1?'':'s'}`:'No new payouts — already up to date','ok');
+    if(created>0||!opts.silent)loadAdminPayouts();
   }
   async function loadLastUpdated(){
     try{const {data}=await supabase.from('app_meta').select('*').eq('key','last_import').maybeSingle();if(data)setLastUpdated({time:data.updated_at,user:data.value});}catch(e){}
@@ -1359,7 +1396,7 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='home'||pg==='referrals')loadReferralStats();}
+  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();generatePayouts({silent:true});}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='home'||pg==='referrals')loadReferralStats();}
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -2098,6 +2135,25 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:3}}>LEVEL REWARDS</div>
           <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)',letterSpacing:1}}>Level {lv.level}</div>
         </div>
+        {/* Payout schedule — front-and-centre so creators always know when their reward lands. */}
+        {(()=>{
+          const now=new Date();
+          const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'}); // last month
+          const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of current
+          const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'}); // this month
+          const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of next
+          return(<div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'flex-start',gap:13}}>
+            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))',lineHeight:1}}>📅</span>
+            <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
+              <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any time you unlock a level, it's paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>.</div>
+              <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'var(--tx3)',lineHeight:1.45}}>
+                <div>· Unlock any time in <strong style={{color:'var(--tx2)'}}>{m1}</strong> → paid <strong style={{color:'var(--gr)'}}>{m1pay}</strong></div>
+                <div>· Unlock any time in <strong style={{color:'var(--tx2)'}}>{m2}</strong> → paid <strong style={{color:'var(--gr)'}}>{m2pay}</strong></div>
+              </div>
+            </div>
+          </div>);
+        })()}
         <div style={{margin:'0 13px 11px',padding:'11px 14px',background:'linear-gradient(135deg,rgba(16,185,129,.12) 0%,rgba(245,158,11,.07) 100%)',border:'1px solid rgba(16,185,129,.3)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:11}}>
           <span style={{fontSize:22,flexShrink:0}}>💷</span>
           <div style={{flex:1,minWidth:0,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
@@ -2138,15 +2194,26 @@ body,html{margin:0;padding:0;background:#070710;}
                     <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
                     <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
                     {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
-                    {un&&waited!=null&&(()=>{
-                      const remaining=REWARD_DELIVERY_DAYS-waited;
-                      const overdue=!delivered&&remaining<0;
-                      const urgent=!delivered&&remaining<=7&&!overdue;
-                      const warn=!delivered&&remaining<=14&&!urgent&&!overdue;
+                    {un&&myUnlocks[r.level]&&(()=>{
+                      const due=payoutDueDate(myUnlocks[r.level]);
+                      const daysLeft=due?daysUntil(due):null;
+                      const overdue=!delivered&&due&&due.getTime()<Date.now();
+                      const urgent=!delivered&&daysLeft!=null&&daysLeft>=0&&daysLeft<=7;
+                      const warn=!delivered&&daysLeft!=null&&daysLeft>7&&daysLeft<=14;
                       const color=delivered?'var(--gr)':overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                      const text=delivered?`✅ Delivered · unlocked ${waited}d ago`:overdue?`⚠ Overdue · contact Loophole`:`⏱ Redeem in ${remaining}d`;
+                      const bg=delivered?'rgba(16,185,129,.12)':overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
+                      const border=delivered?'rgba(16,185,129,.32)':overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                      const icon=delivered?'✅':overdue?'⚠':'📅';
+                      const main=delivered?'DELIVERED':`DUE ${fmtDueDate(due).toUpperCase()}`;
+                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Past due — contact Loophole':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
                       return(
-                        <div style={{fontSize:10.5,marginTop:5,fontWeight:600,letterSpacing:.2,color}}>{text}</div>
+                        <div style={{marginTop:7,padding:'7px 10px',background:bg,border:`1px solid ${border}`,borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
+                          <div style={{flex:1,minWidth:0,lineHeight:1.15}}>
+                            <div style={{fontFamily:'var(--fh)',fontSize:13,letterSpacing:.6,color}}>{main}</div>
+                            <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,fontWeight:500}}>{sub}</div>
+                          </div>
+                        </div>
                       );
                     })()}
                   </div>
@@ -2510,32 +2577,78 @@ body,html{margin:0;padding:0;background:#070710;}
           </>);
         })()}
 
+        {/* PAYOUT BREAKDOWN — three buckets: paid / invoiced+pending / still accruing.
+            Each rounds independently so the three may not exactly equal lifetime — close enough for a summary. */}
+        {(()=>{
+          const lifetimeNetGMV=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
+          const earned=parseFloat((lifetimeNetGMV*0.01).toFixed(2));
+          const paid=payouts.filter(p=>p.paid).reduce((s,p)=>s+(p.amount||0),0);
+          const pending=payouts.filter(p=>!p.paid).reduce((s,p)=>s+(p.amount||0),0);
+          const accruing=Math.max(0,parseFloat((earned-paid-pending).toFixed(2)));
+          return(<div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
+            <div style={{height:3,background:'linear-gradient(90deg,#10b981,#f59e0b,#f43f5e,#8b5cf6)'}}/>
+            <div style={{background:'var(--card)',padding:'14px 16px'}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:10,fontWeight:500}}>📊 Payout Breakdown</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
+                {[
+                  {l:'Earned',v:fmtGBP(earned),c:'#fff',bg:'rgba(255,255,255,.04)'},
+                  {l:'Paid',v:fmtGBP(paid),c:'var(--gr)',bg:'rgba(16,185,129,.08)'},
+                  {l:'Awaiting',v:fmtGBP(pending),c:'var(--go)',bg:'rgba(245,158,11,.08)'},
+                  {l:'This Month',v:fmtGBP(accruing),c:'var(--pu2)',bg:'rgba(139,92,246,.08)'},
+                ].map((b,i)=>(
+                  <div key={i} style={{background:b.bg,borderRadius:9,padding:'9px 6px',textAlign:'center'}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.3,color:b.c,lineHeight:1.1}}>{b.v}</div>
+                    <div style={{fontSize:8.5,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.7,fontWeight:600}}>{b.l}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>);
+        })()}
         {/* PAYOUT INVOICES */}
         <div className="asec" style={{marginBottom:11}}>
           <div className="asect">Payout History</div>
-          {payouts.length===0?(<div style={{fontSize:12,color:'var(--tx3)',padding:'10px 0'}}>No payouts yet — earnings are paid 30 days after the end of each month.</div>):(
+          {payouts.length===0?(<div style={{fontSize:12,color:'var(--tx3)',padding:'10px 0'}}>No payouts yet — earnings are paid on the 15th of the month after they're generated.</div>):(
             payouts.map((po,i)=>{
               const monthLabel=new Date(po.month+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+              // payout.month is "YYYY-MM" (the month earnings were generated in).
+              // Due date = 15th of next month.
+              const due=payoutDueDate(po.month+'-15');
+              const dueLabel=due?fmtDueDate(due):'';
+              const overdue=!po.paid&&due&&due.getTime()<Date.now();
               return(
                 <div key={po.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<payouts.length-1?'1px solid var(--bo)':'none'}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(16,185,129,.1)':'rgba(245,158,11,.1)',border:`1px solid ${po.paid?'rgba(16,185,129,.25)':'rgba(245,158,11,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':'⏳'}</div>
+                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(16,185,129,.1)':overdue?'rgba(244,63,94,.1)':'rgba(245,158,11,.1)',border:`1px solid ${po.paid?'rgba(16,185,129,.25)':overdue?'rgba(244,63,94,.3)':'rgba(245,158,11,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':overdue?'⚠':'⏳'}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:600}}>{monthLabel}</div>
-                    <div style={{fontSize:10,color:po.paid?'var(--gr)':'var(--go)',marginTop:2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:('Due end of '+new Date(new Date(po.month+'-01').setMonth(new Date(po.month+'-01').getMonth()+1)).toLocaleDateString('en-GB',{month:'long',year:'numeric'}))}</div>
+                    <div style={{fontSize:10,color:po.paid?'var(--gr)':overdue?'#f43f5e':'var(--go)',marginTop:2,fontWeight:600,letterSpacing:.2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:`Due ${dueLabel}${overdue?' · past due, contact Loophole':''}`}</div>
                   </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':overdue?'#f43f5e':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
                 </div>
               );
             })
           )}
         </div>
 
-        {/* Earnings note */}
-        <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'13px',marginBottom:11}}>
-          <div style={{fontSize:11,fontWeight:600,color:'var(--tx2)',marginBottom:5}}>💰 Payment Terms</div>
-          <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.6}}>All referral earnings are paid <strong style={{color:'var(--tx2)'}}>30 days after the end of the month</strong> they were generated in — this allows time for returns and cancellations to be processed.</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginTop:7,padding:'8px 10px',background:'var(--card2)',borderRadius:'var(--rxs)',lineHeight:1.5}}>Example: referral commission you earn in <strong style={{color:'var(--tx2)'}}>April</strong> will be paid out by the <strong style={{color:'var(--tx2)'}}>end of May</strong>.</div>
-        </div>
+        {/* Earnings note — mirrors the rewards page banner with live monthly examples. */}
+        {(()=>{
+          const now=new Date();
+          const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'});
+          const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+          const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'});
+          const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+          return(<div style={{background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11,display:'flex',alignItems:'flex-start',gap:13}}>
+            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))',lineHeight:1}}>📅</span>
+            <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
+              <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any commission you earn from a referred creator is paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>. Buffers returns and gives one clear payday.</div>
+              <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'var(--tx3)',lineHeight:1.45}}>
+                <div>· Earn any time in <strong style={{color:'var(--tx2)'}}>{m1}</strong> → paid <strong style={{color:'var(--gr)'}}>{m1pay}</strong></div>
+                <div>· Earn any time in <strong style={{color:'var(--tx2)'}}>{m2}</strong> → paid <strong style={{color:'var(--gr)'}}>{m2pay}</strong></div>
+              </div>
+            </div>
+          </div>);
+        })()}
         {/* How it works */}
         <div className="asec">
           <div className="asect">How It Works</div>
@@ -2671,7 +2784,6 @@ body,html{margin:0;padding:0;background:#070710;}
           const today0=new Date();today0.setHours(0,0,0,0);
           const expiredEx=xpExclusions.filter(e=>e.end_date&&new Date(e.end_date)<today0);
           const unpaid=adminPayouts.filter(po=>!po.paid);
-          if(adminPayouts.length===0&&allProfiles.some(p=>p.referred_by))tasks.push({k:'crit',e:'💷',t:'Generate first payout records',n:'Referral payouts haven\'t been created yet',cta:'Generate',fn:generatePayouts});
           if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>setAdminTab('payouts')});
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
           // Discord role-update reminders: any profile whose computed level is
@@ -2812,7 +2924,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div>
                   <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.9,fontWeight:700,marginBottom:6}}>Payouts Due</div>
                   {byOwed.length===0?(
-                    <div style={{fontSize:11,color:'var(--tx3)',padding:'14px 4px',lineHeight:1.5}}>{adminPayouts.length===0?<>No payout records yet.<br/><span style={{color:'var(--pu2)',fontWeight:600,cursor:'pointer',fontSize:10}} onClick={()=>generatePayouts()}>Generate now →</span></>:'All payouts marked paid 🎉'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',padding:'14px 4px',lineHeight:1.5}}>{adminPayouts.length===0?<>No completed months yet — payout records are auto-generated at the end of each month.</>:'All payouts marked paid 🎉'}</div>
                   ):byOwed.map((p,i)=><PodRow key={p.id} p={p} i={i} right={fmtGBPc(p._owed)} rightLabel="Owed" rightColor="var(--go)"/>)}
                 </div>
               </div>
@@ -2825,7 +2937,7 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
               <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
                 <button className="aqab" onClick={()=>setAdminTab('imports')}>📥 Import files</button>
-                <button className="aqab" onClick={generatePayouts}>💷 Generate payouts</button>
+                <button className="aqab" onClick={()=>{setFlashCopied(new Set());setFlashSearch('');setShowFlashSale(true);}} title="Pull every TikTok handle as a tickable checklist for setting up flash sales">🚀 Flash sale handles</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
@@ -3345,12 +3457,24 @@ body,html{margin:0;padding:0;background:#070710;}
             const cur=achievedLevel(p.xp,rewards);
             const redeemed=redeemedLevelsFor(p);
             const owedLevels=[];
-            for(let l=1;l<=cur;l++){if(rewardByLevel[l]&&!redeemed.has(l))owedLevels.push({level:l,...rewardByLevel[l]});}
+            for(let l=1;l<=cur;l++){
+              if(rewardByLevel[l]&&!redeemed.has(l)){
+                const crossedAt=affiliateUnlockDates[p.id]?.[l]||null;
+                owedLevels.push({level:l,...rewardByLevel[l],crossedAt,dueDate:payoutDueDate(crossedAt)});
+              }
+            }
             const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
             const redeemedValue=Array.from(redeemed).reduce((s,l)=>s+((rewardByLevel[l]?.value)||0),0);
-            return{...p,_curLevel:cur,_redeemed:redeemed,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue};
+            // Earliest due date drives sort priority (most overdue first).
+            const earliestDue=owedLevels.reduce((m,r)=>!r.dueDate?m:(m==null||r.dueDate.getTime()<m?r.dueDate.getTime():m),null);
+            return{...p,_curLevel:cur,_redeemed:redeemed,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_earliestDue:earliestDue};
           });
-          const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>b._owedValue-a._owedValue);
+          const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>{
+            if(a._earliestDue==null&&b._earliestDue==null)return b._owedValue-a._owedValue;
+            if(a._earliestDue==null)return 1;
+            if(b._earliestDue==null)return -1;
+            return a._earliestDue-b._earliestDue;
+          });
           const delivered=enriched.filter(p=>p._owedLevels.length===0);
           // Hero totals.
           const totalOwedValue=pending.reduce((s,p)=>s+p._owedValue,0);
@@ -3376,8 +3500,19 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div className="ahk"><div className="ahkl">Up to date</div><div className="ahkv" style={{color:'var(--gr)'}}>{delivered.length}</div><div className="ahkd"><span className="vs">level rewards delivered</span></div></div>
               </div>
             </div>
+            {/* Admin RPC failure — surfaces when the client couldn't fetch the
+                gated rewards.value column (is_admin not set, migration not run, etc). */}
+            {adminRewardValuesError&&(
+              <div className="asec" style={{padding:'12px 14px',background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.35)',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                <span style={{fontSize:18}}>🔒</span>
+                <div style={{flex:1,fontSize:12,color:'var(--tx2)',lineHeight:1.5}}>
+                  <strong style={{color:'#fda4af'}}>Couldn't load reward £ values.</strong>{' '}
+                  Check: <code style={{background:'rgba(255,255,255,.05)',padding:'1px 5px',borderRadius:4,fontSize:11}}>{"UPDATE profiles SET is_admin = TRUE WHERE id = '<your-auth-id>'"}</code> in Supabase, and that migration <code style={{background:'rgba(255,255,255,.05)',padding:'1px 5px',borderRadius:4,fontSize:11}}>0005</code> has been applied. Server said: <em style={{color:'var(--tx3)'}}>{adminRewardValuesError}</em>
+                </div>
+              </div>
+            )}
             {/* Missing values nudge */}
-            {missingValues>0&&(
+            {missingValues>0&&!adminRewardValuesError&&(
               <div className="asec" style={{padding:'12px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.3)',display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:18}}>⚠️</span>
                 <div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>{missingValues} reward tier{missingValues===1?'':'s'} {missingValues===1?'has':'have'} no £ value set — owed totals won't include {missingValues===1?'it':'them'} until {missingValues===1?'it\'s':'they\'re'} filled in.</div>
@@ -3398,7 +3533,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   <span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{pending.length}</span>
                   <button onClick={markAllRewardsDelivered} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all delivered</button>
                 </div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Dispatch the reward, then tick the affiliate off. First-time users: 'Mark all delivered' to bulk-acknowledge everyone at their current level.</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Monthly batch: a tier crossed in month <em>N</em> is due by the <em>15th of month N+1</em> — enough buffer past the return window without dragging into a whole-month delay. Dispatch the reward then tick the affiliate off. 'Mark all delivered' bulk-acknowledges everyone at their current level.</div>
                 {pending.map((p,i)=>(
                   <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:'12px 13px',marginBottom:8}}>
                     <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
@@ -3417,21 +3552,22 @@ body,html{margin:0;padding:0;background:#070710;}
                         tiers can be ticked off individually in any order. */}
                     <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:10,padding:'8px 10px',background:'var(--card2)',borderRadius:8}}>
                       {p._owedLevels.map(r=>{
-                        const waited=daysSince(affiliateUnlockDates[p.id]?.[r.level]);
-                        const remaining=waited==null?null:REWARD_DELIVERY_DAYS-waited;
-                        const overdue=remaining!=null&&remaining<0;
-                        const urgent=remaining!=null&&remaining<=7&&!overdue;
-                        const warn=remaining!=null&&remaining<=14&&!urgent&&!overdue;
-                        const color=overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                        const bg=overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
-                        const border=overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
-                        const label=overdue?`⚠ Overdue ${Math.abs(remaining)}d`:remaining!=null?`⏱ ${remaining}d left`:null;
+                        const due=r.dueDate;
+                        const daysLeft=due?daysUntil(due):null;
+                        const overdue=due!=null&&due.getTime()<Date.now();
+                        const dueToday=daysLeft===0;
+                        const urgent=daysLeft!=null&&daysLeft>0&&daysLeft<=7;
+                        const warn=daysLeft!=null&&daysLeft>7&&daysLeft<=14;
+                        const color=overdue||urgent||dueToday?'#f43f5e':warn?'#fbbf24':'#10b981';
+                        const bg=overdue||urgent||dueToday?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
+                        const border=overdue||urgent||dueToday?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                        const label=!due?null:overdue?`⚠ Overdue ${Math.abs(daysLeft)}d`:dueToday?'⚠ Due today':`⏱ Due ${fmtDueDate(due)}`;
                         return(
                           <div key={r.level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11.5}}>
                             <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
                             <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
-                            {label&&<span style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)'}}>{label}</span>}
+                            {label&&<span title={r.crossedAt?`Crossed ${new Date(r.crossedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`:''} style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)',cursor:'help'}}>{label}</span>}
                             <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
                             <button onClick={()=>toggleRewardRedeemed(p.id,r.level)} title="Mark this tier as redeemed" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
                           </div>
@@ -3528,8 +3664,38 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* REFERRAL PAYOUTS MANAGEMENT */}
         {adminTab==='payouts'&&(<div className="asec">
           <div className="asect">Referral Payouts</div>
-          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Mark referral payouts as paid for each affiliate. Use the Generate payouts quick-action in the Overview tab to create records from import data.</div>
-          {adminPayouts.length===0?<div style={{color:'var(--tx3)',fontSize:12}}>No payout records yet — generate them first.</div>:(()=>{
+          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer.</div>
+          {adminPayouts.length===0?(()=>{
+            // Show whether the current in-progress month is accruing anything so the
+            // admin can tell "empty because nothing happened yet" vs "empty because
+            // June isn't closed". Sums 1% of net GMV for referred-users' events in
+            // the current calendar month.
+            const cm=new Date().toISOString().slice(0,7);
+            const referrerById={};allProfiles.forEach(p=>{if(p.referred_by)referrerById[p.id]=p.referred_by;});
+            const accruing={};
+            adminPeriodEvents.forEach(e=>{
+              const refId=referrerById[e.profile_id];if(!refId)return;
+              if((e.created_at||'').slice(0,7)!==cm)return;
+              if(!accruing[refId])accruing[refId]=0;
+              accruing[refId]+=Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0))*0.01;
+            });
+            const accruingTotal=Object.values(accruing).reduce((s,v)=>s+v,0);
+            const accruingCount=Object.keys(accruing).length;
+            const monthName=new Date().toLocaleDateString('en-GB',{month:'long'});
+            return(
+              <div style={{padding:'18px 16px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:10}}>
+                <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>No payout records yet</div>
+                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,marginBottom:accruingTotal>0?12:0}}>Records auto-generate at the end of each calendar month. {monthName} is still in progress.</div>
+                {accruingTotal>0&&(
+                  <div style={{padding:'10px 12px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:8}}>
+                    <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:4,fontWeight:600}}>Accruing this month</div>
+                    <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--go)',letterSpacing:.3}}>{fmtGBP(accruingTotal)}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{accruingCount} referrer{accruingCount===1?'':'s'} — will batch on the 1st of next month</div>
+                  </div>
+                )}
+              </div>
+            );
+          })():(()=>{
             // Group by profile
             const byProfile={};
             adminPayouts.forEach(po=>{if(!byProfile[po.profile_id])byProfile[po.profile_id]=[];byProfile[po.profile_id].push(po);});
@@ -3753,11 +3919,12 @@ body,html{margin:0;padding:0;background:#070710;}
             {un&&(
               <div style={{marginTop:8,background:delivered?'rgba(16,185,129,.09)':'rgba(139,92,246,.1)',border:`1px solid ${delivered?'rgba(16,185,129,.2)':'rgba(139,92,246,.25)'}`,borderRadius:7,padding:10,textAlign:'center',fontSize:12,color:delivered?'var(--gr)':'var(--pu2)',lineHeight:1.45}}>
                 {delivered?(<>✅ <strong>Delivered</strong> — enjoy your reward!</>):(<>🎉 <strong>Unlocked!</strong> Contact Loophole to claim — or swap it for <strong style={{color:'#fff'}}>80% cash</strong>.</>)}
-                {waited!=null&&!delivered&&(()=>{
-                  const remaining=REWARD_DELIVERY_DAYS-waited;
-                  const overdue=remaining<0;
-                  const c=overdue||remaining<=7?'#f43f5e':remaining<=14?'#fbbf24':'#10b981';
-                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Overdue · please contact Loophole`:`⏱ Redeem in ${remaining} day${remaining===1?'':'s'}`}</div>);
+                {unlockIso&&!delivered&&(()=>{
+                  const due=payoutDueDate(unlockIso);
+                  const daysLeft=due?daysUntil(due):null;
+                  const overdue=due&&due.getTime()<Date.now();
+                  const c=overdue||(daysLeft!=null&&daysLeft<=7)?'#f43f5e':daysLeft!=null&&daysLeft<=14?'#fbbf24':'#10b981';
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Due ${fmtDueDate(due)} · past due, contact Loophole`:`⏱ Due ${fmtDueDate(due)}`}</div>);
                 })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
@@ -3803,6 +3970,68 @@ body,html{margin:0;padding:0;background:#070710;}
       );
     })()}
 
+    {/* FLASH SALE HANDLE PICKER — tick-off list of every TikTok handle on the
+        platform, so the admin can copy them into TikTok Shop Flash Sale setup
+        without losing their place. */}
+    {showFlashSale&&(()=>{
+      // Build a flat, alphabetised, deduped list of {handle, username} pairs.
+      const rows=[];const seen=new Set();
+      allProfiles.forEach(p=>{
+        (p.tiktok_handles||[]).forEach(raw=>{
+          const h=(raw||'').trim();if(!h)return;
+          const noAt=h.startsWith('@')?h.slice(1):h;
+          const norm=noAt.toLowerCase();
+          if(seen.has(norm))return;seen.add(norm);
+          // display keeps the @ for the UI, copyVal is bare so it pastes clean into TikTok Shop.
+          rows.push({display:'@'+noAt,copyVal:noAt,username:p.username||'—'});
+        });
+      });
+      rows.sort((a,b)=>a.display.localeCompare(b.display,'en',{sensitivity:'base'}));
+      const filtered=flashSearch.trim()?rows.filter(r=>r.display.toLowerCase().includes(flashSearch.toLowerCase())||r.username.toLowerCase().includes(flashSearch.toLowerCase())):rows;
+      const copiedCount=rows.filter(r=>flashCopied.has(r.copyVal)).length;
+      const copyOne=(val)=>{navigator.clipboard.writeText(val);setFlashCopied(prev=>{const n=new Set(prev);n.add(val);return n;});};
+      const copyAll=()=>{navigator.clipboard.writeText(rows.map(r=>r.copyVal).join('\n'));setFlashCopied(new Set(rows.map(r=>r.copyVal)));toast(`Copied all ${rows.length} handles 📋`,'ok');};
+      const allDone=copiedCount===rows.length&&rows.length>0;
+      return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowFlashSale(false)}>
+        <div className="sheet" style={{maxWidth:520,maxHeight:'85vh',display:'flex',flexDirection:'column'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
+            <span style={{fontSize:24,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>🚀</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:2,lineHeight:1}}>FLASH SALE HANDLES</div>
+              <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{copiedCount} / {rows.length} copied · click a handle to copy</div>
+            </div>
+            <button onClick={()=>setShowFlashSale(false)} style={{background:'transparent',border:'none',color:'var(--tx3)',fontSize:22,cursor:'pointer',padding:'0 4px',lineHeight:1}} aria-label="Close">×</button>
+          </div>
+          {allDone&&(
+            <div style={{margin:'10px 0 6px',padding:'9px 12px',background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.32)',borderRadius:8,fontSize:12,color:'var(--gr)',fontWeight:600,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:16}}>✓</span> All handles copied — ready to paste into TikTok Shop.
+            </div>
+          )}
+          <div style={{display:'flex',gap:6,margin:'12px 0 10px'}}>
+            <input className="inp" placeholder="Search handle or creator…" value={flashSearch} onChange={e=>setFlashSearch(e.target.value)} style={{flex:1,fontSize:13}}/>
+            <button onClick={copyAll} style={{padding:'8px 12px',background:'var(--pu)',border:'none',borderRadius:'var(--rxs)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',whiteSpace:'nowrap'}} title="Copy every handle, newline-separated">📋 All</button>
+            <button onClick={()=>setFlashCopied(new Set())} style={{padding:'8px 12px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:'var(--rxs)',color:'var(--tx2)',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',whiteSpace:'nowrap'}} title="Clear all green ticks">↺ Reset</button>
+          </div>
+          <div style={{flex:1,overflowY:'auto',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:10}}>
+            {filtered.length===0?(
+              <div style={{padding:'22px 14px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>{rows.length===0?'No TikTok handles on file yet.':'No matches.'}</div>
+            ):filtered.map((r,i)=>{
+              const done=flashCopied.has(r.copyVal);
+              return(
+                <div key={r.copyVal} onClick={()=>copyOne(r.copyVal)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:i<filtered.length-1?'1px solid var(--bo)':'none',background:done?'rgba(16,185,129,.08)':'transparent',cursor:'pointer',transition:'background .12s'}}>
+                  <div style={{width:22,height:22,borderRadius:'50%',border:`1.5px solid ${done?'var(--gr)':'var(--bo)'}`,background:done?'var(--gr)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,color:'#fff',fontWeight:700}}>{done?'✓':''}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13.5,fontWeight:600,color:done?'var(--gr)':'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.display}</div>
+                    <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.username}</div>
+                  </div>
+                  <span style={{fontSize:10,color:done?'var(--gr)':'var(--tx3)',letterSpacing:.5,fontWeight:600,flexShrink:0}}>{done?'COPIED':'COPY'}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>);
+    })()}
     {showAdminGate&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdminGate(false)}>
       <div className="sheet">
         <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:2,marginBottom:3}}>🔐 ADMIN</div>
