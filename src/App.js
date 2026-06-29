@@ -513,7 +513,12 @@ export default function App(){
   const [grossOpen,setGrossOpen]=useState(false);
   const [showReward,setShowReward]=useState(null);
   const [showFlashSale,setShowFlashSale]=useState(false);
-  const [flashCopied,setFlashCopied]=useState(()=>new Set());
+  // Ticks persist across reloads via localStorage so working through a long
+  // flash-sale setup over multiple sessions doesn't lose progress. The Reset
+  // button in the modal is the only way to clear them.
+  const [flashCopied,setFlashCopied]=useState(()=>{
+    try{const raw=typeof window!=='undefined'?window.localStorage.getItem('ll-flash-copied'):null;return new Set(raw?JSON.parse(raw):[]);}catch(e){return new Set();}
+  });
   const [flashSearch,setFlashSearch]=useState('');
   const [showAdminGate,setShowAdminGate]=useState(false);
   const [authTab,setAuthTab]=useState('login');
@@ -795,6 +800,9 @@ export default function App(){
     const t=setTimeout(()=>setDiscordCountdown(n=>n-1),1000);
     return()=>clearTimeout(t);
   },[showDiscordCta,discordCountdown]);
+  useEffect(()=>{
+    try{window.localStorage.setItem('ll-flash-copied',JSON.stringify([...flashCopied]));}catch(e){}
+  },[flashCopied]);
   // If either admin custom range extends older than the default 60-day window,
   // refetch with the earlier lower bound so the period sums see those events.
   useEffect(()=>{
@@ -2937,7 +2945,7 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
               <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
                 <button className="aqab" onClick={()=>setAdminTab('imports')}>📥 Import files</button>
-                <button className="aqab" onClick={()=>{setFlashCopied(new Set());setFlashSearch('');setShowFlashSale(true);}} title="Pull every TikTok handle as a tickable checklist for setting up flash sales">🚀 Flash sale handles</button>
+                <button className="aqab" onClick={()=>{setFlashSearch('');setShowFlashSale(true);}} title="Pull every TikTok handle as a tickable checklist for setting up flash sales. Ticks persist — use Reset inside to clear.">🚀 Flash sale handles</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
                 <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
