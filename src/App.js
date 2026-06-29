@@ -3672,7 +3672,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 {accruingTotal>0&&(
                   <div style={{padding:'10px 12px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:8}}>
                     <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:4,fontWeight:600}}>Accruing this month</div>
-                    <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--go)',letterSpacing:.3}}>{fmtGBPc(accruingTotal)}</div>
+                    <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--go)',letterSpacing:.3}}>{fmtGBP(accruingTotal)}</div>
                     <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{accruingCount} referrer{accruingCount===1?'':'s'} — will batch on the 1st of next month</div>
                   </div>
                 )}
