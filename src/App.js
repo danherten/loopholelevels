@@ -451,6 +451,7 @@ input,button{font-family:var(--fb)}
 .ferr{min-height:15px;font-size:12px;color:var(--re);text-align:center;margin-top:4px}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:fi .2s ease}
 @keyframes fi{from{opacity:0}to{opacity:1}}
+@keyframes ll-pulse{0%,100%{opacity:.35}50%{opacity:.7}}
 .sheet{background:var(--card);border:1px solid var(--bo2);border-radius:20px 20px 0 0;padding:19px 17px;padding-bottom:calc(19px + var(--sb));width:100%;max-width:520px;animation:su .3s ease}
 @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .clmbtn{width:100%;padding:12px;border:none;border-radius:var(--rsm);background:linear-gradient(135deg,var(--pu) 0%,#7c3aed 100%);color:#fff;font-family:var(--fh);font-size:19px;letter-spacing:2px;cursor:pointer;transition:opacity .2s}
@@ -571,6 +572,10 @@ export default function App(){
   const [adminPass,setAdminPass]=useState('');
   const [adminErr,setAdminErr]=useState('');
   const [allProfiles,setAllProfiles]=useState([]);
+  // Tracks whether the initial admin profiles fetch has resolved (success or
+  // error). Prevents the "All rewards delivered" empty state from flashing
+  // while the query is still in flight.
+  const [adminProfilesLoaded,setAdminProfilesLoaded]=useState(false);
   const [xpAmounts,setXpAmounts]=useState({});
   const [importLog,setImportLog]=useState([]);
   const [showRE,setShowRE]=useState(false);
@@ -1017,7 +1022,13 @@ export default function App(){
       setMonthlyLeaderboard(monthly);
     }finally{setLbLoading(false);}
   }
-  async function loadAllProfiles(){const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false});if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}}
+  async function loadAllProfiles(){
+    try{
+      const {data,error}=await supabase.from('profiles').select('*').order('xp',{ascending:false});
+      if(error){console.error('loadAllProfiles:',error.message);toast('Failed to load affiliates — check connection','wn');return;}
+      if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}
+    }finally{setAdminProfilesLoaded(true);}
+  }
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
   async function loadProducts(){const {data}=await supabase.from('products').select('*').order('sort_order',{ascending:true});if(data)setProducts(data);}
   async function loadReferralStats(){
@@ -3551,11 +3562,33 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
             )}
             {pending.length===0?(
-              <div className="asec" style={{padding:'40px 18px',textAlign:'center'}}>
-                <div style={{fontSize:36,marginBottom:10,opacity:.6}}>✨</div>
-                <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6}}>All rewards delivered</div>
-                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,maxWidth:300,margin:'0 auto'}}>Every affiliate has received their level rewards. New unlocks will appear here automatically.</div>
-              </div>
+              !adminProfilesLoaded?(
+                <div className="asec" style={{padding:'24px 18px'}}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:11,padding:'11px 4px',borderBottom:i<2?'1px solid var(--bo)':'none',opacity:.6-i*0.15}}>
+                      <div style={{width:36,height:36,borderRadius:'50%',background:'var(--card2)',animation:'ll-pulse 1.4s ease-in-out infinite',flexShrink:0}}/>
+                      <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+                        <div style={{height:12,width:'40%',background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                        <div style={{height:9,width:'25%',background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{textAlign:'center',fontSize:11,color:'var(--tx3)',marginTop:14,letterSpacing:.3}}>Loading rewards…</div>
+                </div>
+              ):allProfiles.length===0?(
+                <div className="asec" style={{padding:'40px 18px',textAlign:'center'}}>
+                  <div style={{fontSize:36,marginBottom:10,opacity:.6}}>🎯</div>
+                  <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6}}>No affiliates yet</div>
+                  <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,maxWidth:320,margin:'0 auto 12px'}}>Once creators sign up and earn XP, their unlocked reward tiers will appear here.</div>
+                  <button onClick={()=>{setAdminProfilesLoaded(false);loadAllProfiles();}} style={{padding:'6px 12px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx2)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)'}}>↺ Retry load</button>
+                </div>
+              ):(
+                <div className="asec" style={{padding:'40px 18px',textAlign:'center'}}>
+                  <div style={{fontSize:36,marginBottom:10,opacity:.6}}>✨</div>
+                  <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6}}>All rewards delivered</div>
+                  <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,maxWidth:300,margin:'0 auto'}}>Every affiliate has received their level rewards. New unlocks will appear here automatically.</div>
+                </div>
+              )
             ):(
               <div className="asec">
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11,flexWrap:'wrap'}}>
