@@ -1100,9 +1100,12 @@ export default function App(){
   // one-time 'mark everyone as currently up-to-date' action when the feature
   // first launches.
   async function markAllDiscordRolesUpdated(){
-    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
+    // Discord role display uses getLv semantics: someone in the L7 XP band is
+    // shown as L7 everywhere (including their Discord role). achievedLevel is
+    // reserved for reward-payout logic (which reward tier have they earned).
+    const pending=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
     if(pending.length===0){toast('Nothing to mark','info');return;}
-    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
+    const updates=pending.map(p=>({id:p.id,level:getLv(p.xp,LEVELS).level}));
     // Per-row updates rather than one giant upsert — safer with RLS and avoids
     // accidentally clobbering other columns.
     for(const u of updates){
@@ -2755,7 +2758,7 @@ body,html{margin:0;padding:0;background:#070710;}
           {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['rewardsowed','🎁','Rewards'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
             <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}>
               <span>{ic}</span><span>{lb}</span>
-              {id==='discord'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+              {id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
               {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
             </button>
           ))}
@@ -2806,9 +2809,9 @@ body,html{margin:0;padding:0;background:#070710;}
           const unpaid=adminPayouts.filter(po=>!po.paid);
           if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>setAdminTab('payouts')});
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
-          // Discord role-update reminders: any profile whose computed level is
-          // higher than the last acknowledged discord_level.
-          const pendingDiscord=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
+          // Discord role-update reminders: any profile whose displayed level
+          // (getLv) is higher than the last acknowledged discord_level.
+          const pendingDiscord=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
           if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>setAdminTab('discord')});
           // Reward delivery reminders — affiliates with unlocked level rewards that haven't been physically dispatched.
           const rewardByLevelLookup={};rewards.forEach(r=>{rewardByLevelLookup[r.level]={value:Number(r.value||0)};});
@@ -3378,10 +3381,11 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* DISCORD — checklist of pending Discord-role bumps for affiliates that have levelled up since the admin last acknowledged their role. */}
         {adminTab==='discord'&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          // _curLevel = highest reward tier they've actually crossed the threshold for
-          // (NOT getLv().level — that's the tier they're 'in', which doesn't equal what
-          // they've earned a Discord role for).
-          const pending=allProfiles.map(p=>{const ach=achievedLevel(p.xp,rewards);return{...p,_curLevel:ach,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
+          // _curLevel = the level displayed on their profile / leaderboard (getLv).
+          // Discord roles mirror that convention: someone in the L7 XP band gets
+          // the "Loophole Level 7" Discord role. achievedLevel is used elsewhere
+          // for reward-payout logic, not for role display.
+          const pending=allProfiles.map(p=>{const lv=getLv(p.xp,LEVELS).level;return{...p,_curLevel:lv,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
           const totalAffiliates=allProfiles.length;
           return(<>
             {/* HERO */}
