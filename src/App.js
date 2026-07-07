@@ -3536,7 +3536,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4, 1fr)':'1fr 1fr',gap:8,position:'relative'}}>
-                <div className="ahk"><div className="ahkl">Total owed</div><div className="ahkv" style={{color:'#f59e0b'}}>{fmtGBPc(totalOwedValue)}</div><div className="ahkd"><span className="vs">across {pending.length} affiliate{pending.length===1?'':'s'}</span></div></div>
+                <div className="ahk"><div className="ahkl">Total owed</div><div className="ahkv" style={{color:'#f59e0b'}}>{fmtGBPc(totalOwedValue)}</div><div className="ahkd"><span className="vs">{totalOwedValue>0?`or ${fmtGBPc(totalOwedValue*0.8)} cash · `:''}across {pending.length} affiliate{pending.length===1?'':'s'}</span></div></div>
                 <div className="ahk"><div className="ahkl">Already delivered</div><div className="ahkv" style={{color:'var(--gr)'}}>{fmtGBPc(totalDeliveredValue)}</div><div className="ahkd"><span className="vs">cumulative</span></div></div>
                 <div className="ahk"><div className="ahkl">Pending</div><div className="ahkv" style={{color:pending.length>0?'#f59e0b':'var(--gr)'}}>{pending.length}</div><div className="ahkd"><span className="vs">affiliate{pending.length===1?'':'s'} waiting</span></div></div>
                 <div className="ahk"><div className="ahkl">Up to date</div><div className="ahkv" style={{color:'var(--gr)'}}>{delivered.length}</div><div className="ahkd"><span className="vs">level rewards delivered</span></div></div>
@@ -3610,6 +3610,7 @@ body,html{margin:0;padding:0;background:#070710;}
                       <div style={{textAlign:'right',flexShrink:0}}>
                         <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#f59e0b',letterSpacing:.3,lineHeight:1}}>{fmtGBPc(p._owedValue)}</div>
                         <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:2,fontWeight:700}}>owed</div>
+                        {p._owedValue>0&&<div style={{fontSize:10,color:'#fbbf24',opacity:.75,marginTop:3,letterSpacing:.2,fontWeight:600}}>or {fmtGBPc(p._owedValue*0.8)} cash</div>}
                       </div>
                     </div>
                     {/* Owed-tiers list — each row has its own ✓ Redeem button so
