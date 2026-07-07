@@ -515,6 +515,10 @@ export default function App(){
   const [showReward,setShowReward]=useState(null);
   // Active redeem-pick prompt — null means closed. Shape: {profileId, level, name, value, image}.
   const [redeemPick,setRedeemPick]=useState(null);
+  // Editable delivered amounts inside the redeem modal. Reset each time
+  // redeemPick opens via the effect below so previous typing doesn't leak in.
+  const [redeemPickProductAmt,setRedeemPickProductAmt]=useState('');
+  const [redeemPickCashAmt,setRedeemPickCashAmt]=useState('');
   const [showFlashSale,setShowFlashSale]=useState(false);
   // Ticks persist across reloads via localStorage so working through a long
   // flash-sale setup over multiple sessions doesn't lose progress. The Reset
@@ -810,6 +814,12 @@ export default function App(){
   useEffect(()=>{
     try{window.localStorage.setItem('ll-flash-copied',JSON.stringify([...flashCopied]));}catch(e){}
   },[flashCopied]);
+  useEffect(()=>{
+    if(!redeemPick){setRedeemPickProductAmt('');setRedeemPickCashAmt('');return;}
+    const v=Number(redeemPick.value||0);
+    setRedeemPickProductAmt(v?v.toFixed(2):'');
+    setRedeemPickCashAmt(v?(v*0.8).toFixed(2):'');
+  },[redeemPick]);
   // If either admin custom range extends older than the default 60-day window,
   // refetch with the earlier lower bound so the period sums see those events.
   useEffect(()=>{
@@ -1140,27 +1150,48 @@ export default function App(){
   // Levels in rewards_redeemed_cash_levels — the subset of redeemed tiers the
   // affiliate took as the 80% cash alternative rather than the physical reward.
   function redeemedCashLevelsFor(p){return new Set(p?.rewards_redeemed_cash_levels||[]);}
+  // Per-tier delivered £ override, keyed by level string. Falls back to the
+  // catalog value when a level isn't present.
+  function redemptionAmountsFor(p){return p?.rewards_redemption_amounts||{};}
   // Marks/unmarks a single reward tier as redeemed for one profile. `mode` is
-  // 'product' (default) or 'cash' — drives the cash-levels array. When
-  // unmarking, also clears any cash flag for that level.
-  async function toggleRewardRedeemed(profileId,level,mode='product'){
+  // 'product' (default) or 'cash'. `amount` (optional number) overrides the
+  // delivered £ recorded for this level — falls back to catalog value on absence.
+  // When unmarking, also clears any cash flag and the amount override for that level.
+  async function toggleRewardRedeemed(profileId,level,mode='product',amount){
     const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
     const current=redeemedLevelsFor(p);
     const cashCurrent=redeemedCashLevelsFor(p);
+    const amountsCurrent=redemptionAmountsFor(p);
     const next=new Set(current);
     const cashNext=new Set(cashCurrent);
+    const amountsNext={...amountsCurrent};
     const wasRedeemed=current.has(level);
-    if(wasRedeemed){next.delete(level);cashNext.delete(level);}
-    else{next.add(level);if(mode==='cash')cashNext.add(level);}
+    if(wasRedeemed){next.delete(level);cashNext.delete(level);delete amountsNext[String(level)];}
+    else{
+      next.add(level);
+      if(mode==='cash')cashNext.add(level);
+      if(typeof amount==='number'&&!isNaN(amount)&&amount>=0)amountsNext[String(level)]=amount;
+    }
     const nextArr=Array.from(next).sort((a,b)=>a-b);
     const cashArr=Array.from(cashNext).sort((a,b)=>a-b);
     // Also recompute the legacy high-water mark so older code paths stay
     // consistent. It's the largest contiguous-from-1 prefix in nextArr.
     let hwm=0;for(let i=1;i<=Math.max(...nextArr,0);i++){if(next.has(i))hwm=i;else break;}
-    const {error}=await supabase.from('profiles').update({rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_delivered_level:hwm}).eq('id',profileId);
-    if(error){toast('Failed: '+(error.message||'unknown'),'wn');return;}
-    setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_delivered_level:hwm}:x));
-    toast(wasRedeemed?'Unmarked':(mode==='cash'?'Marked redeemed (cash) ✓':'Marked redeemed ✓'),'ok');
+    // Full payload first; if the DB rejects an unknown column (migrations not
+    // run yet), retry with the offending column removed instead of failing hard.
+    const full={rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_redemption_amounts:amountsNext,rewards_delivered_level:hwm};
+    let payload=full;let attempt=await supabase.from('profiles').update(payload).eq('id',profileId);
+    if(attempt.error){
+      const msg=attempt.error.message||'';
+      // Drop columns Postgres complains about, one at a time, then retry.
+      const drop=(k)=>{const {[k]:_,...rest}=payload;payload=rest;};
+      if(/rewards_redemption_amounts/.test(msg)){drop('rewards_redemption_amounts');attempt=await supabase.from('profiles').update(payload).eq('id',profileId);}
+      if(attempt.error&&/rewards_redeemed_cash_levels/.test(attempt.error.message||'')){drop('rewards_redeemed_cash_levels');attempt=await supabase.from('profiles').update(payload).eq('id',profileId);}
+      if(attempt.error){toast('Failed: '+(attempt.error.message||'unknown')+(msg.includes('schema cache')?' — run migration 0007/0008?':''),'wn');return;}
+      toast(wasRedeemed?'Unmarked (partial — run pending migrations)':'Marked (partial — run pending migrations)','wn');
+    }
+    setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,...payload}:x));
+    if(!attempt.error&&payload===full)toast(wasRedeemed?'Unmarked':(mode==='cash'?'Marked redeemed (cash) ✓':'Marked redeemed ✓'),'ok');
   }
   // Marks every tier from 1..targetLevel as redeemed for one profile — the
   // 'Mark all delivered' per-row button. All assumed product unless previously flagged cash.
@@ -3492,6 +3523,7 @@ body,html{margin:0;padding:0;background:#070710;}
             const cur=achievedLevel(p.xp,rewards);
             const redeemed=redeemedLevelsFor(p);
             const redeemedCash=redeemedCashLevelsFor(p);
+            const amounts=redemptionAmountsFor(p);
             const owedLevels=[];
             for(let l=1;l<=cur;l++){
               if(rewardByLevel[l]&&!redeemed.has(l)){
@@ -3500,9 +3532,11 @@ body,html{margin:0;padding:0;background:#070710;}
               }
             }
             const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
-            // Delivered value = product tiers at 100%, cash tiers at 80% — reflects
-            // actual £ the business has paid out rather than nominal tier value.
+            // Delivered value prefers the stored override (admin-typed actual £)
+            // when present; else falls back to product 100% or cash 80% of catalog.
             const redeemedValue=Array.from(redeemed).reduce((s,l)=>{
+              const stored=amounts[String(l)];
+              if(typeof stored==='number'&&!isNaN(stored))return s+stored;
               const v=(rewardByLevel[l]?.value)||0;
               return s+(redeemedCash.has(l)?v*0.8:v);
             },0);
@@ -3511,7 +3545,7 @@ body,html{margin:0;padding:0;background:#070710;}
             // so the row stays put while the admin works through it.
             const allCrosses=Object.values(affiliateUnlockDates[p.id]||{}).map(x=>x?new Date(x).getTime():null).filter(x=>x);
             const oldestCross=allCrosses.length?Math.min(...allCrosses):null;
-            return{...p,_curLevel:cur,_redeemed:redeemed,_redeemedCash:redeemedCash,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_oldestCross:oldestCross};
+            return{...p,_curLevel:cur,_redeemed:redeemed,_redeemedCash:redeemedCash,_redeemedAmounts:amounts,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_oldestCross:oldestCross};
           });
           const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>{
             if(a._oldestCross==null&&b._oldestCross==null)return b._owedValue-a._owedValue;
@@ -3653,7 +3687,7 @@ body,html{margin:0;padding:0;background:#070710;}
                       return(
                         <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:10,padding:'7px 10px',background:'rgba(16,185,129,.05)',border:'1px solid rgba(16,185,129,.15)',borderRadius:8}}>
                           <div style={{fontSize:8,color:'rgba(16,185,129,.7)',textTransform:'uppercase',letterSpacing:1.3,fontWeight:700,marginBottom:2}}>Already redeemed</div>
-                          {redeemedHere.map(level=>{const r=rewardByLevel[level];const isCash=p._redeemedCash.has(level);const delivered=r.value*(isCash?0.8:1);return(
+                          {redeemedHere.map(level=>{const r=rewardByLevel[level];const isCash=p._redeemedCash.has(level);const stored=p._redeemedAmounts?.[String(level)];const delivered=typeof stored==='number'?stored:r.value*(isCash?0.8:1);return(
                             <div key={level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
                               <span style={{fontFamily:'var(--fh)',fontSize:10,color:'var(--gr)',letterSpacing:.5,minWidth:22}}>L{level}</span>
                               <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx3)',textDecoration:'line-through'}}>{r.name}</span>
@@ -4110,10 +4144,23 @@ body,html{margin:0;padding:0;background:#070710;}
         the business actually paid out. */}
     {redeemPick&&(()=>{
       const v=Number(redeemPick.value||0);
-      const cash=v*0.8;
-      const confirm=async(mode)=>{await toggleRewardRedeemed(redeemPick.profileId,redeemPick.level,mode);setRedeemPick(null);};
+      // Parse the current input; use the tier value as the fallback so an empty
+      // field still records something meaningful rather than 0.
+      const parseAmt=(s,fallback)=>{const n=parseFloat(s);return isNaN(n)||n<0?fallback:n;};
+      const confirm=async(mode)=>{
+        const raw=mode==='cash'?redeemPickCashAmt:redeemPickProductAmt;
+        const amt=parseAmt(raw,mode==='cash'?v*0.8:v);
+        await toggleRewardRedeemed(redeemPick.profileId,redeemPick.level,mode,amt);
+        setRedeemPick(null);
+      };
+      const amtInput=(val,setVal,accent)=>(
+        <div style={{display:'flex',alignItems:'center',gap:0,background:'var(--bg2)',border:`1px solid ${accent}`,borderRadius:8,paddingLeft:10}}>
+          <span style={{fontFamily:'var(--fh)',fontSize:16,color:accent,letterSpacing:.5}}>£</span>
+          <input type="number" value={val} onChange={e=>setVal(e.target.value)} step="0.01" min="0" inputMode="decimal" style={{flex:1,padding:'8px 10px 8px 4px',background:'transparent',border:'none',color:'var(--tx)',fontFamily:'var(--fh)',fontSize:16,letterSpacing:.5,outline:'none',minWidth:0,width:'100%'}}/>
+        </div>
+      );
       return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setRedeemPick(null)}>
-        <div className="sheet" style={{maxWidth:380}}>
+        <div className="sheet" style={{maxWidth:400}}>
           <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:14}}>
             <div style={{width:46,height:46,borderRadius:10,background:redeemPick.image?'transparent':'rgba(245,158,11,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,overflow:'hidden',flexShrink:0,border:'1px solid var(--bo)'}}>{redeemPick.image?<img src={redeemPick.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
             <div style={{flex:1,minWidth:0}}>
@@ -4121,22 +4168,26 @@ body,html{margin:0;padding:0;background:#070710;}
               <div style={{fontSize:15,fontWeight:700,color:'var(--tx)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{redeemPick.name||`Level ${redeemPick.level} Reward`}</div>
             </div>
           </div>
-          <div style={{fontSize:12,color:'var(--tx2)',marginBottom:13,lineHeight:1.5}}>What did they take?</div>
-          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:11}}>
-            <button onClick={()=>confirm('product')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.4)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
-              <span style={{fontSize:22,flexShrink:0}}>📦</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:'var(--gr)'}}>Product</div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(v)} delivered</div>
+          <div style={{fontSize:12,color:'var(--tx2)',marginBottom:12,lineHeight:1.5}}>How was this delivered? Amounts default to the catalog guesstimate — edit if the real cost differed.</div>
+          <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:12}}>
+            <div style={{padding:'12px 14px',background:'rgba(16,185,129,.09)',border:'1px solid rgba(16,185,129,.32)',borderRadius:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                <span style={{fontSize:20}}>📦</span>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--gr)',fontFamily:'var(--fb)',flex:1}}>Product</div>
+                <span style={{fontSize:9,color:'var(--tx3)',letterSpacing:.5,fontWeight:600}}>GUESSTIMATE {fmtGBP(v)}</span>
               </div>
-            </button>
-            <button onClick={()=>confirm('cash')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.35)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
-              <span style={{fontSize:22,flexShrink:0}}>💷</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:'#fbbf24'}}>Cash alternative <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(cash)} delivered</div>
+              {amtInput(redeemPickProductAmt,setRedeemPickProductAmt,'rgba(16,185,129,.4)')}
+              <button onClick={()=>confirm('product')} style={{marginTop:8,width:'100%',padding:'9px',background:'rgba(16,185,129,.18)',border:'1px solid rgba(16,185,129,.4)',color:'var(--gr)',fontSize:12,fontWeight:700,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',letterSpacing:.4}}>✓ CONFIRM PRODUCT</button>
+            </div>
+            <div style={{padding:'12px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.32)',borderRadius:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
+                <span style={{fontSize:20}}>💷</span>
+                <div style={{fontSize:13,fontWeight:700,color:'#fbbf24',fontFamily:'var(--fb)',flex:1}}>Cash alternative <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
+                <span style={{fontSize:9,color:'var(--tx3)',letterSpacing:.5,fontWeight:600}}>GUESSTIMATE {fmtGBP(v*0.8)}</span>
               </div>
-            </button>
+              {amtInput(redeemPickCashAmt,setRedeemPickCashAmt,'rgba(245,158,11,.4)')}
+              <button onClick={()=>confirm('cash')} style={{marginTop:8,width:'100%',padding:'9px',background:'rgba(245,158,11,.18)',border:'1px solid rgba(245,158,11,.4)',color:'#fbbf24',fontSize:12,fontWeight:700,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',letterSpacing:.4}}>✓ CONFIRM CASH</button>
+            </div>
           </div>
           <button onClick={()=>setRedeemPick(null)} style={{width:'100%',padding:9,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx2)',fontSize:12,cursor:'pointer',fontFamily:'var(--fb)'}}>Cancel</button>
         </div>
