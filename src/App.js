@@ -519,6 +519,9 @@ export default function App(){
   // redeemPick opens via the effect below so previous typing doesn't leak in.
   const [redeemPickProductAmt,setRedeemPickProductAmt]=useState('');
   const [redeemPickCashAmt,setRedeemPickCashAmt]=useState('');
+  // Toggle between the pending-deliveries list and the historical delivered list.
+  const [rewardsOwedView,setRewardsOwedView]=useState('pending');
+  const [deliveredSearch,setDeliveredSearch]=useState('');
   const [showFlashSale,setShowFlashSale]=useState(false);
   // Ticks persist across reloads via localStorage so working through a long
   // flash-sale setup over multiple sessions doesn't lose progress. The Reset
@@ -1153,6 +1156,9 @@ export default function App(){
   // Per-tier delivered £ override, keyed by level string. Falls back to the
   // catalog value when a level isn't present.
   function redemptionAmountsFor(p){return p?.rewards_redemption_amounts||{};}
+  // Per-tier redemption timestamp, keyed by level string. Absent for legacy
+  // redemptions that predate migration 0009.
+  function redemptionDatesFor(p){return p?.rewards_redemption_dates||{};}
   // Marks/unmarks a single reward tier as redeemed for one profile. `mode` is
   // 'product' (default) or 'cash'. `amount` (optional number) overrides the
   // delivered £ recorded for this level — falls back to catalog value on absence.
@@ -1162,15 +1168,18 @@ export default function App(){
     const current=redeemedLevelsFor(p);
     const cashCurrent=redeemedCashLevelsFor(p);
     const amountsCurrent=redemptionAmountsFor(p);
+    const datesCurrent=redemptionDatesFor(p);
     const next=new Set(current);
     const cashNext=new Set(cashCurrent);
     const amountsNext={...amountsCurrent};
+    const datesNext={...datesCurrent};
     const wasRedeemed=current.has(level);
-    if(wasRedeemed){next.delete(level);cashNext.delete(level);delete amountsNext[String(level)];}
+    if(wasRedeemed){next.delete(level);cashNext.delete(level);delete amountsNext[String(level)];delete datesNext[String(level)];}
     else{
       next.add(level);
       if(mode==='cash')cashNext.add(level);
       if(typeof amount==='number'&&!isNaN(amount)&&amount>=0)amountsNext[String(level)]=amount;
+      datesNext[String(level)]=new Date().toISOString();
     }
     const nextArr=Array.from(next).sort((a,b)=>a-b);
     const cashArr=Array.from(cashNext).sort((a,b)=>a-b);
@@ -1179,15 +1188,16 @@ export default function App(){
     let hwm=0;for(let i=1;i<=Math.max(...nextArr,0);i++){if(next.has(i))hwm=i;else break;}
     // Full payload first; if the DB rejects an unknown column (migrations not
     // run yet), retry with the offending column removed instead of failing hard.
-    const full={rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_redemption_amounts:amountsNext,rewards_delivered_level:hwm};
+    const full={rewards_redeemed_levels:nextArr,rewards_redeemed_cash_levels:cashArr,rewards_redemption_amounts:amountsNext,rewards_redemption_dates:datesNext,rewards_delivered_level:hwm};
     let payload=full;let attempt=await supabase.from('profiles').update(payload).eq('id',profileId);
     if(attempt.error){
       const msg=attempt.error.message||'';
       // Drop columns Postgres complains about, one at a time, then retry.
       const drop=(k)=>{const {[k]:_,...rest}=payload;payload=rest;};
-      if(/rewards_redemption_amounts/.test(msg)){drop('rewards_redemption_amounts');attempt=await supabase.from('profiles').update(payload).eq('id',profileId);}
+      if(/rewards_redemption_dates/.test(msg)){drop('rewards_redemption_dates');attempt=await supabase.from('profiles').update(payload).eq('id',profileId);}
+      if(attempt.error&&/rewards_redemption_amounts/.test(attempt.error.message||'')){drop('rewards_redemption_amounts');attempt=await supabase.from('profiles').update(payload).eq('id',profileId);}
       if(attempt.error&&/rewards_redeemed_cash_levels/.test(attempt.error.message||'')){drop('rewards_redeemed_cash_levels');attempt=await supabase.from('profiles').update(payload).eq('id',profileId);}
-      if(attempt.error){toast('Failed: '+(attempt.error.message||'unknown')+(msg.includes('schema cache')?' — run migration 0007/0008?':''),'wn');return;}
+      if(attempt.error){toast('Failed: '+(attempt.error.message||'unknown')+(msg.includes('schema cache')?' — run migration 0007/0008/0009?':''),'wn');return;}
       toast(wasRedeemed?'Unmarked (partial — run pending migrations)':'Marked (partial — run pending migrations)','wn');
     }
     setAllProfiles(prev=>prev.map(x=>x.id===profileId?{...x,...payload}:x));
@@ -3561,6 +3571,9 @@ body,html{margin:0;padding:0;background:#070710;}
           const totalDeliveredValue=enriched.reduce((s,p)=>{
             return s+p._redeemedValue;
           },0);
+          // Total number of individual tier deliveries — powers the Delivered
+          // tab badge. Filters out levels that no longer map to a live reward.
+          const totalDelivered=enriched.reduce((s,p)=>s+Array.from(p._redeemed).filter(l=>l>=1&&l<=p._curLevel&&rewardByLevel[l]).length,0);
           const missingValues=rewards.filter(r=>!r.value||Number(r.value)===0).length;
           return(<>
             {/* HERO STRIP */}
@@ -3599,7 +3612,89 @@ body,html{margin:0;padding:0;background:#070710;}
                 <button onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{padding:'6px 11px',background:'rgba(245,158,11,.15)',border:'1px solid rgba(245,158,11,.4)',color:'#fbbf24',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>Edit rewards →</button>
               </div>
             )}
-            {pending.length===0?(
+            {/* View toggle — Pending list (default) vs full Delivered history. */}
+            <div style={{display:'flex',gap:0,marginBottom:11,background:'var(--card)',borderRadius:'var(--rsm)',border:'1px solid var(--bo)',overflow:'hidden'}}>
+              {[['pending',`📦 Pending (${pending.length})`],['delivered',`✅ Delivered (${totalDelivered})`]].map(([k,l])=>(
+                <button key={k} onClick={()=>setRewardsOwedView(k)} style={{flex:1,padding:'10px 0',background:rewardsOwedView===k?'rgba(139,92,246,.18)':'transparent',border:'none',borderRight:k==='pending'?'1px solid var(--bo)':'none',color:rewardsOwedView===k?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{l}</button>
+              ))}
+            </div>
+            {rewardsOwedView==='delivered'?(()=>{
+              // Flatten every profile's redeemed levels into a single audit-log list.
+              // Sorted by redemption date desc (with tiers missing a timestamp
+              // grouped at the bottom in achieved-order).
+              const rows=[];
+              enriched.forEach(p=>{
+                Array.from(p._redeemed).forEach(l=>{
+                  if(l<1||l>p._curLevel||!rewardByLevel[l])return;
+                  const isCash=p._redeemedCash.has(l);
+                  const storedAmt=p._redeemedAmounts?.[String(l)];
+                  const catalog=rewardByLevel[l].value||0;
+                  const delivered=typeof storedAmt==='number'?storedAmt:(catalog*(isCash?0.8:1));
+                  const redeemedAt=(p.rewards_redemption_dates||{})[String(l)]||null;
+                  const crossedAt=affiliateUnlockDates[p.id]?.[l]||null;
+                  rows.push({profile:p,level:l,reward:rewardByLevel[l],isCash,delivered,redeemedAt,crossedAt});
+                });
+              });
+              rows.sort((a,b)=>{
+                const at=a.redeemedAt?new Date(a.redeemedAt).getTime():0;
+                const bt=b.redeemedAt?new Date(b.redeemedAt).getTime():0;
+                if(at===bt)return a.profile.username?.localeCompare(b.profile.username||'')||a.level-b.level;
+                return bt-at;
+              });
+              const q=deliveredSearch.trim().toLowerCase();
+              const filtered=q?rows.filter(r=>(r.profile.username||'').toLowerCase().includes(q)||(r.profile.tiktok_handles||[]).some(h=>h.toLowerCase().includes(q))||(r.reward.name||'').toLowerCase().includes(q)):rows;
+              const totalDeliveredValue=filtered.reduce((s,r)=>s+r.delivered,0);
+              const cashCount=filtered.filter(r=>r.isCash).length;
+              return(<div className="asec">
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11,flexWrap:'wrap'}}>
+                  <span style={{fontSize:14}}>📜</span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>DELIVERED HISTORY</span>
+                  <span style={{background:'rgba(16,185,129,.18)',color:'var(--gr)',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{filtered.length}</span>
+                  {filtered.length>0&&<span style={{marginLeft:'auto',fontSize:11,color:'var(--tx3)',fontWeight:500}}>Total delivered <strong style={{color:'var(--gr)',fontFamily:'var(--fh)',fontSize:13,marginLeft:4}}>{fmtGBPc(totalDeliveredValue)}</strong> · {cashCount} cash · {filtered.length-cashCount} product</span>}
+                </div>
+                <input className="inp" placeholder="Search affiliate, handle, or reward name…" value={deliveredSearch} onChange={e=>setDeliveredSearch(e.target.value)} style={{marginBottom:10,fontSize:12}}/>
+                {rows.length===0?(
+                  <div style={{padding:'34px 18px',textAlign:'center'}}>
+                    <div style={{fontSize:32,marginBottom:10,opacity:.5}}>📜</div>
+                    <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:4}}>Nothing delivered yet</div>
+                    <div style={{fontSize:11,color:'var(--tx3)'}}>Tier redemptions from the Pending tab will show up here.</div>
+                  </div>
+                ):filtered.length===0?(
+                  <div style={{padding:'22px 12px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No matches for "{deliveredSearch}".</div>
+                ):filtered.map((r,i)=>(
+                  <div key={`${r.profile.id}-${r.level}`} style={{display:'grid',gridTemplateColumns:isDesktop?'34px minmax(150px,1.4fr) minmax(140px,1.6fr) 74px 74px 130px 60px':'34px 1fr 60px',gap:8,padding:'10px 4px',borderBottom:i<filtered.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12}}>
+                    <div style={{width:32,height:32,borderRadius:'50%',background:r.profile.avatar_url?'transparent':avc(r.profile.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',overflow:'hidden',flexShrink:0}}>{r.profile.avatar_url?<img src={r.profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(r.profile.username)}</div>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',fontSize:12.5}}>{r.profile.username}</div>
+                      <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(r.profile.tiktok_handles||[]).slice(0,1).join('')||'—'}</div>
+                    </div>
+                    {isDesktop&&(
+                      <div style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}>
+                        <div style={{width:22,height:22,borderRadius:5,background:r.reward.image?'transparent':'rgba(245,158,11,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,overflow:'hidden',flexShrink:0}}>{r.reward.image?<img src={r.reward.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+                        <span style={{fontFamily:'var(--fh)',fontSize:10.5,color:'var(--pu2)',letterSpacing:.5,flexShrink:0}}>L{r.level}</span>
+                        <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)',fontSize:11.5}}>{r.reward.name}</span>
+                      </div>
+                    )}
+                    {isDesktop&&(
+                      <span style={{fontSize:9,padding:'2px 7px',background:r.isCash?'rgba(245,158,11,.18)':'rgba(16,185,129,.18)',color:r.isCash?'#fbbf24':'var(--gr)',borderRadius:99,fontWeight:800,letterSpacing:.5,fontFamily:'var(--fb)',textAlign:'center'}}>{r.isCash?'CASH':'PRODUCT'}</span>
+                    )}
+                    {isDesktop&&(
+                      <span style={{fontFamily:'var(--fh)',fontSize:13,color:r.isCash?'#fbbf24':'var(--gr)',textAlign:'right'}}>{fmtGBPc(r.delivered)}</span>
+                    )}
+                    {isDesktop&&(
+                      <span style={{fontSize:10.5,color:'var(--tx3)',textAlign:'right',fontFamily:'var(--fb)',letterSpacing:.2}}>{r.redeemedAt?new Date(r.redeemedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}):'—'}</span>
+                    )}
+                    {!isDesktop&&(
+                      <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2}}>
+                        <span style={{fontFamily:'var(--fh)',fontSize:13,color:r.isCash?'#fbbf24':'var(--gr)'}}>{fmtGBPc(r.delivered)}</span>
+                        <span style={{fontSize:8.5,padding:'1px 6px',background:r.isCash?'rgba(245,158,11,.18)':'rgba(16,185,129,.18)',color:r.isCash?'#fbbf24':'var(--gr)',borderRadius:99,fontWeight:800,letterSpacing:.4,fontFamily:'var(--fb)'}}>L{r.level} · {r.isCash?'CASH':'PRODUCT'}</span>
+                      </div>
+                    )}
+                    <button onClick={()=>{if(window.confirm(`Undo redemption of ${r.reward.name} for ${r.profile.username}? Moves it back to pending.`))toggleRewardRedeemed(r.profile.id,r.level);}} title="Undo — move back to pending" style={{padding:'4px 8px',background:'transparent',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:10,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',fontWeight:600,justifySelf:'end'}}>↶ Undo</button>
+                  </div>
+                ))}
+              </div>);
+            })():pending.length===0?(
               !adminProfilesLoaded?(
                 <div className="asec" style={{padding:'24px 18px'}}>
                   {[0,1,2].map(i=>(
