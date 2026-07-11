@@ -692,6 +692,14 @@ export default function App(){
   // mirrors `navDragging` so fast pointermove events don't read a stale closure.
   const bnavRef=React.useRef(null);
   const draggingRef=React.useRef(false);
+  // Load-dedup TTL — every admin loader stamps its last-successful-load time in
+  // here so navTo('admin') can skip refetches within TTL. Kills the sub-tab
+  // switch lag (Overview→Discord was refiring every query).
+  const loadedAtRef=React.useRef({});
+  const LOAD_TTL_MS=60_000;
+  const isFresh=(key)=>{const t=loadedAtRef.current[key];return t&&(Date.now()-t)<LOAD_TTL_MS;};
+  const markFresh=(key)=>{loadedAtRef.current[key]=Date.now();};
+  const invalidate=(...keys)=>{keys.forEach(k=>{delete loadedAtRef.current[k];});};
   const navLastXRef=React.useRef(0);
   const [navDragging,setNavDragging]=useState(false);
   const [navHotIdx,setNavHotIdx]=useState(null);
@@ -823,6 +831,44 @@ export default function App(){
     setRedeemPickProductAmt(v?v.toFixed(2):'');
     setRedeemPickCashAmt(v?(v*0.8).toFixed(2):'');
   },[redeemPick]);
+  // Tab-scoped admin data loads. Only fires the loaders each tab actually
+  // consumes — before this, every navTo('admin') fired every loader (unlock
+  // dates paginated 100k+ events, generatePayouts did N sequential HTTP calls).
+  // Loaders themselves guard with isFresh(), so switching between tabs within
+  // the TTL is a no-op.
+  useEffect(()=>{
+    if(!adminUnlocked||page!=='admin')return;
+    // Overview + Referrals + Affiliates: period-events power the 7d/30d toggles.
+    if(adminTab==='overview'||adminTab==='referrals'||adminTab==='affiliates'){
+      loadAdminPeriodEvents();
+    }
+    // Overview: needs payouts + import history for the "Last import" strip and
+    // Needs Attention inbox. Also runs the payout scan.
+    if(adminTab==='overview'){
+      loadAdminPayouts();
+      loadImportHistory();
+      generatePayouts({silent:true});
+    }
+    // Rewards Owed: needs unlock dates (for due-date chips) + payouts (for
+    // hero owed totals cross-referenced with pending redemptions).
+    if(adminTab==='rewardsowed'){
+      loadAffiliateUnlockDates();
+    }
+    // Payouts tab reuses adminPayouts + adminPeriodEvents (for the accruing
+    // fallback). Kick both if not fresh.
+    if(adminTab==='payouts'){
+      loadAdminPayouts();
+      loadAdminPeriodEvents();
+      generatePayouts({silent:true});
+    }
+    // Imports tab: import history + xp_exclusions.
+    if(adminTab==='imports'){
+      loadImportHistory();
+      loadXpExclusions();
+    }
+    // Discord tab needs nothing beyond allProfiles (already loaded on nav).
+    // Catalog tab reads rewards/milestones/products from existing state.
+  },[adminTab,adminUnlocked,page]);
   // If either admin custom range extends older than the default 60-day window,
   // refetch with the earlier lower bound so the period sums see those events.
   useEffect(()=>{
@@ -1002,7 +1048,8 @@ export default function App(){
   // than querying rewards.value directly, since column-level SELECT on
   // value has been revoked from anon/authenticated. The RPC checks the
   // caller's profiles.is_admin and raises 'Not authorized' otherwise.
-  async function loadAdminRewardValues(){
+  async function loadAdminRewardValues(opts={}){
+    if(!opts.force&&isFresh('adminRewardValues'))return;
     const {data,error}=await supabase.rpc('admin_get_reward_values');
     if(error){
       console.warn('admin_get_reward_values:',error.message);
@@ -1012,6 +1059,7 @@ export default function App(){
     setAdminRewardValuesError(null);
     if(!data)return;
     setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
+    markFresh('adminRewardValues');
   }
   async function loadLeaderboard(){setLbLoading(true);try{const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}finally{setLbLoading(false);}}
   // Aggregates xp_events into a per-month leaderboard. Queries the calendar
@@ -1035,11 +1083,16 @@ export default function App(){
       setMonthlyLeaderboard(monthly);
     }finally{setLbLoading(false);}
   }
-  async function loadAllProfiles(){
+  // Explicit column list — SELECT * was pulling every profile column (including
+  // the admin RPC helpers add-ons we never touch) and is the biggest single
+  // payload on the admin tab. Restricted to what admin views actually consume.
+  const ADMIN_PROFILE_COLS='id,username,xp,avatar_url,tiktok_handles,streak,last_claim,referral_code,referral_earnings,referred_by,created_at,discord_level,rewards_delivered_level,rewards_redeemed_levels,rewards_redeemed_cash_levels,rewards_redemption_amounts,rewards_redemption_dates,total_sales,total_gmv,total_orders,total_commission,total_cancelled,total_cancelled_gmv,total_live_streams';
+  async function loadAllProfiles(opts={}){
+    if(!opts.force&&isFresh('allProfiles'))return;
     try{
-      const {data,error}=await supabase.from('profiles').select('*').order('xp',{ascending:false});
+      const {data,error}=await supabase.from('profiles').select(ADMIN_PROFILE_COLS).order('xp',{ascending:false});
       if(error){console.error('loadAllProfiles:',error.message);toast('Failed to load affiliates — check connection','wn');return;}
-      if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);}
+      if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);markFresh('allProfiles');}
     }finally{setAdminProfilesLoaded(true);}
   }
   async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
@@ -1061,17 +1114,17 @@ export default function App(){
     const {data}=await supabase.from('payouts').select('*').eq('profile_id',profile.id).order('month',{ascending:false});
     if(data)setPayouts(data);
   }
-  async function loadAdminPayouts(){
-    const {data}=await supabase.from('payouts').select('*').order('month',{ascending:false});
-    if(data)setAdminPayouts(data);
+  async function loadAdminPayouts(opts={}){
+    if(!opts.force&&isFresh('adminPayouts'))return;
+    const {data,error}=await supabase.from('payouts').select('*').order('month',{ascending:false});
+    if(error){console.error('loadAdminPayouts:',error.message);toast('Failed to load payouts — check connection','wn');return;}
+    if(data){setAdminPayouts(data);markFresh('adminPayouts');}
   }
   // Loads every xp_event in the system (light columns only) and walks each
   // profile's events chronologically to build a {level: ISO} unlock map.
   // Powers the 'waiting Xd' badges in the admin Rewards Owed tab.
-  async function loadAffiliateUnlockDates(){
-    // Fetch rewards fresh inside this function so we don't depend on the
-    // `rewards` state being already populated — otherwise unlock dates can
-    // come back empty if the admin tab opens before loadRewards finishes.
+  async function loadAffiliateUnlockDates(opts={}){
+    if(!opts.force&&isFresh('unlockDates'))return;
     let rwds=rewards;
     if(!rwds||!rwds.length){
       const {data:rdata}=await supabase.from('rewards').select('id,level,xp_required').order('level');
@@ -1080,12 +1133,11 @@ export default function App(){
     if(!rwds.length)return;
     // Page through xp_events in chunks — Supabase default cap is 1000 rows, but
     // with daily-per-product imports a real account easily hits several thousand.
-    // If we truncated we'd miss the level-cross event and the wrong cross date
-    // (or none at all) would land in the unlock map.
     const all=[];const PAGE=1000;let from=0;
     while(true){
       const {data,error}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true}).range(from,from+PAGE-1);
-      if(error||!data)break;
+      if(error){console.error('loadAffiliateUnlockDates:',error.message);toast('Failed to load unlock history','wn');break;}
+      if(!data)break;
       all.push(...data);
       if(data.length<PAGE)break;
       from+=PAGE;
@@ -1096,19 +1148,26 @@ export default function App(){
     const unlocks={};
     for(const pid of Object.keys(byProfile)){unlocks[pid]=computeUnlockDates(byProfile[pid],rwds);}
     setAffiliateUnlockDates(unlocks);
+    markFresh('unlockDates');
   }
   // Pulls the last 60 days of import xp_events for period-toggle deltas on the
   // admin overview. 60 days covers the 30d window plus the prior 30d for the
   // delta calculation; longer toggles use cumulative `profiles` totals.
-  async function loadAdminPeriodEvents(sinceOverride){
+  async function loadAdminPeriodEvents(sinceOverride,opts={}){
+    // The fresh key encodes the effective 'since' so a custom-range extend
+    // (which passes an older sinceOverride) always re-fetches with the wider window.
     const defaultSince=new Date(Date.now()-60*24*60*60*1000);
     const since=(sinceOverride&&sinceOverride<defaultSince?sinceOverride:defaultSince).toISOString();
-    const {data}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission,cancelled_gmv,cancelled,sales,orders,created_at').eq('reason','import').gte('created_at',since).order('created_at',{ascending:false});
-    if(data)setAdminPeriodEvents(data);
+    const key='periodEvents:'+since.slice(0,10);
+    if(!opts.force&&isFresh(key))return;
+    const {data,error}=await supabase.from('xp_events').select('profile_id,amount,gmv,commission,cancelled_gmv,cancelled,sales,orders,created_at').eq('reason','import').gte('created_at',since).order('created_at',{ascending:false});
+    if(error){console.error('loadAdminPeriodEvents:',error.message);toast('Failed to load period metrics','wn');return;}
+    if(data){setAdminPeriodEvents(data);markFresh(key);}
   }
   async function togglePayout(payoutId,paid){
     await supabase.from('payouts').update({paid,paid_at:paid?new Date().toISOString():null}).eq('id',payoutId);
     toast(paid?'Marked as paid ✓':'Marked as unpaid','ok');
+    invalidate('adminPayouts');
     loadAdminPayouts();if(profile)loadPayouts();
   }
   // Marks a single profile's Discord role as updated to their current level
@@ -1231,40 +1290,57 @@ export default function App(){
     toast(`Marked ${pending.length} as delivered ✓`,'ok');
   }
   async function generatePayouts(opts={}){
-    // Generate payout records for each affiliate for each completed month they
-    // have referral earnings. Idempotent — already-existing (profile,month) rows
-    // are skipped. `silent` skips the toast for the auto-gen-on-load path.
-    const {data:allP}=await supabase.from('profiles').select('id,username,referred_by');
-    const {data:allEvts}=await supabase.from('xp_events').select('profile_id,gmv,cancelled_gmv,created_at,reason').eq('reason','import');
+    // Idempotent — already-existing (profile, month) rows are skipped.
+    // `silent` suppresses toasts for the auto-gen-on-load path.
+    //
+    // Previous shape did one .maybeSingle() per (referrer, month) which is N
+    // sequential HTTP calls. We now fetch every existing payout key upfront
+    // and dedupe locally. Also stamps a session-level fresh flag so navigating
+    // between admin tabs within TTL doesn't re-run the whole scan.
+    if(!opts.force&&isFresh('generatePayouts'))return;
+    const [{data:allP,error:pErr},{data:allEvts,error:eErr},{data:existingPayouts,error:xErr}]=await Promise.all([
+      supabase.from('profiles').select('id,referred_by').not('referred_by','is',null),
+      supabase.from('xp_events').select('profile_id,gmv,cancelled_gmv,created_at').eq('reason','import'),
+      supabase.from('payouts').select('profile_id,month'),
+    ]);
+    if(pErr||eErr||xErr){
+      const msg=pErr?.message||eErr?.message||xErr?.message||'unknown';
+      if(!opts.silent)toast('Failed to scan payouts: '+msg,'wn');
+      return;
+    }
     if(!allP||!allEvts)return;
     // Only bill *completed* months — never the in-progress current month.
     const currentMonth=new Date().toISOString().slice(0,7);
-    // For each profile that has a referrer, group their GMV by month
+    const existingSet=new Set((existingPayouts||[]).map(r=>`${r.profile_id}-${r.month}`));
     const referrers={};
-    allP.forEach(p=>{if(p.referred_by)referrers[p.id]=p.referred_by;});
+    allP.forEach(p=>{referrers[p.id]=p.referred_by;});
     const byReferrerMonth={};
     allEvts.forEach(e=>{
       const refId=referrers[e.profile_id];if(!refId)return;
-      const month=(e.created_at||'').slice(0,7);if(!month)return;
+      const month=(e.created_at||'').slice(0,7);if(!month||month>=currentMonth)return;
       const key=`${refId}-${month}`;
+      if(existingSet.has(key))return; // already-invoiced, skip early
       if(!byReferrerMonth[key])byReferrerMonth[key]={profile_id:refId,month,gmv:0,cancelled_gmv:0};
       byReferrerMonth[key].gmv+=(e.gmv||0);
       byReferrerMonth[key].cancelled_gmv+=(e.cancelled_gmv||0);
     });
-    let created=0;
-    for(const rec of Object.values(byReferrerMonth)){
-      if(rec.month>=currentMonth)continue; // in-progress month — wait till it closes
+    const toInsert=Object.values(byReferrerMonth).map(rec=>{
       const netGMV=Math.max(0,rec.gmv-rec.cancelled_gmv);
       const amount=parseFloat((netGMV*0.01).toFixed(2));
-      if(amount<=0)continue;
-      const {data:existing}=await supabase.from('payouts').select('id').eq('profile_id',rec.profile_id).eq('month',rec.month).maybeSingle();
-      if(!existing){
-        await supabase.from('payouts').insert({profile_id:rec.profile_id,month:rec.month,amount,paid:false});
-        created++;
+      return amount>0?{profile_id:rec.profile_id,month:rec.month,amount,paid:false}:null;
+    }).filter(Boolean);
+    let created=0;
+    if(toInsert.length){
+      const {error:iErr}=await supabase.from('payouts').insert(toInsert);
+      if(iErr){
+        if(!opts.silent)toast('Insert failed: '+iErr.message,'wn');
+        return;
       }
+      created=toInsert.length;
     }
+    markFresh('generatePayouts');
     if(!opts.silent)toast(created>0?`Generated ${created} new payout record${created===1?'':'s'}`:'No new payouts — already up to date','ok');
-    if(created>0||!opts.silent)loadAdminPayouts();
+    if(created>0){invalidate('adminPayouts');loadAdminPayouts();}
   }
   async function loadLastUpdated(){
     try{const {data}=await supabase.from('app_meta').select('*').eq('key','last_import').maybeSingle();if(data)setLastUpdated({time:data.updated_at,user:data.value});}catch(e){}
@@ -1274,8 +1350,24 @@ export default function App(){
     try{await supabase.from('app_meta').upsert({key:'last_import',value:profile?.username||'admin',updated_at:now},{onConflict:'key'});setLastUpdated({time:now,user:profile?.username||'admin'});}catch(e){}
   }
   async function loadProductMappings(){const {data}=await supabase.from('product_mappings').select('*');if(data){const m={};data.forEach(r=>{m[r.import_name.toLowerCase()]=r.product_name;});setProductMappings(m);}}
-  async function loadXpExclusions(){const {data}=await supabase.from('xp_exclusions').select('*');if(data)setXpExclusions(data);}
-  async function loadImportHistory(){const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);if(error){console.error('importHistory error:',error);return;}if(data){const imports=data.filter(e=>e.reason==='import');const byDate={};imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));setImportHistory(hist);}}
+  async function loadXpExclusions(opts={}){
+    if(!opts.force&&isFresh('xpExclusions'))return;
+    const {data,error}=await supabase.from('xp_exclusions').select('*');
+    if(error){console.error('loadXpExclusions:',error.message);return;}
+    if(data){setXpExclusions(data);markFresh('xpExclusions');}
+  }
+  async function loadImportHistory(opts={}){
+    if(!opts.force&&isFresh('importHistory'))return;
+    const {data,error}=await supabase.from('xp_events').select('profile_id,created_at,gmv,commission,amount,note,reason').order('created_at',{ascending:false}).limit(500);
+    if(error){console.error('importHistory error:',error);toast('Failed to load import history','wn');return;}
+    if(!data)return;
+    const imports=data.filter(e=>e.reason==='import');
+    const byDate={};
+    imports.forEach(e=>{const d=(e.created_at||'').slice(0,10);if(!d)return;if(!byDate[d])byDate[d]={date:d,totalGmv:0,totalComm:0,profiles:new Set()};byDate[d].totalGmv+=(e.gmv||0);byDate[d].totalComm+=(e.commission||0);byDate[d].profiles.add(e.profile_id);});
+    const hist=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date)).map(x=>({...x,profileCount:x.profiles.size}));
+    setImportHistory(hist);
+    markFresh('importHistory');
+  }
   async function deleteImportByDate(date){
     const {data:evts}=await supabase.from('xp_events').select('id,profile_id,amount,gmv,commission,cancelled,cancelled_gmv,orders,sales,live_streams').eq('reason','import').gte('created_at',date+'T00:00:00').lte('created_at',date+'T23:59:59');
     if(!evts||!evts.length)return;
@@ -1345,7 +1437,10 @@ export default function App(){
         }
       }
     }
-    toast(`Deleted import for ${date}`,'ok');loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);
+    toast(`Deleted import for ${date}`,'ok');
+    invalidate('allProfiles','importHistory','unlockDates','generatePayouts');
+    Object.keys(loadedAtRef.current).forEach(k=>{if(k.startsWith('periodEvents:'))delete loadedAtRef.current[k];});
+    loadImportHistory();loadAllProfiles();if(profile)loadProfile(profile.id);
   }
 
 
@@ -1471,7 +1566,20 @@ export default function App(){
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
-  function navTo(pg){setPage(pg);const el=document.querySelector('.pages');if(el)el.scrollTop=0;if(pg==='admin'&&adminUnlocked){loadAllProfiles();loadImportHistory();loadAdminPayouts();loadXpExclusions();loadAdminPeriodEvents();loadAdminRewardValues();loadAffiliateUnlockDates();generatePayouts({silent:true});}if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}if(pg==='home'||pg==='referrals')loadReferralStats();}
+  function navTo(pg){
+    setPage(pg);
+    const el=document.querySelector('.pages');if(el)el.scrollTop=0;
+    if(pg==='admin'&&adminUnlocked){
+      // Lightweight admin bootstrap only — the *always-needed* data (profile
+      // roster + reward values). The heavy per-tab loaders (unlock dates,
+      // period events, generatePayouts) fire from the adminTab useEffect
+      // below only when the consuming tab is actually visible.
+      loadAllProfiles();
+      loadAdminRewardValues();
+    }
+    if(pg==='home'||pg==='lb'){loadLeaderboard();loadMonthlyLeaderboard(lbMonth.year,lbMonth.month);}
+    if(pg==='home'||pg==='referrals')loadReferralStats();
+  }
 
   async function admAwardXP(profileId,subtract=false){
     const amount=xpAmounts[profileId]||100;const p=allProfiles.find(x=>x.id===profileId);if(!p)return;
@@ -1480,7 +1588,8 @@ export default function App(){
     await supabase.from('xp_events').insert({profile_id:profileId,amount:subtract?-amount:amount,reason:'manual'});
     toast(subtract?`✅ -${amount} XP → ${p.username}`:`✅ +${amount} XP → ${p.username}`,'ok');
     const newLv=getLv(newXP).level;if(!subtract&&newLv>prevLv)setTimeout(()=>toast(`🎉 ${p.username} hit Level ${newLv}!`,'ok'),400);
-    if(profile?.id===profileId)setProfile({...profile,xp:newXP});loadAllProfiles();
+    if(profile?.id===profileId)setProfile({...profile,xp:newXP});
+    invalidate('allProfiles','unlockDates');loadAllProfiles();
   }
   function openEditAffiliate(p){
     setEditingProfile(p.id);
@@ -1538,7 +1647,7 @@ export default function App(){
     if(error){toast('Save failed: '+error.message,'wn');return;}
     toast(`✅ Updated ${p.username}`,'ok');
     setEditingProfile(null);
-    loadAllProfiles();
+    invalidate('allProfiles');loadAllProfiles();
     if(profile?.id===p.id)loadProfile(p.id);
   }
   async function revertReferral(profileId){
@@ -1574,7 +1683,7 @@ export default function App(){
       }
       toast(`↩ Referral reverted for ${p.username}${totalRefEarnings>0?` · −${fmtGBP(totalRefEarnings)} from referrer`:''}`,'ok');
       setDeleteConfirm(null);
-      loadAllProfiles();
+      invalidate('allProfiles','generatePayouts');loadAllProfiles();
       if(profile?.id===profileId)loadProfile(profileId);
       if(profile?.id===referrer?.id)loadProfile(referrer.id);
     }catch(e){toast('Revert failed: '+(e.message||''),'wn');}
@@ -1595,6 +1704,7 @@ export default function App(){
       if(error){toast('Delete failed: '+error.message,'wn');return;}
       toast(`🗑️ Deleted ${p.username}`,'ok');
       setDeleteConfirm(null);
+      invalidate('allProfiles','unlockDates','generatePayouts');
       loadAllProfiles();loadLeaderboard();
     }catch(e){toast('Delete failed: '+(e.message||''),'wn');}
   }
@@ -1758,6 +1868,11 @@ export default function App(){
     }
     logs.push('─────────────',`Done: ${matched} updated · ${unmatched} unmatched · ${skipped} skipped`);
     setImportLog(logs);toast(`Import done: ${matched} updated`,'ok');
+    // Import touches profiles, xp_events, affiliate_product_stats — bust
+    // every cache so admin views refresh cleanly rather than showing stale
+    // pre-import numbers on tab switch.
+    invalidate('allProfiles','importHistory','unlockDates','generatePayouts');
+    Object.keys(loadedAtRef.current).forEach(k=>{if(k.startsWith('periodEvents:'))delete loadedAtRef.current[k];});
     loadAllProfiles();loadImportHistory();saveLastUpdated();if(profile)loadProfile(profile.id);
   }
 
@@ -3431,7 +3546,22 @@ body,html{margin:0;padding:0;background:#070710;}
           </>);
         })()}
         {/* DISCORD — checklist of pending Discord-role bumps for affiliates that have levelled up since the admin last acknowledged their role. */}
-        {adminTab==='discord'&&(()=>{
+        {adminTab==='discord'&&!adminProfilesLoaded&&(
+          <div className="asec" style={{padding:'24px 18px'}}>
+            {[0,1,2,3].map(i=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:11,padding:'11px 4px',borderBottom:i<3?'1px solid var(--bo)':'none',opacity:.6-i*0.12}}>
+                <div style={{width:34,height:34,borderRadius:'50%',background:'var(--card2)',animation:'ll-pulse 1.4s ease-in-out infinite',flexShrink:0}}/>
+                <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+                  <div style={{height:12,width:'35%',background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                  <div style={{height:9,width:'22%',background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                </div>
+                <div style={{width:80,height:26,background:'var(--card2)',borderRadius:6,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+              </div>
+            ))}
+            <div style={{textAlign:'center',fontSize:11,color:'var(--tx3)',marginTop:14,letterSpacing:.3}}>Loading Discord roles…</div>
+          </div>
+        )}
+        {adminTab==='discord'&&adminProfilesLoaded&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
           // _curLevel = the level displayed on their profile / leaderboard (getLv).
           // Discord roles mirror that convention: someone in the L7 XP band gets
@@ -3867,7 +3997,21 @@ body,html{margin:0;padding:0;background:#070710;}
         {adminTab==='payouts'&&(<div className="asec">
           <div className="asect">Referral Payouts</div>
           <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.5}}>Records auto-generate when you open admin — one row per (affiliate, completed month). Mark each paid after sending the transfer.</div>
-          {adminPayouts.length===0?(()=>{
+          {(!adminProfilesLoaded||!isFresh('adminPayouts'))&&adminPayouts.length===0?(
+            <div style={{padding:'18px 4px'}}>
+              {[0,1,2].map(i=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:11,padding:'10px 4px',borderBottom:i<2?'1px solid var(--bo)':'none',opacity:.6-i*0.15}}>
+                  <div style={{width:32,height:32,borderRadius:'50%',background:'var(--card2)',animation:'ll-pulse 1.4s ease-in-out infinite',flexShrink:0}}/>
+                  <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{height:11,width:'40%',background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                    <div style={{height:8,width:'25%',background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                  </div>
+                  <div style={{width:70,height:20,background:'var(--card2)',borderRadius:5,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                </div>
+              ))}
+              <div style={{textAlign:'center',fontSize:11,color:'var(--tx3)',marginTop:12,letterSpacing:.3}}>Loading payouts…</div>
+            </div>
+          ):adminPayouts.length===0?(()=>{
             // Show whether the current in-progress month is accruing anything so the
             // admin can tell "empty because nothing happened yet" vs "empty because
             // June isn't closed". Sums 1% of net GMV for referred-users' events in
