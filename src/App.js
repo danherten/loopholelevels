@@ -619,6 +619,9 @@ export default function App(){
   // Drives the 'waiting X days' badges in the admin Rewards Owed tab.
   const [affiliateUnlockDates,setAffiliateUnlockDates]=useState({});
   const [adminRewardValuesError,setAdminRewardValuesError]=useState(null);
+  // Explicit loaded flag so the Rewards Owed page can shimmer the £ column
+  // during the initial RPC round-trip instead of flashing '£?' for everyone.
+  const [adminRewardValuesLoaded,setAdminRewardValuesLoaded]=useState(false);
   // Period filter for the Referrals tab. Defaults to 'all' because referral
   // signups are slow-moving — most people want lifetime totals first.
   const [referralPeriod,setReferralPeriod]=useState('all');
@@ -1050,16 +1053,25 @@ export default function App(){
   // caller's profiles.is_admin and raises 'Not authorized' otherwise.
   async function loadAdminRewardValues(opts={}){
     if(!opts.force&&isFresh('adminRewardValues'))return;
-    const {data,error}=await supabase.rpc('admin_get_reward_values');
-    if(error){
-      console.warn('admin_get_reward_values:',error.message);
-      setAdminRewardValuesError(error.message||'Could not load reward £ values — set profiles.is_admin = TRUE or run migration 0005.');
-      return;
-    }
-    setAdminRewardValuesError(null);
-    if(!data)return;
-    setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
-    markFresh('adminRewardValues');
+    try{
+      const {data,error}=await supabase.rpc('admin_get_reward_values');
+      if(error){
+        console.warn('admin_get_reward_values:',error.message);
+        setAdminRewardValuesError(error.message||'Could not load reward £ values — set profiles.is_admin = TRUE or run migration 0005.');
+        return;
+      }
+      // Empty response = RPC ran without error but returned zero rows. Usually
+      // means is_admin isn't set for this user or migration 0005 hasn't been
+      // applied yet — surface it explicitly instead of silently marking fresh
+      // (which would prevent every retry) and leaving £? everywhere.
+      if(!data||!data.length){
+        setAdminRewardValuesError('admin_get_reward_values returned no rows — confirm profiles.is_admin = TRUE and rewards.value has data.');
+        return;
+      }
+      setAdminRewardValuesError(null);
+      setRewards(prev=>prev.map(r=>{const m=data.find(d=>d.id===r.id);return m?{...r,value:m.value}:r;}));
+      markFresh('adminRewardValues');
+    }finally{setAdminRewardValuesLoaded(true);}
   }
   async function loadLeaderboard(){setLbLoading(true);try{const {data}=await supabase.from('profiles').select('*').order('xp',{ascending:false}).limit(50);if(data)setLeaderboard(data);}finally{setLbLoading(false);}}
   // Aggregates xp_events into a per-month leaderboard. Queries the calendar
@@ -3871,9 +3883,16 @@ body,html{margin:0;padding:0;background:#070710;}
                         <div style={{fontSize:10,color:'var(--tx3)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(p.tiktok_handles||[]).slice(0,2).join(' · ')||'—'}</div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
-                        <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#f59e0b',letterSpacing:.3,lineHeight:1}}>{fmtGBPc(p._owedValue)}</div>
-                        <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:2,fontWeight:700}}>owed</div>
-                        {p._owedValue>0&&<div style={{fontSize:10,color:'#fbbf24',opacity:.75,marginTop:3,letterSpacing:.2,fontWeight:600}}>or {fmtGBPc(p._owedValue*0.8)} cash</div>}
+                        {!adminRewardValuesLoaded&&p._owedValue===0?(
+                          <>
+                            <div style={{display:'inline-block',width:70,height:18,background:'var(--card2)',borderRadius:5,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                            <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:4,fontWeight:700}}>owed</div>
+                          </>
+                        ):(<>
+                          <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#f59e0b',letterSpacing:.3,lineHeight:1}}>{fmtGBPc(p._owedValue)}</div>
+                          <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:2,fontWeight:700}}>owed</div>
+                          {p._owedValue>0&&<div style={{fontSize:10,color:'#fbbf24',opacity:.75,marginTop:3,letterSpacing:.2,fontWeight:600}}>or {fmtGBPc(p._owedValue*0.8)} cash</div>}
+                        </>)}
                       </div>
                     </div>
                     {/* Owed-tiers list — each row has its own ✓ Redeem button so
@@ -3897,8 +3916,15 @@ body,html{margin:0;padding:0;background:#070710;}
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
                             {label&&<span title={r.crossedAt?`Crossed ${new Date(r.crossedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`:''} style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)',cursor:'help'}}>{label}</span>}
                             <span style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1,flexShrink:0,minWidth:78,textAlign:'right'}}>
-                              <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',lineHeight:1}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
-                              {r.value>0&&<span style={{fontSize:8.5,color:'var(--tx3)',letterSpacing:.3,fontWeight:600,lineHeight:1}}>or {fmtGBPc(r.value*0.8)} cash</span>}
+                              {!adminRewardValuesLoaded&&!(r.value>0)?(
+                                <>
+                                  <span style={{display:'inline-block',width:42,height:12,background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                                  <span style={{display:'inline-block',width:52,height:8,marginTop:3,background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                                </>
+                              ):(<>
+                                <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',lineHeight:1}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                                {r.value>0&&<span style={{fontSize:8.5,color:'var(--tx3)',letterSpacing:.3,fontWeight:600,lineHeight:1}}>or {fmtGBPc(r.value*0.8)} cash</span>}
+                              </>)}
                             </span>
                             <button onClick={()=>setRedeemPick({profileId:p.id,level:r.level,name:r.name,value:r.value,image:r.image})} title="Mark this tier as redeemed — choose product or cash" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
                           </div>
