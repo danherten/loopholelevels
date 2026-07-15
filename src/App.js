@@ -515,6 +515,8 @@ export default function App(){
   const [showReward,setShowReward]=useState(null);
   // Active redeem-pick prompt — null means closed. Shape: {profileId, level, name, value, image}.
   const [redeemPick,setRedeemPick]=useState(null);
+  // Bulk 'Redeem all owed' prompt — Shape: {profileId, username, tiers: [{level,name,value,image}]}.
+  const [redeemAllPick,setRedeemAllPick]=useState(null);
   // Editable delivered amounts inside the redeem modal. Reset each time
   // redeemPick opens via the effect below so previous typing doesn't leak in.
   const [redeemPickProductAmt,setRedeemPickProductAmt]=useState('');
@@ -3982,7 +3984,7 @@ body,html{margin:0;padding:0;background:#070710;}
                     })()}
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
                       <div style={{fontSize:10,color:'var(--tx3)',flex:1}}>Achieved: L{p._curLevel} · Redeemed: {p._redeemed.size}/{p._curLevel}</div>
-                      <button onClick={()=>markRewardsDeliveredThrough(p.id,p._curLevel)} style={{padding:'7px 12px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Redeem all owed</button>
+                      <button onClick={()=>setRedeemAllPick({profileId:p.id,username:p.username,tiers:p._owedLevels.map(r=>({level:r.level,name:r.name,value:r.value,image:r.image}))})} style={{padding:'7px 12px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Redeem all owed</button>
                     </div>
                   </div>
                 ))}
@@ -4431,6 +4433,61 @@ body,html{margin:0;padding:0;background:#070710;}
               );
             })}
           </div>
+        </div>
+      </div>);
+    })()}
+    {/* REDEEM-ALL PICK — bulk version of the per-tier redeem modal. Applies
+        the same product/cash choice to every owed tier at once. Amounts stay at
+        the catalog default per tier (admin can edit individually if needed). */}
+    {redeemAllPick&&(()=>{
+      const totalProduct=redeemAllPick.tiers.reduce((s,t)=>s+(Number(t.value)||0),0);
+      const totalCash=totalProduct*0.8;
+      const confirmAll=async(mode)=>{
+        // Fire sequentially — toggleRewardRedeemed mutates state that the next
+        // call reads (redeemedLevelsFor). Parallel would race.
+        for(const t of redeemAllPick.tiers){
+          const amt=mode==='cash'?(Number(t.value)||0)*0.8:(Number(t.value)||0);
+          await toggleRewardRedeemed(redeemAllPick.profileId,t.level,mode,amt);
+        }
+        setRedeemAllPick(null);
+      };
+      return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setRedeemAllPick(null)}>
+        <div className="sheet" style={{maxWidth:420}}>
+          <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:12}}>
+            <span style={{fontSize:26}}>📦</span>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.4,textTransform:'uppercase',fontWeight:600}}>Bulk redeem</div>
+              <div style={{fontSize:15,fontWeight:700,color:'var(--tx)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{redeemAllPick.username} · {redeemAllPick.tiers.length} tier{redeemAllPick.tiers.length===1?'':'s'}</div>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:'var(--tx2)',marginBottom:11,lineHeight:1.5}}>How was every owed tier delivered? Same choice applies to all — amounts default to the catalog value per tier.</div>
+          {/* Tier preview list so admin can see what's included before confirming. */}
+          <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:12,padding:'8px 10px',background:'var(--card2)',borderRadius:8,maxHeight:140,overflowY:'auto'}}>
+            {redeemAllPick.tiers.map(t=>(
+              <div key={t.level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
+                <span style={{fontFamily:'var(--fh)',fontSize:10,color:'var(--pu2)',letterSpacing:.5,minWidth:22}}>L{t.level}</span>
+                <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{t.name||`Level ${t.level}`}</span>
+                <span style={{fontFamily:'var(--fh)',fontSize:11,color:'#fbbf24',flexShrink:0}}>{t.value>0?fmtGBP(t.value):'£?'}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:11}}>
+            <button onClick={()=>confirmAll('product')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.4)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
+              <span style={{fontSize:22,flexShrink:0}}>📦</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--gr)'}}>All as Product</div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(totalProduct)} delivered total</div>
+              </div>
+            </button>
+            <button onClick={()=>confirmAll('cash')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.35)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
+              <span style={{fontSize:22,flexShrink:0}}>💷</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:'#fbbf24'}}>All as Cash <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(totalCash)} delivered total</div>
+              </div>
+            </button>
+          </div>
+          <button onClick={()=>setRedeemAllPick(null)} style={{width:'100%',padding:9,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx2)',fontSize:12,cursor:'pointer',fontFamily:'var(--fb)'}}>Cancel</button>
         </div>
       </div>);
     })()}
