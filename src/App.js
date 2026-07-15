@@ -841,37 +841,42 @@ export default function App(){
   // the TTL is a no-op.
   useEffect(()=>{
     if(!adminUnlocked||page!=='admin')return;
-    // Overview + Referrals + Affiliates: period-events power the 7d/30d toggles.
+    // Fast loaders fire immediately. Heavy ones (generatePayouts, unlock
+    // dates — both do big xp_events scans that saturate the connection pool)
+    // defer 300ms so the small RPCs / SELECTs on the current tab settle
+    // first. This is what unblocks the reward-values RPC that was queuing
+    // behind the heavy scans and taking up to a minute.
     if(adminTab==='overview'||adminTab==='referrals'||adminTab==='affiliates'){
       loadAdminPeriodEvents();
     }
-    // Overview: needs payouts + import history for the "Last import" strip and
-    // Needs Attention inbox. Also runs the payout scan.
     if(adminTab==='overview'){
       loadAdminPayouts();
       loadImportHistory();
-      generatePayouts({silent:true});
     }
-    // Rewards Owed: needs unlock dates (for due-date chips) + payouts (for
-    // hero owed totals cross-referenced with pending redemptions).
-    if(adminTab==='rewardsowed'){
-      loadAffiliateUnlockDates();
-    }
-    // Payouts tab reuses adminPayouts + adminPeriodEvents (for the accruing
-    // fallback). Kick both if not fresh.
     if(adminTab==='payouts'){
       loadAdminPayouts();
       loadAdminPeriodEvents();
-      generatePayouts({silent:true});
     }
-    // Imports tab: import history + xp_exclusions.
     if(adminTab==='imports'){
       loadImportHistory();
       loadXpExclusions();
     }
-    // Discord tab needs nothing beyond allProfiles (already loaded on nav).
-    // Catalog tab reads rewards/milestones/products from existing state.
+    // Deferred heavy tier — these fire ~300ms later so the small queries
+    // above win the initial DB connection slots.
+    const deferHeavy=setTimeout(()=>{
+      if(adminTab==='overview'||adminTab==='payouts'){generatePayouts({silent:true});}
+      if(adminTab==='rewardsowed'){loadAffiliateUnlockDates();}
+    },300);
+    return()=>clearTimeout(deferHeavy);
   },[adminTab,adminUnlocked,page]);
+  // When allProfiles hydrates and we're on Rewards Owed, kick unlock dates —
+  // the loader depends on allProfiles to know WHICH profiles need events
+  // fetched, so it bails early on cold visits until this signals.
+  useEffect(()=>{
+    if(!adminUnlocked||page!=='admin'||adminTab!=='rewardsowed')return;
+    if(!allProfiles.length)return;
+    loadAffiliateUnlockDates();
+  },[allProfiles.length,adminTab,adminUnlocked,page]);
   // If either admin custom range extends older than the default 60-day window,
   // refetch with the earlier lower bound so the period sums see those events.
   useEffect(()=>{
@@ -1143,18 +1148,32 @@ export default function App(){
       rwds=rdata||[];
     }
     if(!rwds.length)return;
-    // Page through xp_events in chunks — Supabase default cap is 1000 rows, but
-    // with daily-per-product imports a real account easily hits several thousand.
-    const all=[];const PAGE=1000;let from=0;
-    while(true){
-      const {data,error}=await supabase.from('xp_events').select('profile_id,amount,created_at').order('created_at',{ascending:true}).range(from,from+PAGE-1);
-      if(error){console.error('loadAffiliateUnlockDates:',error.message);toast('Failed to load unlock history','wn');break;}
-      if(!data)break;
-      all.push(...data);
-      if(data.length<PAGE)break;
-      from+=PAGE;
-      if(from>200000)break; // hard ceiling — catastrophic safety stop
+    // Only fetch events for profiles who actually have unredeemed levels — the
+    // Rewards Owed page is the sole consumer and it only reads unlock dates for
+    // those. Slashes the query from "every event in the system" (previously
+    // 100k+ rows across many sequential pages) to a targeted subset. If
+    // allProfiles hasn't hydrated yet, fall back to a paginated full-table
+    // scan so we don't lose data on a cold visit.
+    // If allProfiles hasn't hydrated yet, bail without markFresh so the
+    // adminTab useEffect re-runs us once it does. Otherwise we'd cache an
+    // empty unlock map forever until the TTL expires.
+    if(!allProfiles.length)return;
+    const owedProfileIds=allProfiles.filter(p=>{
+      const ach=achievedLevel(p.xp,rwds);
+      const red=redeemedLevelsFor(p);
+      for(let l=1;l<=ach;l++)if(!red.has(l))return true;
+      return false;
+    }).map(p=>p.id);
+    const all=[];
+    if(owedProfileIds.length){
+      // Targeted path: just events belonging to owed profiles. Slashes the
+      // query from "every event in the system" to a targeted subset.
+      const {data,error}=await supabase.from('xp_events').select('profile_id,amount,created_at').in('profile_id',owedProfileIds).order('created_at',{ascending:true});
+      if(error){console.error('loadAffiliateUnlockDates:',error.message);toast('Failed to load unlock history','wn');return;}
+      if(data)all.push(...data);
     }
+    // Fall through with empty `all` when no owed profiles — still markFresh so
+    // we don't refire on every render.
     const byProfile={};
     all.forEach(e=>{if(!byProfile[e.profile_id])byProfile[e.profile_id]=[];byProfile[e.profile_id].push(e);});
     const unlocks={};
@@ -1310,19 +1329,30 @@ export default function App(){
     // and dedupe locally. Also stamps a session-level fresh flag so navigating
     // between admin tabs within TTL doesn't re-run the whole scan.
     if(!opts.force&&isFresh('generatePayouts'))return;
-    const [{data:allP,error:pErr},{data:allEvts,error:eErr},{data:existingPayouts,error:xErr}]=await Promise.all([
-      supabase.from('profiles').select('id,referred_by').not('referred_by','is',null),
-      supabase.from('xp_events').select('profile_id,gmv,cancelled_gmv,created_at').eq('reason','import'),
+    // Two-step to keep the events query small: fetch referrer'd profiles
+    // first, then only fetch xp_events belonging to *those* profiles.
+    // Previous shape pulled every import event in the system.
+    const {data:allP,error:pErr}=await supabase.from('profiles').select('id,referred_by').not('referred_by','is',null);
+    if(pErr){
+      if(!opts.silent)toast('Failed to scan payouts: '+pErr.message,'wn');
+      return;
+    }
+    if(!allP||!allP.length){markFresh('generatePayouts');return;}
+    const referreeIds=allP.map(p=>p.id);
+    const currentMonth=new Date().toISOString().slice(0,7);
+    const currentMonthStart=currentMonth+'-01T00:00:00';
+    const [{data:allEvts,error:eErr},{data:existingPayouts,error:xErr}]=await Promise.all([
+      // Only referrer'd-profile events, only up to the start of the current
+      // month (in-progress months can't produce payouts yet).
+      supabase.from('xp_events').select('profile_id,gmv,cancelled_gmv,created_at').eq('reason','import').in('profile_id',referreeIds).lt('created_at',currentMonthStart),
       supabase.from('payouts').select('profile_id,month'),
     ]);
-    if(pErr||eErr||xErr){
-      const msg=pErr?.message||eErr?.message||xErr?.message||'unknown';
+    if(eErr||xErr){
+      const msg=eErr?.message||xErr?.message||'unknown';
       if(!opts.silent)toast('Failed to scan payouts: '+msg,'wn');
       return;
     }
-    if(!allP||!allEvts)return;
-    // Only bill *completed* months — never the in-progress current month.
-    const currentMonth=new Date().toISOString().slice(0,7);
+    if(!allEvts)return;
     const existingSet=new Set((existingPayouts||[]).map(r=>`${r.profile_id}-${r.month}`));
     const referrers={};
     allP.forEach(p=>{referrers[p.id]=p.referred_by;});
