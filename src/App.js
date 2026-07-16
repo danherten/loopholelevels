@@ -2178,190 +2178,186 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
     <div className="pages" style={isDesktop?{flex:1,overflowY:'auto',paddingBottom:0,minWidth:0}:{}}>
       <div style={isDesktop?{maxWidth:page==='admin'?1320:700,margin:'0 auto'}:{}}>
       {/* HOME */}
-      {page==='home'&&(<div className="pg">
-        {/* DATE RANGE FILTER */}
-        <div style={{display:'flex',gap:5,marginBottom:13,flexWrap:'wrap',alignItems:'center'}}>
-          {[['yesterday','Yesterday'],['7d','7D'],['30d','30D'],['month','Month'],['all','All']].map(([val,label])=>(
-            <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>{label}</button>
-          ))}
-          {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(201,162,75,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
-          <button onClick={()=>setDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange==='custom'?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
-          {dateRange==='custom'&&(<>
-            <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
-            <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
-            <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
-          </>)}
-        </div>
-
-        {/* HERO GMV CARD */}
-        <div style={{borderRadius:16,overflow:'hidden',marginBottom:10}}>
-          <div style={{height:3,background:'linear-gradient(90deg,#6b9b7d,#8ba4a8,#c9a24b)'}}/>
-          <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
-            <button onClick={()=>setGrossOpen(!grossOpen)} style={{display:'block',background:'none',border:'none',padding:0,width:'100%',textAlign:'left',cursor:'pointer',color:'inherit',font:'inherit'}}>
-              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500,display:'flex',alignItems:'center',gap:6}}>
-                <span>Net GMV</span>
-                <span style={{fontSize:9,opacity:.55,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
+      {page==='home'&&(()=>{
+        const now=new Date();const hour=now.getHours();
+        const greeting=hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+        const dateStr=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+        const rankIx=leaderboard.findIndex(u=>u.id===profile?.id);
+        const rank=rankIx>=0?rankIx+1:null;
+        const rangeLabel=dateRange==='yesterday'?'Yesterday':dateRange==='7d'?'Last 7 days':dateRange==='30d'?'Last 30 days':dateRange==='month'?new Date(selectedMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}):dateRange==='custom'&&customStart&&customEnd?`${new Date(customStart).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} — ${new Date(customEnd).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`:'All time';
+        const deltaPct=(cur,prev)=>{if(!isFiltered||!prev)return null;const d=cur-prev;const pct=prev===0?0:(d/Math.abs(prev))*100;return{d,pct,up:d>0,dn:d<0};};
+        const netDelta=deltaPct(filteredNet,prevNet);
+        const commDelta=deltaPct(filteredComm,prevComm);
+        const ordersDelta=deltaPct(filteredOrders,prevOrders);
+        const aovDelta=deltaPct(filteredAOV,prevAOV);
+        const unitsDelta=deltaPct(filteredUnits,prevUnits);
+        const Trend=({d,fmt})=>{if(!d)return null;return(<span style={{fontSize:11,color:d.up?'var(--gr)':d.dn?'var(--re)':'var(--tx3)',fontWeight:500,marginLeft:6,fontVariantNumeric:'tabular-nums'}}>{d.up?'↗':d.dn?'↘':'→'} {fmt?fmt(Math.abs(d.d)):Math.abs(Math.round(d.pct))+'%'}</span>);};
+        return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
+          {/* GREETING */}
+          <div style={{marginBottom:22,paddingBottom:18,borderBottom:'1px solid var(--bo)'}}>
+            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?26:22,fontWeight:700,letterSpacing:-0.5,color:'var(--tx)',lineHeight:1.15}}>{greeting}, {profile.username||'creator'}</div>
+                <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{dateStr}</div>
               </div>
-              <div style={{display:'flex',alignItems:'baseline',gap:8,flexWrap:'wrap',marginBottom:grossOpen?12:20}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:filteredNet<0?'var(--re)':'#fff',lineHeight:1}}>{filteredNet<0?'−'+fmtGBP(-filteredNet):fmtGBP(filteredNet)}</div>
-                {isFiltered&&renderDelta(filteredNet,prevNet,fmtGBP)}
+              <div style={{display:'flex',alignItems:'center',gap:16,flexShrink:0}}>
+                {profile.streak>0&&<div onClick={()=>setShowDaily(true)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:15}}>🔥</span>
+                  <div style={{lineHeight:1}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{profile.streak}</div>
+                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Streak</div>
+                  </div>
+                </div>}
+                {rank&&<div onClick={()=>navTo('lb')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6,borderLeft:'1px solid var(--bo)',paddingLeft:16}}>
+                  <div style={{lineHeight:1}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>#{rank}</div>
+                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Rank</div>
+                  </div>
+                </div>}
+                <div onClick={()=>navTo('level')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6,borderLeft:'1px solid var(--bo)',paddingLeft:16}}>
+                  <div style={{lineHeight:1}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--go)',fontVariantNumeric:'tabular-nums'}}>{lv.level}</div>
+                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Level</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PRIMARY METRIC — Net GMV */}
+          <div style={{marginBottom:26}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500}}>Net GMV</div>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:.3}}>{rangeLabel}</div>
+            </div>
+            <button onClick={()=>setGrossOpen(!grossOpen)} style={{display:'block',background:'none',border:'none',padding:0,width:'100%',textAlign:'left',cursor:'pointer',color:'inherit',font:'inherit'}}>
+              <div style={{display:'flex',alignItems:'baseline',gap:12,flexWrap:'wrap'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?56:44,fontWeight:700,letterSpacing:-1.5,color:filteredNet<0?'var(--re)':'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{filteredNet<0?'−'+fmtGBP(-filteredNet):fmtGBP(filteredNet)}</div>
+                {netDelta&&<div style={{fontSize:13,color:netDelta.up?'var(--gr)':netDelta.dn?'var(--re)':'var(--tx3)',fontWeight:600,fontVariantNumeric:'tabular-nums'}}>{netDelta.up?'↗':netDelta.dn?'↘':'→'} {fmtGBP(Math.abs(netDelta.d))}</div>}
+                <span style={{fontSize:11,color:'var(--tx3)',marginLeft:'auto',opacity:.6,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
               </div>
             </button>
-            {grossOpen&&(()=>{
-              const grossGMV=filteredGMVGross;
-              const retGMV=filteredCancelledGMV;
-              const retUnits=filteredCancelled;
-              return(
-                <div style={{background:'var(--bg2)',border:'1px solid var(--bo)',borderRadius:10,padding:'4px 12px',marginBottom:18,fontSize:12}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0'}}>
-                    <span style={{color:'var(--tx2)'}}>Gross GMV</span>
-                    <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,color:'var(--gr)'}}>{fmtGBP(grossGMV)}</span>{isFiltered&&renderDelta(filteredGMVGross,prevGMVGross,fmtGBP)}</span>
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderTop:'1px solid var(--bo)'}}>
-                    <span style={{color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {retUnits} unit{retUnits===1?'':'s'}</span></span>
-                    <span style={{display:'flex',alignItems:'center',gap:6}}><span style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,color:'var(--re)'}}>−{fmtGBP(retGMV)}</span>{isFiltered&&renderDelta(filteredCancelledGMV,prevCancelledGMV,fmtGBP,true)}</span>
-                  </div>
-                  <div style={{display:'flex',gap:6,padding:'8px 0 6px',borderTop:'1px solid var(--bo)',color:'var(--tx3)',fontSize:10.5,lineHeight:1.45}}>
-                    <span style={{flexShrink:0}}>ℹ️</span>
-                    <span>Returns are counted on the day the parcel ships back to us — not the day of the original sale. A short window can show returns from earlier sales, so net GMV can dip below gross{retGMV>grossGMV?' — even go negative':''}.</span>
-                  </div>
+            {grossOpen&&(
+              <div style={{marginTop:14,padding:'14px 16px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:10}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingBottom:10,borderBottom:'1px solid var(--bo)'}}>
+                  <span style={{fontSize:12,color:'var(--tx2)'}}>Gross GMV</span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:600,color:'var(--gr)',fontVariantNumeric:'tabular-nums'}}>{fmtGBP(filteredGMVGross)}</span>
+                </div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--bo)'}}>
+                  <span style={{fontSize:12,color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {filteredCancelled} unit{filteredCancelled===1?'':'s'}</span></span>
+                  <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:600,color:'var(--re)',fontVariantNumeric:'tabular-nums'}}>−{fmtGBP(filteredCancelledGMV)}</span>
+                </div>
+                <div style={{fontSize:11,color:'var(--tx3)',marginTop:10,lineHeight:1.5}}>Returns are counted on the day the parcel ships back — not the original sale date. Net GMV can dip below gross in short windows.</div>
+              </div>
+            )}
+          </div>
+
+          {/* DATE FILTER — subtle text-link row, not chunky buttons */}
+          <div style={{display:'flex',gap:0,marginBottom:24,borderBottom:'1px solid var(--bo)',flexWrap:'wrap'}}>
+            {[['yesterday','Yesterday'],['7d','7 days'],['30d','30 days'],['month','Month'],['all','All time'],['custom','Custom']].map(([val,label])=>(
+              <button key={val} onClick={()=>setDateRange(val)} style={{padding:'8px 14px',background:'none',border:'none',borderBottom:`2px solid ${dateRange===val?'var(--pu)':'transparent'}`,color:dateRange===val?'var(--tx)':'var(--tx3)',fontSize:12,fontWeight:dateRange===val?600:500,cursor:'pointer',transition:'all .15s',marginBottom:-1,letterSpacing:.15}}>{label}</button>
+            ))}
+            {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'5px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',marginLeft:10,alignSelf:'center'}}/>}
+            {dateRange==='custom'&&(<>
+              <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'5px 8px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',marginLeft:10,alignSelf:'center'}}/>
+              <span style={{fontSize:11,color:'var(--tx3)',alignSelf:'center',padding:'0 6px'}}>→</span>
+              <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',alignSelf:'center'}}/>
+            </>)}
+          </div>
+
+          {/* KPI GRID — 4 clean cells, single border container */}
+          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4,1fr)':'repeat(2,1fr)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',marginBottom:26,background:'var(--card)'}}>
+            {[
+              {label:'Commission',val:fmtGBP(filteredComm),d:commDelta,fmt:fmtGBP},
+              {label:'Orders',val:filteredOrders.toLocaleString(),d:ordersDelta,fmt:v=>Math.round(v).toLocaleString()},
+              {label:'Avg order value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',d:aovDelta,fmt:fmtGBP},
+              {label:'Units sold',val:filteredUnits.toLocaleString(),d:unitsDelta,fmt:v=>Math.round(v).toLocaleString()},
+            ].map((s,i)=>(
+              <div key={i} style={{padding:'18px 18px 20px',borderRight:isDesktop?(i<3?'1px solid var(--bo)':'none'):(i%2===0?'1px solid var(--bo)':'none'),borderBottom:isDesktop?'none':(i<2?'1px solid var(--bo)':'none')}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500,marginBottom:8}}>{s.label}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:22,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{s.val}</div>
+                <div style={{marginTop:8,minHeight:14}}>
+                  <Trend d={s.d} fmt={s.fmt}/>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CHART */}
+          <div style={{marginBottom:26}}>
+            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>GMV & Commission</div>
+            <MiniChart xpEvents={filteredEvents} />
+          </div>
+
+          {/* TOP PRODUCTS */}
+          <div style={{marginBottom:26}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500}}>Top products</div>
+              <button onClick={()=>navTo('products')} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:11,cursor:'pointer',padding:0,letterSpacing:.15}}>View all →</button>
+            </div>
+            {(()=>{const list=isFiltered?filteredProducts.slice(0,3):topProducts;
+              if(list.length===0)return(
+                <div style={{padding:'24px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,textAlign:'center'}}>
+                  <div style={{fontSize:13,color:'var(--tx2)',marginBottom:4,fontWeight:500}}>No product data yet</div>
+                  <div style={{fontSize:11,color:'var(--tx3)'}}>Your top products will appear here after your first import.</div>
                 </div>
               );
+              return(<div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>{list.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 16px',borderBottom:i<list.length-1?'1px solid var(--bo)':'none'}}>
+                  {prod?.image_url?<img src={prod.image_url} alt="" style={{width:44,height:44,borderRadius:8,objectFit:'cover',flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:8,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,color:'var(--tx3)'}}>📦</div>}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13.5,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{tp.product_name||'Unknown product'}</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>{(tp.sales||0).toLocaleString()} unit{(tp.sales||0)===1?'':'s'} sold</div>
+                  </div>
+                  <div style={{textAlign:'right',flexShrink:0}}>
+                    <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(tp.gmv||0)}</div>
+                    <div style={{fontSize:10.5,color:'var(--go)',marginTop:4,fontWeight:500,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(tp.commission||0)} comm</div>
+                  </div>
+                </div>
+              );})}</div>);
             })()}
-            <div style={{display:'flex',gap:0}}>
-              {[
-                {label:'Commission',val:fmtGBP(filteredComm),color:'#c9a24b',bg:'rgba(201,162,75,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
-                {label:'Orders',val:filteredOrders.toLocaleString(),color:'#8ba4a8',bg:'rgba(139,164,168,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
-                {label:'Units Sold',val:filteredUnits.toLocaleString(),color:'#c9a24b',bg:'rgba(201,162,75,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
-              ].map((s,i)=>(
-                <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
-                  {s.chip&&<div style={{marginTop:5}}>{s.chip}</div>}
-                  <div style={{fontSize:9,color:'var(--tx3)',marginTop:4,textTransform:'uppercase',letterSpacing:.8,fontWeight:500}}>{s.label}</div>
+          </div>
+
+          {/* REFERRAL EARNINGS — subtle inline row */}
+          {(()=>{const ltNet=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));const earn=parseFloat((ltNet*0.01).toFixed(2));return earn>0&&(
+            <div onClick={()=>navTo('referrals')} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 16px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',marginBottom:26}}>
+              <div>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500,marginBottom:4}}>Referral earnings</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:20,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{fmtGBP(earn)}</div>
+              </div>
+              <span style={{fontSize:14,color:'var(--tx3)'}}>→</span>
+            </div>
+          );})()}
+
+          {/* NEXT REWARD — editorial preview at bottom, not the hero */}
+          {(()=>{
+            const nextRw=rewards.find(r=>!profile||profile.xp<r.xp_required);
+            const prevRw=nextRw?rewards[rewards.indexOf(nextRw)-1]:rewards[rewards.length-1];
+            const startXP=prevRw?prevRw.xp_required:0;
+            const endXP=nextRw?nextRw.xp_required:lv.max;
+            const prog=nextRw?Math.min(100,Math.round(((profile.xp-startXP)/(endXP-startXP))*100)):100;
+            const r=nextRw||rewards[rewards.length-1];
+            if(!r)return null;
+            return(
+              <div onClick={()=>navTo('rewards')} style={{display:'flex',alignItems:'center',gap:16,padding:'16px 18px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',marginBottom:20}}>
+                <div style={{width:56,height:56,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--bo)'}}>
+                  {r?.image_url?<img src={r.image_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* QUICK STATS STRIP */}
-        <div style={{display:'flex',gap:6,marginBottom:10}}>
-          <div onClick={()=>setShowDaily(true)} style={{flex:1,background:'rgba(201,162,75,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
-            <span style={{fontSize:16}}>🔥</span>
-            <div>
-              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--go)',lineHeight:1}}>{profile.streak||0}</div>
-              <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>Day Streak</div>
-            </div>
-          </div>
-          <div onClick={()=>navTo('level')} style={{flex:1,background:'rgba(201,162,75,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
-            <span style={{fontSize:16}}>⚡</span>
-            <div>
-              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--pu2)',lineHeight:1}}>{(profile.xp||0).toLocaleString()}</div>
-              <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>XP · Level {lv.level}</div>
-            </div>
-          </div>
-          <div onClick={()=>navTo('lb')} style={{flex:1,background:'rgba(139,164,168,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
-            <span style={{fontSize:16}}>🏆</span>
-            <div>
-              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#8ba4a8',lineHeight:1}}>#{leaderboard.findIndex(u=>u.id===profile?.id)+1||'—'}</div>
-              <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>Rank</div>
-            </div>
-          </div>
-        </div>
-
-        {/* METRICS GRID */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-          {[
-            {label:'Avg Comm / Live',val:filteredLiveStreams>0?fmtGBP(filteredComm/filteredLiveStreams):'£0.00',icon:'📡',accent:'#6b9b7d',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
-            {label:'Avg Order Value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',icon:'🛒',accent:'#6b9b7d',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
-          ].map((s,i)=>(
-            <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
-              <div style={{width:3,background:s.accent,flexShrink:0}}/>
-              <div style={{padding:'13px 12px',flex:1}}>
-                <div style={{fontSize:15,marginBottom:5}}>{s.icon}</div>
-                <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap'}}><div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:.5,lineHeight:1}}>{s.val}</div>{s.chip}</div>
-                <div style={{fontSize:9,color:'var(--tx3)',marginTop:5,textTransform:'uppercase',letterSpacing:.8,fontWeight:500}}>{s.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* GMV CHART */}
-        <MiniChart xpEvents={filteredEvents} />
-
-        {/* TOP PRODUCTS */}
-        <div style={{borderRadius:14,overflow:'hidden',marginBottom:10}}>
-          <div style={{height:3,background:'linear-gradient(90deg,#c9a24b,#f97316)'}}/>
-          <div style={{background:'var(--card)',padding:'14px 16px'}}>
-            <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10,fontWeight:500}}>🏆 Top Products</div>
-            {(()=>{const list=isFiltered?filteredProducts.slice(0,3):topProducts;return list.length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
-              <div style={{width:44,height:44,borderRadius:10,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0,opacity:.4}}>📦</div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:3}}>No data yet</div>
-                <div style={{fontSize:11,color:'var(--tx3)'}}>Your top products will appear here after your first import</div>
-              </div>
-            </div>):(list.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,paddingBottom:i<list.length-1?10:0,marginBottom:i<list.length-1?10:0,borderBottom:i<list.length-1?'1px solid rgba(255,255,255,.04)':'none'}}>
-              <div style={{width:28,fontFamily:'var(--fh)',fontSize:15,color:i===0?'#c9a24b':i===1?'#94a3b8':'#cd7f32',flexShrink:0,textAlign:'center'}}>{i+1}</div>
-              {prod?.image_url?<img src={prod.image_url} alt="" style={{width:42,height:42,borderRadius:9,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.06)'}}/>:<div style={{width:42,height:42,borderRadius:9,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>}
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,marginBottom:4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{tp.product_name||'Unknown Product'}</div>
-                <div style={{display:'flex',gap:12}}>
-                  <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#c9a24b'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>Comm</div></div>
-                  <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#6b9b7d'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>GMV</div></div>
-                </div>
-              </div>
-            </div>);}));})()}
-          </div>
-        </div>
-
-        {/* REFERRAL EARNINGS - only if they have some. Derive 1% of referred
-            net GMV (same basis as the admin Referrals table and generatePayouts)
-            rather than the denormalized referral_earnings field, which drifts. */}
-        {(()=>{const ltNet=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));const earn=parseFloat((ltNet*0.01).toFixed(2));return earn>0&&(
-          <div onClick={()=>navTo('referrals')} style={{background:'rgba(201,162,75,.07)',border:'1px solid rgba(201,162,75,.18)',borderRadius:'var(--rsm)',padding:'12px 14px',marginBottom:11,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
-            <div>
-              <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.7px',marginBottom:3}}>Referral Earnings</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--pu2)'}}>{fmtGBP(earn)}</div>
-            </div>
-            <span style={{fontSize:18,opacity:.6}}>👥 ›</span>
-          </div>
-        );})()}
-
-        {/* NEXT REWARD PROGRESS */}
-        {(()=>{
-          const nextRw = rewards.find(r=>!profile||profile.xp<r.xp_required);
-          const prevRw = nextRw ? rewards[rewards.indexOf(nextRw)-1] : rewards[rewards.length-1];
-          const startXP = prevRw ? prevRw.xp_required : 0;
-          const endXP = nextRw ? nextRw.xp_required : lv.max;
-          const prog = nextRw ? Math.min(100,Math.round(((profile.xp-startXP)/(endXP-startXP))*100)) : 100;
-          const r = nextRw || rewards[rewards.length-1];
-          return (
-            <div onClick={()=>navTo('rewards')} style={{background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11,cursor:'pointer'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1}}>Next Reward</div>
-                <div style={{fontSize:11,color:'var(--pu2)',fontWeight:600}}>{nextRw?`${(endXP-profile.xp).toLocaleString()} XP away`:'All Unlocked 🏆'}</div>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:12}}>
-                <div style={{width:52,height:52,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--bo2)'}}>
-                  {r?.image_url ? <img src={r.image_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/> : <span style={{fontSize:24,opacity:.4}}>🎁</span>}
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:1,marginBottom:6}}>{r?.name&&r.name!==`Reward ${r?.level}`?r.name:`Level ${r?.level} Reward`}</div>
-                  <div style={{height:8,background:'var(--card3)',borderRadius:99,overflow:'hidden'}}>
-                    <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--pu),var(--cy))',width:`${prog}%`,transition:'width 1s ease'}}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8,gap:8,flexWrap:'wrap'}}>
+                    <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500}}>Next reward</div>
+                    <div style={{fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>{nextRw?`${(endXP-profile.xp).toLocaleString()} XP to go`:'All unlocked'}</div>
                   </div>
-                  <div style={{display:'flex',justifyContent:'space-between',marginTop:4,fontSize:10,color:'var(--tx3)'}}>
-                    <span>{startXP.toLocaleString()} XP</span><span>{endXP.toLocaleString()} XP</span>
+                  <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{r?.name&&r.name!==`Reward ${r?.level}`?r.name:`Level ${r?.level} Reward`}</div>
+                  <div style={{height:3,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
+                    <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${prog}%`,transition:'width 1s ease'}}/>
                   </div>
                 </div>
               </div>
-              <div style={{fontSize:11,color:'var(--tx3)',textAlign:'right',marginTop:6}}>Tap to see all rewards →</div>
-            </div>
-          );
-        })()}
-
-
-      </div>)}
+            );
+          })()}
+        </div>);
+      })()}
 
       {/* LEVEL REWARDS (Battle Pass) */}
       {page==='rewards'&&(<div style={{paddingBottom:14}}>
