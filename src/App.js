@@ -2368,90 +2368,89 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
         const myUnlocks=computeUnlockDates(xpEvents,rewards);
         const myRedeemed=redeemedLevelsFor(profile);
-        return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
-          {/* HEADER */}
-          <div style={{marginBottom:22,paddingBottom:18,borderBottom:'1px solid var(--bo)',display:'flex',justifyContent:'space-between',alignItems:'flex-end',gap:12,flexWrap:'wrap'}}>
-            <div>
-              <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?26:22,fontWeight:700,letterSpacing:-0.5,color:'var(--tx)',lineHeight:1.15}}>Rewards</div>
-              <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{(profile.xp||0).toLocaleString()} XP · Level {lv.level}{nx?` · ${(nx.min-profile.xp).toLocaleString()} to next`:''}</div>
-            </div>
-            {nx&&<div style={{minWidth:isDesktop?200:160}}>
-              <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:6,fontWeight:500,textAlign:'right'}}>Level progress</div>
-              <div style={{height:3,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
-                <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${pct}%`,transition:'width 1s ease'}}/>
+        // Split into "your progress" (the next unlockable) and the rest of the catalogue.
+        const nextRw=rewards.find(r=>profile.xp<r.xp_required);
+        const nextIdx=nextRw?rewards.indexOf(nextRw):-1;
+        const prevRw=nextIdx>0?rewards[nextIdx-1]:null;
+        const nextStartXP=prevRw?prevRw.xp_required:0;
+        const nextProg=nextRw?Math.min(100,Math.round(((profile.xp-nextStartXP)/(nextRw.xp_required-nextStartXP))*100)):100;
+        const nextNeed=nextRw?Math.max(0,nextRw.xp_required-profile.xp):0;
+        // Reward card renderer — used for both catalogue and the featured hero.
+        const RewardCard=({r,featured})=>{
+          const un=profile.xp>=r.xp_required;
+          const isCur=r===nextRw;
+          const delivered=un&&myRedeemed.has(r.level);
+          const waited=un?daysSince(myUnlocks[r.level]):null;
+          const status=delivered?{label:'Delivered',color:'var(--gr)'}:un?{label:'Unlocked',color:'var(--go)'}:isCur?{label:'Next up',color:'var(--tx2)'}:{label:'Locked',color:'var(--tx3)'};
+          let dueLabel=null;let dueColor='var(--tx3)';
+          if(un&&myUnlocks[r.level]&&!delivered){
+            const due=payoutDueDate(myUnlocks[r.level]);
+            if(due){const overdue=due.getTime()<Date.now();dueLabel=overdue?`Overdue · ${fmtDueDate(due)}`:`Ships ${fmtDueDate(due)}`;dueColor=overdue?'var(--re)':'var(--gr)';}
+          }else if(delivered&&waited!=null){dueLabel=`Unlocked ${waited}d ago`;}
+          return(
+            <div onClick={()=>setShowReward(r)} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:featured?16:12,overflow:'hidden',cursor:'pointer',display:'flex',flexDirection:'column',position:'relative',transition:'transform .18s, border-color .18s',opacity:un||isCur?1:.85}}>
+              {/* Image — wide aspect, centred */}
+              <div style={{position:'relative',aspectRatio:featured?(isDesktop?'16/9':'4/3'):'4/3',background:'var(--card2)',overflow:'hidden'}}>
+                {r.image_url?<img src={r.image_url} alt={r.name} style={{width:'100%',height:'100%',objectFit:'contain',padding:featured?'8%':'12%',background:'var(--card2)',filter:un||isCur?'none':'grayscale(65%) brightness(.75)'}}/>:<div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:40,opacity:.35}}>🎁</div>}
+                {/* Status pill top-right, subtle */}
+                <div style={{position:'absolute',top:12,right:12,padding:'4px 10px',background:'rgba(13,13,14,.6)',backdropFilter:'blur(8px)',border:'1px solid rgba(245,241,235,.12)',borderRadius:99,fontSize:9.5,fontWeight:600,color:status.color,letterSpacing:.5,textTransform:'uppercase'}}>{status.label}</div>
+                {/* Level tag top-left as editorial number */}
+                <div style={{position:'absolute',top:12,left:12,padding:'4px 10px',background:'rgba(13,13,14,.6)',backdropFilter:'blur(8px)',border:'1px solid rgba(245,241,235,.12)',borderRadius:99,fontFamily:'var(--fh)',fontSize:10,fontWeight:700,color:'var(--tx)',letterSpacing:1,textTransform:'uppercase'}}>Level {r.level}</div>
               </div>
-              <div style={{fontSize:10,color:'var(--tx3)',marginTop:5,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{(profile.xp||0).toLocaleString()} / {nx.min.toLocaleString()}</div>
-            </div>}
+              {/* Body */}
+              <div style={{padding:featured?(isDesktop?'22px 24px 24px':'18px 20px 20px'):'16px 18px 18px',flex:1,display:'flex',flexDirection:'column'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:featured?(isDesktop?22:19):15,fontWeight:700,color:'var(--tx)',letterSpacing:-0.2,lineHeight:1.2,marginBottom:featured?8:6}}>{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
+                <div style={{fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums',marginBottom:featured?14:0,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <span>{r.xp_required.toLocaleString()} XP</span>
+                  {dueLabel&&<span style={{color:dueColor}}>· {dueLabel}</span>}
+                </div>
+                {featured&&isCur&&(
+                  <div style={{marginTop:'auto'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx3)',marginBottom:6,fontVariantNumeric:'tabular-nums'}}>
+                      <span>{(profile.xp||0).toLocaleString()} / {r.xp_required.toLocaleString()} XP</span>
+                      <span style={{color:'var(--go)',fontWeight:600}}>{nextNeed.toLocaleString()} XP to go</span>
+                    </div>
+                    <div style={{height:4,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
+                      <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${nextProg}%`,transition:'width 1.2s ease'}}/>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        };
+        return(<div className="pg" style={{maxWidth:isDesktop?1080:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
+          {/* HEADER */}
+          <div style={{marginBottom:24,paddingBottom:18,borderBottom:'1px solid var(--bo)'}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?32:24,fontWeight:700,letterSpacing:-0.8,color:'var(--tx)',lineHeight:1.1}}>Rewards</div>
+            <div style={{fontSize:12,color:'var(--tx3)',marginTop:6,letterSpacing:.15}}>Level {lv.level} · {(profile.xp||0).toLocaleString()} XP{nx?` · ${(nx.min-profile.xp).toLocaleString()} to next level`:''}</div>
           </div>
 
-          {/* PAID ON THE 15TH — subtle info card, no gradient */}
-          <div style={{padding:'16px 18px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:14}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-              <div style={{width:32,height:32,borderRadius:8,background:'rgba(201,162,75,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>📅</div>
-              <div>
-                <div style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:700,color:'var(--tx)',letterSpacing:.1}}>Paid on the 15th</div>
-                <div style={{fontSize:11.5,color:'var(--tx3)',marginTop:2}}>Rewards ship on the 15th of the month after you unlock them.</div>
-              </div>
+          {/* HERO — next unlockable, big and premium */}
+          {nextRw&&(
+            <div style={{marginBottom:isDesktop?32:24}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>Working toward</div>
+              <RewardCard r={nextRw} featured={true}/>
             </div>
-            <div style={{display:'flex',flexDirection:isDesktop?'row':'column',gap:isDesktop?24:6,fontSize:11.5,color:'var(--tx2)',paddingTop:10,borderTop:'1px solid var(--bo)',fontVariantNumeric:'tabular-nums'}}>
+          )}
+
+          {/* CATALOGUE — 2-column grid on desktop, 1-column mobile */}
+          <div style={{marginBottom:isDesktop?32:24}}>
+            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>The catalogue</div>
+            <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(2, 1fr)':'1fr',gap:isDesktop?16:12}}>
+              {rewards.filter(r=>r!==nextRw).map(r=><RewardCard key={r.id} r={r} featured={false}/>)}
+            </div>
+          </div>
+
+          {/* FOOTER — payment terms + cash swap, subdued */}
+          <div style={{padding:'20px 22px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:22}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:13,fontWeight:700,color:'var(--tx)',letterSpacing:.1,marginBottom:8}}>Paid on the 15th</div>
+            <div style={{fontSize:11.5,color:'var(--tx3)',lineHeight:1.6,marginBottom:14}}>Rewards ship on the 15th of the month after you unlock them, so returns have time to settle.</div>
+            <div style={{display:'flex',flexDirection:isDesktop?'row':'column',gap:isDesktop?24:6,fontSize:11.5,color:'var(--tx2)',paddingTop:14,borderTop:'1px solid var(--bo)',fontVariantNumeric:'tabular-nums'}}>
               <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m1}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m1pay}</strong></div>
               <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m2}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m2pay}</strong></div>
             </div>
-          </div>
-
-          {/* CASH SWAP — one-liner, subtle */}
-          <div style={{padding:'12px 16px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:22,display:'flex',alignItems:'center',gap:10,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
-            <span style={{fontSize:16,flexShrink:0,opacity:.7}}>💷</span>
-            <span>Prefer cash? Swap any reward for <strong style={{color:'var(--gr)'}}>80% of its value</strong>. Contact Hollen for the exact amount.</span>
-          </div>
-
-          {/* REWARDS LIST — editorial catalogue rows, not battle-pass cards */}
-          <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>All rewards</div>
-          <div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>
-            {rewards.map((r,i)=>{
-              const un=profile.xp>=r.xp_required;
-              const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
-              const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
-              const need=Math.max(0,r.xp_required-profile.xp);
-              const delivered=un&&myRedeemed.has(r.level);
-              const waited=un?daysSince(myUnlocks[r.level]):null;
-              const status=delivered?{label:'Delivered',color:'var(--gr)',bg:'rgba(107,155,125,.10)'}:un?{label:'Unlocked',color:'var(--go)',bg:'rgba(201,162,75,.10)'}:isCur?{label:'In progress',color:'var(--tx2)',bg:'rgba(245,241,235,.04)'}:{label:'Locked',color:'var(--tx3)',bg:'transparent'};
-              let dueChip=null;
-              if(un&&myUnlocks[r.level]&&!delivered){
-                const due=payoutDueDate(myUnlocks[r.level]);
-                if(due){
-                  const daysLeft=daysUntil(due);
-                  const overdue=due.getTime()<Date.now();
-                  dueChip={label:overdue?`Overdue · ${fmtDueDate(due)}`:daysLeft===0?'Due today':daysLeft===1?'Due tomorrow':`Due ${fmtDueDate(due)}`,color:overdue?'var(--re)':'var(--tx2)'};
-                }
-              }else if(delivered&&waited!=null){
-                dueChip={label:`Unlocked ${waited}d ago`,color:'var(--tx3)'};
-              }
-              return(
-                <div key={r.id} onClick={()=>setShowReward(r)} style={{display:'flex',alignItems:'center',gap:14,padding:'16px 18px',borderBottom:i<rewards.length-1?'1px solid var(--bo)':'none',cursor:'pointer',opacity:un||isCur?1:.65,transition:'opacity .2s',position:'relative'}}>
-                  <div style={{width:56,height:56,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--bo)',position:'relative'}}>
-                    {r.image_url?<img src={r.image_url} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover',filter:un||isCur?'none':'grayscale(80%) brightness(.7)'}}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
-                    {!un&&!isCur&&<div style={{position:'absolute',inset:0,background:'rgba(13,13,14,.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🔒</div>}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
-                      <span style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:600}}>Level {r.level}</span>
-                      <span style={{fontSize:10,padding:'2px 8px',background:status.bg,color:status.color,borderRadius:99,fontWeight:600,letterSpacing:.3,fontFamily:'var(--fb)'}}>{status.label}</span>
-                    </div>
-                    <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
-                    <div style={{display:'flex',alignItems:'center',gap:12,fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>
-                      <span>{r.xp_required.toLocaleString()} XP</span>
-                      {isCur&&<span style={{color:'var(--go)'}}>· {need.toLocaleString()} to go</span>}
-                      {dueChip&&<span style={{color:dueChip.color}}>· {dueChip.label}</span>}
-                    </div>
-                    {isCur&&<div style={{marginTop:8,height:2,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
-                      <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${prog}%`,transition:'width 1s ease'}}/>
-                    </div>}
-                  </div>
-                  <span style={{fontSize:14,color:'var(--tx3)',flexShrink:0}}>→</span>
-                </div>
-              );
-            })}
+            <div style={{fontSize:11.5,color:'var(--tx3)',lineHeight:1.6,paddingTop:14,marginTop:14,borderTop:'1px solid var(--bo)'}}>Prefer cash? Swap any reward for <strong style={{color:'var(--gr)'}}>80% of its value</strong>. Contact Hollen for the exact amount.</div>
           </div>
         </div>);
       })()}
