@@ -2136,9 +2136,12 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         <span style={{fontSize:10,color:'var(--pu2)'}}>●</span>
         <div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.4}}>Updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong><br/>{new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
       </div>}
-      <div style={{padding:'20px 16px 16px',borderBottom:'1px solid var(--bo)'}}>
-        <div style={{fontFamily:'var(--fh)',fontSize:28,fontWeight:800,letterSpacing:-0.5,lineHeight:1}}>hollen</div>
-        <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginTop:6,fontWeight:500}}>Rewards</div>
+      <div style={{padding:'22px 16px 20px',borderBottom:'1px solid var(--bo)'}}>
+        <img src="/hollen-rewards-logo.png" alt="Hollen Rewards" style={{width:'100%',maxWidth:150,display:'block',filter:'invert(1)'}} onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='block';}}/>
+        <div style={{display:'none'}}>
+          <div style={{fontFamily:'var(--fh)',fontSize:28,fontWeight:800,letterSpacing:-0.5,lineHeight:1}}>hollen</div>
+          <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginTop:6,fontWeight:500}}>Rewards</div>
+        </div>
       </div>
       <div style={{flex:1,padding:'8px',overflowY:'auto'}}>
         {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
