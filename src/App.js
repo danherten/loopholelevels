@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 // back to a download. ~15 KB gzipped; tree-shaken to just `toPng`.
 import { toPng } from 'html-to-image';
 
-const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'LoopholeLads123';
+const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'HollenAdmin2026';
 const XP_PER_10_GMV = 100;
 const DEFAULT_MILESTONES = [
   { id:1, days:3,   xp_bonus:50,   label:'3 Day Streak' },
@@ -46,7 +46,7 @@ function MiniChart({xpEvents}){
   const days=Object.values(byDay).sort((a,b)=>a.date.localeCompare(b.date));
   if(days.length<1) return(
     <div style={{borderRadius:14,overflow:'hidden',marginBottom:10}}>
-      <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4)'}}/>
+      <div style={{height:3,background:'linear-gradient(90deg,#6b9b7d,#8ba4a8)'}}/>
       <div style={{background:'var(--card)',padding:'14px 16px',textAlign:'center'}}>
         <div style={{fontSize:10,color:'var(--tx3)',marginBottom:4,textTransform:'uppercase',letterSpacing:1.5,fontWeight:500}}>GMV &amp; Commission</div>
         <div style={{fontSize:12,color:'var(--tx3)'}}>Import sales data to see your earnings trend</div>
@@ -91,11 +91,11 @@ function MiniChart({xpEvents}){
   const fmtK=v=>v>=10000?`£${Math.round(v/1000)}k`:v>=1000?`£${(v/1000).toFixed(1)}k`:`£${Math.round(v)}`;
   return(
     <div style={{borderRadius:14,overflow:'hidden',marginBottom:10}}>
-      <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4)'}}/>
+      <div style={{height:3,background:'linear-gradient(90deg,#6b9b7d,#8ba4a8)'}}/>
       <div style={{background:'var(--card)',padding:'14px 16px'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:11,gap:10}}>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:600,marginBottom:2}}>LOOPHOLE</div>
+            <div style={{fontSize:9,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:600,marginBottom:2}}>HOLLEN</div>
             <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',lineHeight:1.2}}>GMV &amp; Commission</div>
             <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{days.length} day{days.length===1?'':'s'}</div>
           </div>
@@ -118,12 +118,12 @@ function MiniChart({xpEvents}){
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{width:'100%',height:160,overflow:'visible'}}>
           <defs>
             <linearGradient id="mc-gmv" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.28"/>
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0"/>
+              <stop offset="0%" stopColor="#6b9b7d" stopOpacity="0.28"/>
+              <stop offset="100%" stopColor="#6b9b7d" stopOpacity="0"/>
             </linearGradient>
             <linearGradient id="mc-comm" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.18"/>
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0"/>
+              <stop offset="0%" stopColor="#c9a24b" stopOpacity="0.18"/>
+              <stop offset="100%" stopColor="#c9a24b" stopOpacity="0"/>
             </linearGradient>
           </defs>
           {yTicks.map((t,i)=>(<g key={i}>
@@ -132,10 +132,10 @@ function MiniChart({xpEvents}){
           </g>))}
           {showG&&<path d={gmvArea} fill="url(#mc-gmv)"/>}
           {showC&&mode==='comm'&&<path d={commArea} fill="url(#mc-comm)"/>}
-          {showG&&<path d={gmvPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
-          {showC&&<path d={commPath} fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={mode==='comm'?'0':'4 3'}/>}
-          {showG&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].gmv)} r="2.8" fill="#10b981"/>}
-          {showC&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].comm)} r="2.8" fill="#f59e0b"/>}
+          {showG&&<path d={gmvPath} fill="none" stroke="#6b9b7d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
+          {showC&&<path d={commPath} fill="none" stroke="#c9a24b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={mode==='comm'?'0':'4 3'}/>}
+          {showG&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].gmv)} r="2.8" fill="#6b9b7d"/>}
+          {showC&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].comm)} r="2.8" fill="#c9a24b"/>}
           {xLabels.map((l,i)=>(<text key={i} x={l.x} y={H-5} fill="rgba(238,238,248,.35)" fontSize="8" fontFamily="var(--fb)" textAnchor="middle">{l.text}</text>))}
         </svg>
       </div>
@@ -181,7 +181,7 @@ function achievedLevel(xp,rewards){let max=0;(rewards||[]).forEach(r=>{if((xp||0
 function getNx(xp,levels){const L=levels||DEFAULT_LEVELS;const c=getLv(xp,L);const i=L.findIndex(l=>l.level===c.level);return L[i+1]||null}
 function xpPct(xp,levels){const c=getLv(xp,levels);return Math.min(100,Math.round(((xp-c.min)/(c.max-c.min))*100))}
 function ini(n){return(n||'').slice(0,2).toUpperCase()||'??'}
-function avc(n){const c=['#8b5cf6','#a855f7','#06b6d4','#f59e0b','#10b981','#f43f5e'];let h=0;for(const x of n||'')h=(h*31+x.charCodeAt(0))%c.length;return c[h]}
+function avc(n){const c=['#c9a24b','#c9a24b','#8ba4a8','#c9a24b','#6b9b7d','#b04a55'];let h=0;for(const x of n||'')h=(h*31+x.charCodeAt(0))%c.length;return c[h]}
 function tdy(){return new Date().toISOString().slice(0,10)}
 // Admin period → {from,to,prevFrom,prevTo} half-open windows ([from,to)).
 // 'today' means the full calendar day BEFORE today ("Yesterday") because imports
@@ -243,22 +243,22 @@ function parseCSV(text){const lines=text.split(/\r?\n/).filter(l=>l.trim());if(!
 function splitLine(l,dl){const r=[];let cur='';let inQ=false;for(const c of l){if(c==='"'){inQ=!inQ;}else if(c===dl&&!inQ){r.push(cur);cur='';}else{cur+=c;}}r.push(cur);return r.map(s=>s.replace(/^"|"$/g,'').trim())}
 
 const CSS=`
-:root{--bg:#070710;--bg2:#0e0e1c;--card:#12121f;--card2:#1a1a2e;--card3:#22223d;--bo:rgba(255,255,255,.07);--bo2:rgba(255,255,255,.13);--tx:#eeeef8;--tx2:rgba(238,238,248,.55);--tx3:rgba(238,238,248,.3);--pu:#8b5cf6;--pu2:#a78bfa;--pu3:#c4b5fd;--go:#f59e0b;--gr:#10b981;--re:#f43f5e;--cy:#06b6d4;--r:14px;--rsm:10px;--rxs:7px;--nav:52px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Bebas Neue',sans-serif;--fb:'Space Grotesk',sans-serif;}
+:root{--bg:#0d0d0e;--bg2:#131315;--card:#17171a;--card2:#1e1e22;--card3:#2a2a2f;--bo:rgba(245,241,235,.06);--bo2:rgba(245,241,235,.11);--tx:#f5f1eb;--tx2:rgba(245,241,235,.62);--tx3:rgba(245,241,235,.34);--pu:#c9a24b;--pu2:#d4b465;--pu3:#e5cd8e;--go:#c9a24b;--gr:#6b9b7d;--re:#b04a55;--cy:#8ba4a8;--r:14px;--rsm:10px;--rxs:7px;--nav:52px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px);--fh:'Manrope',-apple-system,sans-serif;--fb:'Manrope',-apple-system,sans-serif;}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{height:100%}
 /* body height is set in JS from window.innerHeight to bypass iOS dvh/svh/lvh
    inconsistency in standalone PWAs. Fallback to 100% if JS hasn't run yet. */
 body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-overflow-scrolling:auto}
-#root{height:100%;display:flex;flex-direction:column;background:#030308;color:var(--tx);font-family:var(--fb)}
+#root{height:100%;display:flex;flex-direction:column;background:#0a0a0b;color:var(--tx);font-family:var(--fb)}
 input,button{font-family:var(--fb)}
 .app{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;position:relative;max-width:100%}
 
 .topbar{padding:9px 14px 8px;padding-top:calc(9px + var(--st));display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,16,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--bo);flex-shrink:0}
 .topbar.no-st{padding-top:9px}
-.upd-banner{background:rgba(139,92,246,.1);border-bottom:1px solid rgba(139,92,246,.2);padding:5px 14px;padding-top:calc(5px + var(--st));display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
+.upd-banner{background:rgba(201,162,75,.1);border-bottom:1px solid rgba(201,162,75,.2);padding:5px 14px;padding-top:calc(5px + var(--st));display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
 .tr{display:flex;align-items:center;gap:7px}
-.streak-pill{display:flex;align-items:center;gap:4px;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.28);border-radius:99px;padding:3px 9px;font-size:13px;font-weight:700;color:var(--go);cursor:pointer;letter-spacing:.3px}
-.xpchip{background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.28);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--pu3)}
+.streak-pill{display:flex;align-items:center;gap:4px;background:rgba(201,162,75,.14);border:1px solid rgba(201,162,75,.28);border-radius:99px;padding:3px 9px;font-size:13px;font-weight:700;color:var(--go);cursor:pointer;letter-spacing:.3px}
+.xpchip{background:rgba(201,162,75,.18);border:1px solid rgba(201,162,75,.28);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--pu3)}
 .av{width:29px;height:29px;border-radius:50%;border:2px solid var(--pu);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:1px;overflow:hidden;flex-shrink:0}
 .av img{width:100%;height:100%;object-fit:cover}
 .pages{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(76px + var(--sb) + 12px);min-height:0;-webkit-overflow-scrolling:touch}
@@ -274,8 +274,8 @@ input,button{font-family:var(--fb)}
 .nlbl{font-size:8px;text-transform:uppercase;letter-spacing:.3px;color:var(--tx3);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;transition:color .2s}
 .ni.on .nlbl{color:var(--tx)}
 .hero{background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:15px;margin-bottom:11px;position:relative;overflow:hidden}
-.hero::after{content:'';position:absolute;top:-45px;right:-45px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%);pointer-events:none}
-.lvlbadge{display:inline-flex;align-items:center;background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.26);border-radius:99px;padding:3px 9px;margin-bottom:7px}
+.hero::after{content:'';position:absolute;top:-45px;right:-45px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,75,.16) 0%,transparent 70%);pointer-events:none}
+.lvlbadge{display:inline-flex;align-items:center;background:rgba(201,162,75,.14);border:1px solid rgba(201,162,75,.26);border-radius:99px;padding:3px 9px;margin-bottom:7px}
 .lvlbtxt{font-size:11px;color:var(--pu2);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
 .lvlnum{font-family:var(--fh);font-size:38px;letter-spacing:2px;line-height:1;margin-bottom:4px}
 .lvlinfo{font-size:12px;color:var(--tx2);margin-bottom:10px}
@@ -285,7 +285,7 @@ input,button{font-family:var(--fb)}
 .xpnums{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--tx3)}
 .chips{display:flex;gap:7px;margin-bottom:11px}
 .chip{flex:1;background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:9px;text-align:center}
-.chip.hot{border-color:rgba(245,158,11,.22);background:rgba(245,158,11,.04)}
+.chip.hot{border-color:rgba(201,162,75,.22);background:rgba(201,162,75,.04)}
 .cv{font-family:var(--fh);font-size:22px;letter-spacing:1px;line-height:1}
 .cv.go{color:var(--go)}.cv.pu{color:var(--pu2)}.cv.gr{color:var(--gr)}
 .cl{font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3);margin-top:3px}
@@ -296,8 +296,8 @@ input,button{font-family:var(--fb)}
 .rc{min-width:116px;border-radius:var(--r);flex-shrink:0;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s}
 .rc:active{transform:scale(.97)}
 .rc-inner{background:var(--card);border:1px solid var(--bo);border-radius:var(--r);overflow:hidden;height:100%}
-.rc.un .rc-inner{border-color:rgba(16,185,129,.32);background:rgba(16,185,129,.04)}
-.rc.cur .rc-inner{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.08);box-shadow:0 0 12px rgba(139,92,246,.2)}
+.rc.un .rc-inner{border-color:rgba(107,155,125,.32);background:rgba(107,155,125,.04)}
+.rc.cur .rc-inner{border-color:rgba(201,162,75,.5);background:rgba(201,162,75,.08);box-shadow:0 0 12px rgba(201,162,75,.2)}
 .rc-img-wrap{width:100%;height:86px;background:var(--card3);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .rc-img-wrap img{width:100%;height:100%;object-fit:cover}
 .rc-ph{font-size:26px;opacity:.3}
@@ -313,7 +313,7 @@ input,button{font-family:var(--fb)}
 .rc-pf{height:100%;background:linear-gradient(90deg,var(--pu),var(--cy));border-radius:99px}
 .lbrow{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--bo)}
 .lbrow:last-child{border-bottom:none}
-.lbrow.me{background:rgba(139,92,246,.06);border-radius:var(--rxs);margin:0 -4px;padding:8px 4px}
+.lbrow.me{background:rgba(201,162,75,.06);border-radius:var(--rxs);margin:0 -4px;padding:8px 4px}
 .lbrk{font-family:var(--fh);font-size:16px;letter-spacing:1px;width:22px;text-align:center;color:var(--tx3)}
 .lbrk.g{color:var(--go)}.lbrk.s{color:#bbb}.lbrk.b{color:#cd7f32}
 .lbav{width:29px;height:29px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:11px;flex-shrink:0;color:#fff;overflow:hidden}
@@ -341,7 +341,7 @@ input,button{font-family:var(--fb)}
 .mil{display:flex;align-items:center;gap:9px;font-size:13px}
 .mii{font-size:15px;width:18px;text-align:center}
 .mich{color:var(--tx3);font-size:13px}
-.admb{background:linear-gradient(135deg,rgba(139,92,246,.14) 0%,rgba(6,182,212,.07) 100%);border:1px solid rgba(139,92,246,.22);border-radius:var(--r);padding:13px;margin-bottom:11px;display:flex;align-items:center;gap:10px}
+.admb{background:linear-gradient(135deg,rgba(201,162,75,.14) 0%,rgba(139,164,168,.07) 100%);border:1px solid rgba(201,162,75,.22);border-radius:var(--r);padding:13px;margin-bottom:11px;display:flex;align-items:center;gap:10px}
 .admstats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}
 .admstat{background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:11px}
 .admsv{font-family:var(--fh);font-size:21px;letter-spacing:1px}
@@ -356,12 +356,12 @@ input,button{font-family:var(--fb)}
 .afac{display:flex;gap:4px;align-items:center;flex-shrink:0}
 .xpin{width:48px;padding:4px 5px;background:var(--bg2);border:1px solid var(--bo2);border-radius:var(--rxs);color:var(--tx);font-size:11px;outline:none;text-align:center}
 .xpin:focus{border-color:var(--pu2)}
-.xbtn{background:rgba(139,92,246,.14);border:1px solid rgba(139,92,246,.26);border-radius:var(--rxs);padding:4px 7px;color:var(--pu2);font-size:11px;font-weight:600;cursor:pointer}
+.xbtn{background:rgba(201,162,75,.14);border:1px solid rgba(201,162,75,.26);border-radius:var(--rxs);padding:4px 7px;color:var(--pu2);font-size:11px;font-weight:600;cursor:pointer}
 .aact{width:100%;padding:9px 11px;background:var(--card2);border:1px solid var(--bo);border-radius:var(--rsm);color:var(--tx2);font-size:12px;cursor:pointer;margin-bottom:5px;text-align:left;display:flex;align-items:center;gap:8px;transition:border-color .2s}
 .aact:hover{border-color:var(--pu2);color:var(--tx)}
 .aact:last-child{margin-bottom:0}
 .dz{border:2px dashed var(--bo2);border-radius:var(--r);padding:20px 13px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative}
-.dz:hover,.dz.drag{border-color:var(--pu);background:rgba(139,92,246,.05)}
+.dz:hover,.dz.drag{border-color:var(--pu);background:rgba(201,162,75,.05)}
 .dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .ilog{background:var(--bg2);border:1px solid var(--bo);border-radius:var(--rsm);padding:9px;margin-top:7px;font-size:11px;color:var(--tx2);line-height:1.65;max-height:120px;overflow-y:auto;font-family:monospace}
 .logo{color:var(--gr)}.logw{color:var(--go)}.loge{color:var(--re)}
@@ -369,13 +369,13 @@ input,button{font-family:var(--fb)}
 .rerow:last-child{border-bottom:none}
 .ins{padding:7px 9px;background:var(--bg2);border:1px solid var(--bo2);border-radius:var(--rxs);color:var(--tx);font-size:12px;outline:none;width:100%}
 .ins:focus{border-color:var(--pu2)}
-.svbtn{background:rgba(16,185,129,.11);border:1px solid rgba(16,185,129,.23);border-radius:var(--rxs);padding:5px 9px;color:var(--gr);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+.svbtn{background:rgba(107,155,125,.11);border:1px solid rgba(107,155,125,.23);border-radius:var(--rxs);padding:5px 9px;color:var(--gr);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
 .bp-vcard{border-radius:var(--r);border:1px solid var(--bo);background:var(--card);padding:16px;margin:0 13px 11px;display:flex;gap:14px;align-items:center;cursor:pointer;position:relative;overflow:hidden;transition:transform .15s;}
-.bp-vcard.un{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.05);}
-.bp-vcard.cur{border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.08);}
+.bp-vcard.un{border-color:rgba(107,155,125,.3);background:rgba(107,155,125,.05);}
+.bp-vcard.cur{border-color:rgba(201,162,75,.5);background:rgba(201,162,75,.08);}
 .bp-vcard.lk{opacity:.5;}
-.bp-vcard.cur::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.18) 0%,transparent 70%);pointer-events:none;}
-.bp-vcard.un::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.12) 0%,transparent 70%);pointer-events:none;}
+.bp-vcard.cur::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,75,.18) 0%,transparent 70%);pointer-events:none;}
+.bp-vcard.un::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(107,155,125,.12) 0%,transparent 70%);pointer-events:none;}
 .bp-vimg{width:72px;height:72px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--bo);flex-shrink:0;}
 .bp-vimg img{width:100%;height:100%;object-fit:cover;}
 .bp-vbody{flex:1;min-width:0;}
@@ -386,24 +386,24 @@ input,button{font-family:var(--fb)}
 .bp-vfill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--pu),var(--cy));}
 .bp-vneed{font-size:10px;color:var(--tx3);margin-top:4px;}
 .bp-vbadge{position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;padding:3px 7px;border-radius:99px;letter-spacing:.3px;}
-.bp-vbadge.un{background:rgba(16,185,129,.15);color:var(--gr);}
-.bp-vbadge.cur{background:rgba(139,92,246,.2);color:var(--pu2);}
+.bp-vbadge.un{background:rgba(107,155,125,.15);color:var(--gr);}
+.bp-vbadge.cur{background:rgba(201,162,75,.2);color:var(--pu2);}
 .bp-vbadge.lk{background:var(--card2);color:var(--tx3);}
-.bp-next{background:linear-gradient(135deg,rgba(245,158,11,.1) 0%,rgba(245,158,11,.04) 100%);border:1px solid rgba(245,158,11,.3);border-radius:var(--r);padding:16px;margin:0 13px 13px;display:flex;align-items:center;gap:14px;cursor:pointer;}
+.bp-next{background:linear-gradient(135deg,rgba(201,162,75,.1) 0%,rgba(201,162,75,.04) 100%);border:1px solid rgba(201,162,75,.3);border-radius:var(--r);padding:16px;margin:0 13px 13px;display:flex;align-items:center;gap:14px;cursor:pointer;}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:11px}
 .stat-card{background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:11px}
 .stat-v{font-family:var(--fh);font-size:18px;letter-spacing:1px;margin-bottom:2px}
 .stat-l{font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--tx3)}
-.ref-card{background:linear-gradient(135deg,rgba(139,92,246,.12) 0%,rgba(6,182,212,.08) 100%);border:1px solid rgba(139,92,246,.25);border-radius:var(--r);padding:15px;margin-bottom:11px}
+.ref-card{background:linear-gradient(135deg,rgba(201,162,75,.12) 0%,rgba(139,164,168,.08) 100%);border:1px solid rgba(201,162,75,.25);border-radius:var(--r);padding:15px;margin-bottom:11px}
 .ref-code{font-family:var(--fh);font-size:24px;letter-spacing:4px;color:var(--pu2);background:var(--card2);border-radius:var(--rsm);padding:9px;text-align:center;margin:9px 0;cursor:pointer}
 .howto-item{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--bo)}
 .howto-item:last-child{border-bottom:none}
 .atab{padding:8px 14px;border-radius:99px;border:1px solid var(--bo);background:var(--card);color:var(--tx2);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.3px;display:inline-flex;align-items:center;gap:6px;transition:all .15s;font-family:var(--fb)}
 .atab:hover{border-color:var(--bo2);color:var(--tx)}
-.atab.on{background:rgba(139,92,246,.16);border-color:rgba(139,92,246,.45);color:var(--pu2)}
+.atab.on{background:rgba(201,162,75,.16);border-color:rgba(201,162,75,.45);color:var(--pu2)}
 .aseg{display:inline-flex;background:var(--card2);border:1px solid var(--bo);border-radius:99px;padding:3px;gap:2px}
 .aseg button{padding:5px 13px;border:none;background:transparent;color:var(--tx3);font-size:11px;font-weight:600;border-radius:99px;cursor:pointer;letter-spacing:.3px;font-family:var(--fb)}
-.aseg button.on{background:var(--pu);color:#fff;box-shadow:0 1px 4px rgba(139,92,246,.4)}
+.aseg button.on{background:var(--pu);color:#fff;box-shadow:0 1px 4px rgba(201,162,75,.4)}
 .ahk{background:rgba(7,7,16,.55);border:1px solid var(--bo);border-radius:12px;padding:13px 15px;position:relative;overflow:hidden}
 .ahkl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.9px;font-weight:700;margin-bottom:6px}
 .ahkv{font-family:var(--fh);font-size:28px;line-height:1;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -413,13 +413,13 @@ input,button{font-family:var(--fb)}
 .asub{background:var(--card);border:1px solid var(--bo);border-radius:10px;padding:8px 11px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .asubl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.7px;font-weight:700}
 .asubv{font-family:var(--fh);font-size:15px;letter-spacing:.4px}
-.astrip{background:linear-gradient(90deg,rgba(16,185,129,.08),rgba(6,182,212,.05) 50%,transparent);border:1px solid var(--bo);border-left:3px solid var(--gr);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-bottom:11px}
+.astrip{background:linear-gradient(90deg,rgba(107,155,125,.08),rgba(139,164,168,.05) 50%,transparent);border:1px solid var(--bo);border-left:3px solid var(--gr);border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:13px;flex-wrap:wrap;margin-bottom:11px}
 .astrip .si{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--tx2)}
 .astrip .si strong{color:var(--tx);font-weight:600}
 .astrip .si .b{font-family:var(--fh);font-size:14px;letter-spacing:.3px}
 .astrip .si .b.gr{color:var(--gr)}.astrip .si .b.go{color:var(--go)}.astrip .si .b.pu{color:var(--pu2)}
 .atask{display:flex;align-items:center;gap:11px;padding:11px 13px;border:1px solid var(--bo);border-radius:10px;background:var(--card2);cursor:pointer;transition:all .15s}
-.atask:hover{border-color:var(--bo2);background:rgba(139,92,246,.06);transform:translateX(2px)}
+.atask:hover{border-color:var(--bo2);background:rgba(201,162,75,.06);transform:translateX(2px)}
 .atask.warn{border-left:3px solid var(--go)}
 .atask.crit{border-left:3px solid var(--re)}
 .atask.info{border-left:3px solid var(--cy)}
@@ -431,7 +431,7 @@ input,button{font-family:var(--fb)}
 .pw{height:4px;background:var(--card3);border-radius:99px;overflow:hidden}
 .pf{height:100%;background:linear-gradient(90deg,var(--pu),var(--cy));border-radius:99px}
 .authwrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden}
-.authwrap::before{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.12) 0%,transparent 70%);top:-80px;right:-150px;pointer-events:none}
+.authwrap::before{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(201,162,75,.12) 0%,transparent 70%);top:-80px;right:-150px;pointer-events:none}
 .asub{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--tx3);margin-bottom:26px;text-align:center}
 .abox{width:100%;max-width:360px;background:var(--card);border:1px solid var(--bo2);border-radius:var(--r);padding:19px;position:relative;z-index:1}
 .tabs{display:flex;background:var(--bg2);border-radius:var(--rsm);padding:3px;gap:3px;margin-bottom:15px}
@@ -447,7 +447,7 @@ input,button{font-family:var(--fb)}
 .addtt{background:none;border:none;color:var(--pu2);font-size:12px;cursor:pointer;padding:2px 0;margin-top:5px;display:block}
 .btn{width:100%;padding:11px;border:none;border-radius:var(--rsm);font-family:var(--fh);font-size:18px;letter-spacing:2px;cursor:pointer;margin-top:3px}
 .btnpu{background:linear-gradient(135deg,var(--pu) 0%,#7c3aed 100%);color:#fff}
-.btnre{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);color:var(--re);font-family:var(--fb);font-size:13px;font-weight:500;padding:9px}
+.btnre{background:rgba(176,74,85,.1);border:1px solid rgba(176,74,85,.25);color:var(--re);font-family:var(--fb);font-size:13px;font-weight:500;padding:9px}
 .ferr{min-height:15px;font-size:12px;color:var(--re);text-align:center;margin-top:4px}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;animation:fi .2s ease}
 @keyframes fi{from{opacity:0}to{opacity:1}}
@@ -464,13 +464,13 @@ input,button{font-family:var(--fb)}
 .lvlup-txt{font-family:var(--fh);font-size:44px;letter-spacing:4px;background:linear-gradient(135deg,var(--go),var(--pu2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:txi .5s ease .3s both}
 @keyframes txi{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 .lvlup-sub{font-size:15px;color:var(--tx2);margin-top:5px;animation:txi .5s ease .5s both}
-.lvlup-rays{position:absolute;inset:0;background:radial-gradient(circle,rgba(139,92,246,.28) 0%,transparent 60%);pointer-events:none;animation:rx .8s ease .1s both}
+.lvlup-rays{position:absolute;inset:0;background:radial-gradient(circle,rgba(201,162,75,.28) 0%,transparent 60%);pointer-events:none;animation:rx .8s ease .1s both}
 @keyframes rx{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
 .toastwrap{position:fixed;top:calc(var(--st) + 62px);left:50%;transform:translateX(-50%);z-index:9998;display:flex;flex-direction:column;gap:5px;align-items:center;pointer-events:none}
 .toast{background:var(--card2);border:1px solid var(--bo2);border-radius:99px;padding:7px 13px;font-size:12px;font-weight:500;white-space:nowrap;animation:ti .3s ease,to .3s ease 2.7s forwards}
-.toast.ok{border-color:rgba(16,185,129,.38);color:var(--gr)}
-.toast.info{border-color:rgba(139,92,246,.38);color:var(--pu2)}
-.toast.wn{border-color:rgba(245,158,11,.38);color:var(--go)}
+.toast.ok{border-color:rgba(107,155,125,.38);color:var(--gr)}
+.toast.info{border-color:rgba(201,162,75,.38);color:var(--pu2)}
+.toast.wn{border-color:rgba(201,162,75,.38);color:var(--go)}
 @keyframes ti{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes to{to{opacity:0}}
 .spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--card3);border-top-color:var(--pu);animation:sp .8s linear infinite;margin:0 auto}
@@ -508,7 +508,7 @@ export default function App(){
   const [lbLoading,setLbLoading]=useState(false);
   const [milestones,setMilestones]=useState(DEFAULT_MILESTONES);
   const [page,setPage]=useState('home');
-  const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('ll-admin')==='true');
+  const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('hn-admin')==='true');
   const [levelUpAnim,setLevelUpAnim]=useState(null);
   const [showDaily,setShowDaily]=useState(false);
   const [grossOpen,setGrossOpen]=useState(false);
@@ -529,7 +529,7 @@ export default function App(){
   // flash-sale setup over multiple sessions doesn't lose progress. The Reset
   // button in the modal is the only way to clear them.
   const [flashCopied,setFlashCopied]=useState(()=>{
-    try{const raw=typeof window!=='undefined'?window.localStorage.getItem('ll-flash-copied'):null;return new Set(raw?JSON.parse(raw):[]);}catch(e){return new Set();}
+    try{const raw=typeof window!=='undefined'?window.localStorage.getItem('hn-flash-copied'):null;return new Set(raw?JSON.parse(raw):[]);}catch(e){return new Set();}
   });
   const [flashSearch,setFlashSearch]=useState('');
   const [showAdminGate,setShowAdminGate]=useState(false);
@@ -817,7 +817,7 @@ export default function App(){
   // scoped to the profile id so different accounts on the same device each see it once.
   useEffect(()=>{
     if(!profile?.id)return;
-    const key=`ll-discord-cta-${profile.id}`;
+    const key=`hn-discord-cta-${profile.id}`;
     if(localStorage.getItem(key)==='1')return;
     setDiscordCountdown(5);
     setShowDiscordCta(true);
@@ -828,7 +828,7 @@ export default function App(){
     return()=>clearTimeout(t);
   },[showDiscordCta,discordCountdown]);
   useEffect(()=>{
-    try{window.localStorage.setItem('ll-flash-copied',JSON.stringify([...flashCopied]));}catch(e){}
+    try{window.localStorage.setItem('hn-flash-copied',JSON.stringify([...flashCopied]));}catch(e){}
   },[flashCopied]);
   useEffect(()=>{
     if(!redeemPick){setRedeemPickProductAmt('');setRedeemPickCashAmt('');return;}
@@ -955,7 +955,7 @@ export default function App(){
     if(now.getDate()!==1)return;
     const prev=new Date(now.getFullYear(),now.getMonth()-1,1);
     const monthKey=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}`;
-    const seenKey=`ll-recap-${id}-${monthKey}`;
+    const seenKey=`hn-recap-${id}-${monthKey}`;
     if(localStorage.getItem(seenKey))return;
     setMonthlyRecapLoading(true);
     const recap=await computeMonthlyRecap(id,'prev');
@@ -1024,12 +1024,12 @@ export default function App(){
       const dataUrl=await toPng(node,{pixelRatio:3,backgroundColor:'#0e0e1c',cacheBust:true,style:{transform:'none'}});
       if(restoreImages){restoreImages();restoreImages=null;}
       const monthShort=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-      const filename=`loophole-${monthShort[monthlyRecap.month]}-${monthlyRecap.year}.png`;
+      const filename=`hollen-${monthShort[monthlyRecap.month]}-${monthlyRecap.year}.png`;
       const blob=await(await fetch(dataUrl)).blob();
       const file=new File([blob],filename,{type:'image/png'});
       if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
         try{
-          await navigator.share({files:[file],title:'My Loophole Levels Recap',text:`My ${monthlyRecap.monthLabel} on Loophole Levels 👑`});
+          await navigator.share({files:[file],title:'My Hollen Recap',text:`My ${monthlyRecap.monthLabel} on Hollen ✦`});
           setShareLoading(false);
           return;
         }catch(e){if(e.name==='AbortError'){setShareLoading(false);return;}}
@@ -1536,7 +1536,7 @@ export default function App(){
     }
     setAuthLoading(false);
   }
-  async function doLogout(){await supabase.auth.signOut();setAdminUnlocked(false);localStorage.removeItem('ll-admin');setPage('home');}
+  async function doLogout(){await supabase.auth.signOut();setAdminUnlocked(false);localStorage.removeItem('hn-admin');setPage('home');}
   // Submit handler for the "Set new password" modal opened by PASSWORD_RECOVERY.
   async function submitResetPw(){
     if(resetPw.length<6){toast('Password must be at least 6 characters','wn');return;}
@@ -1609,7 +1609,7 @@ export default function App(){
   }
 
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
-  function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('ll-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
+  function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('hn-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
   function navTo(pg){
     setPage(pg);
     const el=document.querySelector('.pages');if(el)el.scrollTop=0;
@@ -1924,7 +1924,7 @@ export default function App(){
     const rows=[['Username','TikTok Handles','XP','Level','Sales','GMV','Orders','Commission','Streak','Referral Code','Referral Earnings']];
     allProfiles.forEach(p=>{const lv=getLv(p.xp,LEVELS);rows.push([p.username,(p.tiktok_handles||[]).join('; '),p.xp,lv.level,p.total_sales||0,p.total_gmv||0,p.total_orders||0,p.total_commission||0,p.streak||0,p.referral_code||'',p.referral_earnings||0]);});
     const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`loophole-${tdy()}.csv`;a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`hollen-${tdy()}.csv`;a.click();
     toast('📊 Downloaded','ok');
   }
 
@@ -1991,8 +1991,8 @@ export default function App(){
     const diff=current-prev;
     if(Math.abs(diff)<0.005)return(<span style={{display:'inline-flex',alignItems:'center',background:'rgba(255,255,255,.05)',color:'var(--tx3)',padding:'1px 6px',borderRadius:99,fontSize:9,fontWeight:700,marginLeft:5,letterSpacing:.3,verticalAlign:'middle'}}>–</span>);
     const good=lowerIsBetter?diff<0:diff>0;
-    const color=good?'#10b981':'#f43f5e';
-    const bg=good?'rgba(16,185,129,.14)':'rgba(244,63,94,.14)';
+    const color=good?'#6b9b7d':'#b04a55';
+    const bg=good?'rgba(107,155,125,.14)':'rgba(176,74,85,.14)';
     return(<span style={{display:'inline-flex',alignItems:'center',gap:2,background:bg,color,padding:'1px 6px',borderRadius:99,fontSize:9,fontWeight:700,marginLeft:5,letterSpacing:.3,verticalAlign:'middle'}}>{diff>0?'▲':'▼'} {fmt(Math.abs(diff))}</span>);
   };
   const filteredProducts=React.useMemo(()=>{
@@ -2054,11 +2054,11 @@ export default function App(){
   const LbRow=({u,rank})=>{const ulv=getLv(u.xp,LEVELS);const isMe=u.id===profile?.id;const col=avc(u.username);return(<div className={`lbrow${isMe?' me':''}`}><div className={`lbrk${rank===1?' g':rank===2?' s':rank===3?' b':''}`}>{rank}</div><div className="lbav" style={{background:u.avatar_url?'transparent':col}}>{u.avatar_url?<img src={u.avatar_url} alt=""/>:ini(u.username)}</div><div className="lbin"><div className="lbnm">{u.username}{isMe&&<span style={{fontSize:9,color:'var(--pu2)',marginLeft:4}}>(you)</span>}</div><div className="lbtt">{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div></div><div className="lbrt"><div className="lbxp">{(u.xp||0).toLocaleString()}</div><div className="lblv">Lvl {ulv.level}</div></div></div>);};
 
   if(loading)return(<><style>{`
-body,html{margin:0;padding:0;background:#070710;}
-#root{background:#070710;}
-.spin-el{width:28px;height:28px;border-radius:50%;border:3px solid #22223d;border-top-color:#8b5cf6;animation:sp .8s linear infinite;}
+body,html{margin:0;padding:0;background:#0d0d0e;}
+#root{background:#0d0d0e;}
+.spin-el{width:28px;height:28px;border-radius:50%;border:3px solid #22223d;border-top-color:#c9a24b;animation:sp .8s linear infinite;}
 @keyframes sp{to{transform:rotate(360deg)}}
-`}</style><div style={{background:"#070710",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><img src="/logo.png" alt="Loophole" style={{width:180,opacity:.9}}/><div className="spin-el"/></div></>);
+`}</style><div style={{background:"#0d0d0e",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:22}}><img src="/hollen-logo.png" alt="Hollen" style={{width:180,opacity:.85,filter:'invert(1)'}} onError={e=>{e.target.style.display='none';}}/><div className="spin-el"/></div></>);
 
   // Password reset modals — rendered in both the auth screen (when not signed in)
   // and the main app (when signed in via PASSWORD_RECOVERY) so the user always sees
@@ -2102,7 +2102,7 @@ body,html{margin:0;padding:0;background:#070710;}
     )}
   </>);
 
-  if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/logo.png" alt="Loophole Levels" style={{width:230,marginBottom:5}}/><div className="asub">Affiliate Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div><button onClick={()=>{setForgotEmail(loginUser);setShowForgotPw(true);}} style={{background:'none',border:'none',color:'var(--pu2)',fontSize:12,cursor:'pointer',padding:'6px 4px 0',fontFamily:'var(--fb)',textDecoration:'underline',alignSelf:'center'}}>Forgot password?</button></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><div><label className="lbl">Referral code (optional)</label><input className="inp" value={signupRef} onChange={e=>setSignupRef(e.target.value.toUpperCase())} placeholder="e.g. ABC12345"/></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>{PwModals}</div></>);
+  if(!profile)return(<><style>{CSS}</style><div className="authwrap"><img src="/hollen-logo.png" alt="Hollen" style={{width:220,marginBottom:8,filter:'invert(1)'}} onError={e=>{e.target.style.display='none';}}/><div className="asub">Rewards Platform</div><div className="abox"><div className="tabs"><button className={`tab${authTab==='login'?' on':''}`} onClick={()=>{setAuthTab('login');setAuthErr('');}}>Sign In</button><button className={`tab${authTab==='signup'?' on':''}`} onClick={()=>{setAuthTab('signup');setAuthErr('');}}>Join Up</button></div>{authTab==='login'?(<div className="fg"><div><label className="lbl">Email</label><input className="inp" value={loginUser} onChange={e=>setLoginUser(e.target.value)} placeholder="your@email.com" type="email"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&doLogin()}/></div><button className="btn btnpu" onClick={doLogin} disabled={authLoading}>{authLoading?'...':'SIGN IN'}</button><div className="ferr">{authErr}</div><button onClick={()=>{setForgotEmail(loginUser);setShowForgotPw(true);}} style={{background:'none',border:'none',color:'var(--pu2)',fontSize:12,cursor:'pointer',padding:'6px 4px 0',fontFamily:'var(--fb)',textDecoration:'underline',alignSelf:'center'}}>Forgot password?</button></div>):(<div className="fg"><div><label className="lbl">Username</label><input className="inp" value={signupUser} onChange={e=>setSignupUser(e.target.value)} placeholder="pick a username"/></div><div><label className="lbl">Email</label><input className="inp" type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="your@email.com"/></div><div><label className="lbl">Password</label><input className="inp" type="password" value={signupPass} onChange={e=>setSignupPass(e.target.value)} placeholder="create a password"/></div><div><label className="lbl">TikTok @handle(s)</label><div style={{display:'flex',flexDirection:'column',gap:5}}>{handles.map((h,i)=>(<div key={i} className="trow"><input className="inp" value={h} onChange={e=>{const n=[...handles];n[i]=e.target.value;setHandles(n);}} placeholder="@yourhandle"/>{handles.length>1&&<button className="icobtn" onClick={()=>setHandles(handles.filter((_,j)=>j!==i))}>✕</button>}</div>))}</div><button className="addtt" onClick={()=>setHandles([...handles,''])}>+ Add another @</button></div><div><label className="lbl">Referral code (optional)</label><input className="inp" value={signupRef} onChange={e=>setSignupRef(e.target.value.toUpperCase())} placeholder="e.g. ABC12345"/></div><button className="btn btnpu" onClick={doSignup} disabled={authLoading}>{authLoading?'...':'CREATE ACCOUNT'}</button><div className="ferr">{authErr}</div></div>)}</div><div className="toastwrap">{toasts.map(t=><div key={t.id} className={`toast ${t.type}`}>{t.msg}</div>)}</div>{PwModals}</div></>);
 
   // ── Bottom-nav model + iOS liquid-glass drag interaction ──────────────────
   const bnavItems=[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['referrals','💸','Refer'],['profile','👤','Profile',['profile','products']]];
@@ -2132,21 +2132,21 @@ body,html{margin:0;padding:0;background:#070710;}
   return(<><style>{CSS}</style><div className="app" style={isDesktop?{flexDirection:'row'}:{}}>
     {/* DESKTOP SIDEBAR */}
     {isDesktop&&(<div style={{width:220,minWidth:220,height:'100dvh',background:'var(--bg2)',borderRight:'1px solid var(--bo2)',display:'flex',flexDirection:'column',flexShrink:0,zIndex:10}}>
-      {lastUpdated&&<div style={{background:'rgba(139,92,246,.1)',borderBottom:'1px solid rgba(139,92,246,.2)',padding:'7px 16px',display:'flex',alignItems:'center',gap:6}}>
+      {lastUpdated&&<div style={{background:'rgba(201,162,75,.1)',borderBottom:'1px solid rgba(201,162,75,.2)',padding:'7px 16px',display:'flex',alignItems:'center',gap:6}}>
         <span style={{fontSize:10,color:'var(--pu2)'}}>●</span>
         <div style={{fontSize:10,color:'var(--tx3)',lineHeight:1.4}}>Updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong><br/>{new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
       </div>}
       <div style={{padding:'20px 16px 16px',borderBottom:'1px solid var(--bo)'}}>
-        <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:3}}>LOOPHOLE</div>
-        <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginTop:2}}>Affiliate Levels</div>
+        <div style={{fontFamily:'var(--fh)',fontSize:28,fontWeight:800,letterSpacing:-0.5,lineHeight:1}}>hollen</div>
+        <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginTop:6,fontWeight:500}}>Rewards</div>
       </div>
       <div style={{flex:1,padding:'8px',overflowY:'auto'}}>
         {[['home','🏠','Home'],['rewards','🎁','Rewards'],['lb','🏆','Rankings'],['products','📦','Products'],['referrals','👥','Refer'],['profile','👤','Profile']].map(([pg,icon,label])=>(
-          <button key={pg} onClick={()=>navTo(pg)} style={{width:'100%',display:'flex',alignItems:'center',gap:11,padding:'10px 14px',background:page===pg?'rgba(139,92,246,.15)':'transparent',border:'none',color:page===pg?'var(--pu2)':'var(--tx2)',cursor:'pointer',fontSize:13,fontWeight:500,fontFamily:'var(--fb)',textAlign:'left',borderRadius:'var(--rsm)'}}>
+          <button key={pg} onClick={()=>navTo(pg)} style={{width:'100%',display:'flex',alignItems:'center',gap:11,padding:'10px 14px',background:page===pg?'rgba(201,162,75,.15)':'transparent',border:'none',color:page===pg?'var(--pu2)':'var(--tx2)',cursor:'pointer',fontSize:13,fontWeight:500,fontFamily:'var(--fb)',textAlign:'left',borderRadius:'var(--rsm)'}}>
             <span style={{fontSize:17}}>{icon}</span>{label}
           </button>
         ))}
-        {adminUnlocked&&<button onClick={()=>navTo('admin')} style={{width:'100%',display:'flex',alignItems:'center',gap:11,padding:'10px 14px',background:page==='admin'?'rgba(139,92,246,.15)':'transparent',border:'none',color:page==='admin'?'var(--pu2)':'var(--tx2)',cursor:'pointer',fontSize:13,fontWeight:500,fontFamily:'var(--fb)',textAlign:'left',borderRadius:'var(--rsm)'}}>
+        {adminUnlocked&&<button onClick={()=>navTo('admin')} style={{width:'100%',display:'flex',alignItems:'center',gap:11,padding:'10px 14px',background:page==='admin'?'rgba(201,162,75,.15)':'transparent',border:'none',color:page==='admin'?'var(--pu2)':'var(--tx2)',cursor:'pointer',fontSize:13,fontWeight:500,fontFamily:'var(--fb)',textAlign:'left',borderRadius:'var(--rsm)'}}>
           <span style={{fontSize:17}}>👑</span>Admin
         </button>}
       </div>
@@ -2165,7 +2165,7 @@ body,html{margin:0;padding:0;background:#070710;}
       <span style={{fontSize:10,color:'var(--tx3)'}}>Data last updated by <strong style={{color:'var(--tx2)'}}>{lastUpdated.user}</strong> on {new Date(lastUpdated.time).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} at {new Date(lastUpdated.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
     </div>)}
     {!isDesktop&&<div className={`topbar${lastUpdated?' no-st':''}`}>
-      <img src="/logo.png" alt="Loophole Levels" style={{height:24}}/>
+      <img src="/hollen-logo.png" alt="Hollen" style={{height:22,filter:'invert(1)'}} onError={e=>{e.target.style.display='none';}}/>
       <div className="tr">
         <div className="streak-pill" onClick={()=>setShowDaily(true)}>🔥 {profile.streak||0}</div>
         <div className="xpchip" onClick={()=>navTo("level")} style={{cursor:"pointer"}}>{(profile.xp||0).toLocaleString()} XP · Lv{lv.level}</div>
@@ -2182,10 +2182,10 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* DATE RANGE FILTER */}
         <div style={{display:'flex',gap:5,marginBottom:13,flexWrap:'wrap',alignItems:'center'}}>
           {[['yesterday','Yesterday'],['7d','7D'],['30d','30D'],['month','Month'],['all','All']].map(([val,label])=>(
-            <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>{label}</button>
+            <button key={val} onClick={()=>setDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange===val?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:dateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>{label}</button>
           ))}
-          {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
-          <button onClick={()=>setDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange==='custom'?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
+          {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(201,162,75,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
+          <button onClick={()=>setDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${dateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:dateRange==='custom'?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:dateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
           {dateRange==='custom'&&(<>
             <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
             <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
@@ -2195,7 +2195,7 @@ body,html{margin:0;padding:0;background:#070710;}
 
         {/* HERO GMV CARD */}
         <div style={{borderRadius:16,overflow:'hidden',marginBottom:10}}>
-          <div style={{height:3,background:'linear-gradient(90deg,#10b981,#06b6d4,#8b5cf6)'}}/>
+          <div style={{height:3,background:'linear-gradient(90deg,#6b9b7d,#8ba4a8,#c9a24b)'}}/>
           <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
             <button onClick={()=>setGrossOpen(!grossOpen)} style={{display:'block',background:'none',border:'none',padding:0,width:'100%',textAlign:'left',cursor:'pointer',color:'inherit',font:'inherit'}}>
               <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500,display:'flex',alignItems:'center',gap:6}}>
@@ -2230,9 +2230,9 @@ body,html{margin:0;padding:0;background:#070710;}
             })()}
             <div style={{display:'flex',gap:0}}>
               {[
-                {label:'Commission',val:fmtGBP(filteredComm),color:'#f59e0b',bg:'rgba(245,158,11,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
-                {label:'Orders',val:filteredOrders.toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
-                {label:'Units Sold',val:filteredUnits.toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
+                {label:'Commission',val:fmtGBP(filteredComm),color:'#c9a24b',bg:'rgba(201,162,75,.08)',chip:isFiltered?renderDelta(filteredComm,prevComm,fmtGBP):null},
+                {label:'Orders',val:filteredOrders.toLocaleString(),color:'#8ba4a8',bg:'rgba(139,164,168,.08)',chip:isFiltered?renderDelta(filteredOrders,prevOrders,v=>Math.round(v).toLocaleString()):null},
+                {label:'Units Sold',val:filteredUnits.toLocaleString(),color:'#c9a24b',bg:'rgba(201,162,75,.08)',chip:isFiltered?renderDelta(filteredUnits,prevUnits,v=>Math.round(v).toLocaleString()):null},
               ].map((s,i)=>(
                 <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
@@ -2246,24 +2246,24 @@ body,html{margin:0;padding:0;background:#070710;}
 
         {/* QUICK STATS STRIP */}
         <div style={{display:'flex',gap:6,marginBottom:10}}>
-          <div onClick={()=>setShowDaily(true)} style={{flex:1,background:'rgba(245,158,11,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+          <div onClick={()=>setShowDaily(true)} style={{flex:1,background:'rgba(201,162,75,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
             <span style={{fontSize:16}}>🔥</span>
             <div>
               <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--go)',lineHeight:1}}>{profile.streak||0}</div>
               <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>Day Streak</div>
             </div>
           </div>
-          <div onClick={()=>navTo('level')} style={{flex:1,background:'rgba(139,92,246,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+          <div onClick={()=>navTo('level')} style={{flex:1,background:'rgba(201,162,75,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
             <span style={{fontSize:16}}>⚡</span>
             <div>
               <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--pu2)',lineHeight:1}}>{(profile.xp||0).toLocaleString()}</div>
               <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>XP · Level {lv.level}</div>
             </div>
           </div>
-          <div onClick={()=>navTo('lb')} style={{flex:1,background:'rgba(6,182,212,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+          <div onClick={()=>navTo('lb')} style={{flex:1,background:'rgba(139,164,168,.08)',borderRadius:10,padding:'9px 11px',display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
             <span style={{fontSize:16}}>🏆</span>
             <div>
-              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#06b6d4',lineHeight:1}}>#{leaderboard.findIndex(u=>u.id===profile?.id)+1||'—'}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#8ba4a8',lineHeight:1}}>#{leaderboard.findIndex(u=>u.id===profile?.id)+1||'—'}</div>
               <div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500,marginTop:2}}>Rank</div>
             </div>
           </div>
@@ -2272,8 +2272,8 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* METRICS GRID */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           {[
-            {label:'Avg Comm / Live',val:filteredLiveStreams>0?fmtGBP(filteredComm/filteredLiveStreams):'£0.00',icon:'📡',accent:'#10b981',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
-            {label:'Avg Order Value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',icon:'🛒',accent:'#10b981',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
+            {label:'Avg Comm / Live',val:filteredLiveStreams>0?fmtGBP(filteredComm/filteredLiveStreams):'£0.00',icon:'📡',accent:'#6b9b7d',chip:isFiltered?renderDelta(filteredCommPerLive,prevCommPerLive,fmtGBP):null},
+            {label:'Avg Order Value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',icon:'🛒',accent:'#6b9b7d',chip:isFiltered?renderDelta(filteredAOV,prevAOV,fmtGBP):null},
           ].map((s,i)=>(
             <div key={i} style={{background:'var(--card)',borderRadius:12,overflow:'hidden',display:'flex'}}>
               <div style={{width:3,background:s.accent,flexShrink:0}}/>
@@ -2291,7 +2291,7 @@ body,html{margin:0;padding:0;background:#070710;}
 
         {/* TOP PRODUCTS */}
         <div style={{borderRadius:14,overflow:'hidden',marginBottom:10}}>
-          <div style={{height:3,background:'linear-gradient(90deg,#f59e0b,#f97316)'}}/>
+          <div style={{height:3,background:'linear-gradient(90deg,#c9a24b,#f97316)'}}/>
           <div style={{background:'var(--card)',padding:'14px 16px'}}>
             <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.5,marginBottom:10,fontWeight:500}}>🏆 Top Products</div>
             {(()=>{const list=isFiltered?filteredProducts.slice(0,3):topProducts;return list.length===0?(<div style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}} onClick={()=>navTo('products')}>
@@ -2301,13 +2301,13 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{fontSize:11,color:'var(--tx3)'}}>Your top products will appear here after your first import</div>
               </div>
             </div>):(list.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(<div key={i} style={{display:'flex',alignItems:'center',gap:10,paddingBottom:i<list.length-1?10:0,marginBottom:i<list.length-1?10:0,borderBottom:i<list.length-1?'1px solid rgba(255,255,255,.04)':'none'}}>
-              <div style={{width:28,fontFamily:'var(--fh)',fontSize:15,color:i===0?'#f59e0b':i===1?'#94a3b8':'#cd7f32',flexShrink:0,textAlign:'center'}}>{i+1}</div>
+              <div style={{width:28,fontFamily:'var(--fh)',fontSize:15,color:i===0?'#c9a24b':i===1?'#94a3b8':'#cd7f32',flexShrink:0,textAlign:'center'}}>{i+1}</div>
               {prod?.image_url?<img src={prod.image_url} alt="" style={{width:42,height:42,borderRadius:9,objectFit:'cover',flexShrink:0,border:'1px solid rgba(255,255,255,.06)'}}/>:<div style={{width:42,height:42,borderRadius:9,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>📦</div>}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:600,marginBottom:4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{tp.product_name||'Unknown Product'}</div>
                 <div style={{display:'flex',gap:12}}>
-                  <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#f59e0b'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>Comm</div></div>
-                  <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#10b981'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>GMV</div></div>
+                  <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#c9a24b'}}>{fmtGBP(tp.commission||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>Comm</div></div>
+                  <div><div style={{fontFamily:'var(--fh)',fontSize:14,color:'#6b9b7d'}}>{fmtGBP(tp.gmv||0)}</div><div style={{fontSize:8,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,fontWeight:500}}>GMV</div></div>
                 </div>
               </div>
             </div>);}));})()}
@@ -2318,7 +2318,7 @@ body,html{margin:0;padding:0;background:#070710;}
             net GMV (same basis as the admin Referrals table and generatePayouts)
             rather than the denormalized referral_earnings field, which drifts. */}
         {(()=>{const ltNet=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));const earn=parseFloat((ltNet*0.01).toFixed(2));return earn>0&&(
-          <div onClick={()=>navTo('referrals')} style={{background:'rgba(139,92,246,.07)',border:'1px solid rgba(139,92,246,.18)',borderRadius:'var(--rsm)',padding:'12px 14px',marginBottom:11,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
+          <div onClick={()=>navTo('referrals')} style={{background:'rgba(201,162,75,.07)',border:'1px solid rgba(201,162,75,.18)',borderRadius:'var(--rsm)',padding:'12px 14px',marginBottom:11,display:'flex',justifyContent:'space-between',alignItems:'center',cursor:'pointer'}}>
             <div>
               <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:'.7px',marginBottom:3}}>Referral Earnings</div>
               <div style={{fontFamily:'var(--fh)',fontSize:22,color:'var(--pu2)'}}>{fmtGBP(earn)}</div>
@@ -2376,8 +2376,8 @@ body,html{margin:0;padding:0;background:#070710;}
           const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of current
           const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'}); // this month
           const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of next
-          return(<div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'flex-start',gap:13}}>
-            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))',lineHeight:1}}>📅</span>
+          return(<div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(201,162,75,.18) 0%,rgba(139,164,168,.08) 100%)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'flex-start',gap:13}}>
+            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.5))',lineHeight:1}}>📅</span>
             <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
               <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
               <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any time you unlock a level, it's paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>.</div>
@@ -2388,10 +2388,10 @@ body,html{margin:0;padding:0;background:#070710;}
             </div>
           </div>);
         })()}
-        <div style={{margin:'0 13px 11px',padding:'11px 14px',background:'linear-gradient(135deg,rgba(16,185,129,.12) 0%,rgba(245,158,11,.07) 100%)',border:'1px solid rgba(16,185,129,.3)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:11}}>
+        <div style={{margin:'0 13px 11px',padding:'11px 14px',background:'linear-gradient(135deg,rgba(107,155,125,.12) 0%,rgba(201,162,75,.07) 100%)',border:'1px solid rgba(107,155,125,.3)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:11}}>
           <span style={{fontSize:22,flexShrink:0}}>💷</span>
           <div style={{flex:1,minWidth:0,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
-            Prefer cash? Swap any reward for <strong style={{color:'var(--gr)'}}>80% of its value in cash</strong>. <span style={{color:'var(--tx3)'}}>Contact Loophole for the exact amount.</span>
+            Prefer cash? Swap any reward for <strong style={{color:'var(--gr)'}}>80% of its value in cash</strong>. <span style={{color:'var(--tx3)'}}>Contact Hollen for the exact amount.</span>
           </div>
         </div>
         <div style={{padding:'0 13px 11px'}}>
@@ -2434,12 +2434,12 @@ body,html{margin:0;padding:0;background:#070710;}
                       const overdue=!delivered&&due&&due.getTime()<Date.now();
                       const urgent=!delivered&&daysLeft!=null&&daysLeft>=0&&daysLeft<=7;
                       const warn=!delivered&&daysLeft!=null&&daysLeft>7&&daysLeft<=14;
-                      const color=delivered?'var(--gr)':overdue||urgent?'#f43f5e':warn?'#fbbf24':'#10b981';
-                      const bg=delivered?'rgba(16,185,129,.12)':overdue||urgent?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
-                      const border=delivered?'rgba(16,185,129,.32)':overdue||urgent?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                      const color=delivered?'var(--gr)':overdue||urgent?'#b04a55':warn?'#d4b465':'#6b9b7d';
+                      const bg=delivered?'rgba(107,155,125,.12)':overdue||urgent?'rgba(176,74,85,.13)':warn?'rgba(212,180,101,.12)':'rgba(107,155,125,.1)';
+                      const border=delivered?'rgba(107,155,125,.32)':overdue||urgent?'rgba(176,74,85,.32)':warn?'rgba(212,180,101,.3)':'rgba(107,155,125,.28)';
                       const icon=delivered?'✅':overdue?'⚠':'📅';
                       const main=delivered?'DELIVERED':`DUE ${fmtDueDate(due).toUpperCase()}`;
-                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Past due — contact Loophole':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
+                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Past due — contact Hollen':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
                       return(
                         <div style={{marginTop:7,padding:'7px 10px',background:bg,border:`1px solid ${border}`,borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
                           <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
@@ -2465,7 +2465,7 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* Tabs */}
         <div style={{display:'flex',gap:0,marginBottom:14,background:'var(--card)',borderRadius:'var(--rsm)',border:'1px solid var(--bo)',overflow:'hidden'}}>
           {[['alltime','🏆 All Time'],['monthly','📅 Monthly']].map(([key,label])=>(
-            <button key={key} onClick={()=>setLbTab(key)} style={{flex:1,padding:'10px 0',background:lbTab===key?'rgba(139,92,246,.18)':'transparent',border:'none',borderRight:key==='alltime'?'1px solid var(--bo)':'none',color:lbTab===key?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{label}</button>
+            <button key={key} onClick={()=>setLbTab(key)} style={{flex:1,padding:'10px 0',background:lbTab===key?'rgba(201,162,75,.18)':'transparent',border:'none',borderRight:key==='alltime'?'1px solid var(--bo)':'none',color:lbTab===key?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{label}</button>
           ))}
         </div>
         {/* Month nav — only when Monthly is selected. ‹ Month YYYY ›, no future months. */}
@@ -2508,7 +2508,7 @@ body,html{margin:0;padding:0;background:#070710;}
               const myIdx=lb.findIndex(u=>u.id===profile.id);
               if(myIdx<0){
                 return(
-                  <div style={{background:'var(--card)',border:'1px dashed rgba(139,92,246,.3)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,textAlign:'center',fontSize:12.5,color:'var(--tx2)'}}>
+                  <div style={{background:'var(--card)',border:'1px dashed rgba(201,162,75,.3)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,textAlign:'center',fontSize:12.5,color:'var(--tx2)'}}>
                     {isMonthly?'You haven\'t earned any XP this month yet — start selling to get ranked.':'You\'re not on the leaderboard yet — start selling to get ranked.'}
                   </div>
                 );
@@ -2517,13 +2517,13 @@ body,html{margin:0;padding:0;background:#070710;}
               const myRank=myIdx+1;
               const pct=Math.round((myRank/lb.length)*100);
               return(
-                <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.32) 0%,rgba(168,85,247,.18) 50%,rgba(6,182,212,.14) 100%)',border:'1.5px solid rgba(168,85,247,.6)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:12,boxShadow:'0 0 30px rgba(139,92,246,.28)'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:34,color:'#fff',letterSpacing:.5,lineHeight:1,minWidth:54,textAlign:'center',textShadow:'0 0 14px rgba(168,85,247,.75)'}}>#{myRank}</div>
+                <div style={{background:'linear-gradient(135deg,rgba(201,162,75,.32) 0%,rgba(201,162,75,.18) 50%,rgba(139,164,168,.14) 100%)',border:'1.5px solid rgba(201,162,75,.6)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:12,boxShadow:'0 0 30px rgba(201,162,75,.28)'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:34,color:'#fff',letterSpacing:.5,lineHeight:1,minWidth:54,textAlign:'center',textShadow:'0 0 14px rgba(201,162,75,.75)'}}>#{myRank}</div>
                   <div style={{width:1,height:38,background:'rgba(255,255,255,.18)'}}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
                       <div style={{fontSize:13.5,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{me.username}</div>
-                      <span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'2px 7px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>
+                      <span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'2px 7px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>
                     </div>
                     <div style={{fontSize:10.5,color:'rgba(255,255,255,.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{isMonthly?(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][lbMonth.month]+' '+lbMonth.year):'All-time'} · top {pct}% of {lb.length}</div>
                   </div>
@@ -2544,15 +2544,15 @@ body,html{margin:0;padding:0;background:#070710;}
                 // When the current user is the one in this podium slot, swap the medal-coloured
                 // glow/border/bg for a brighter purple treatment so it stands out — matches the
                 // list-row 'YOU' highlight below.
-                const glow=isMe?'rgba(168,85,247,.55)':(rank===1?'rgba(245,158,11,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)');
-                const border=isMe?'rgba(168,85,247,.85)':(rank===1?'rgba(245,158,11,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)');
-                const bg=isMe?'rgba(139,92,246,.22)':(rank===1?'rgba(245,158,11,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)');
+                const glow=isMe?'rgba(201,162,75,.55)':(rank===1?'rgba(201,162,75,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)');
+                const border=isMe?'rgba(201,162,75,.85)':(rank===1?'rgba(201,162,75,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)');
+                const bg=isMe?'rgba(201,162,75,.22)':(rank===1?'rgba(201,162,75,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)');
                 const avSize=rank===1?54:44;
                 return(
                   <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',minWidth:0}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,marginBottom:6,maxWidth:'100%',padding:'0 2px',width:'100%'}}>
                       <span style={{fontSize:11,fontWeight:700,color:isMe?'#fff':'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.2,minWidth:0}}>{u.username}</span>
-                      {isMe&&<span style={{fontSize:7.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.75)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1px 5px',letterSpacing:.7,textTransform:'uppercase',flexShrink:0,lineHeight:1}}>You</span>}
+                      {isMe&&<span style={{fontSize:7.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.75)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1px 5px',letterSpacing:.7,textTransform:'uppercase',flexShrink:0,lineHeight:1}}>You</span>}
                     </div>
                     <div style={{position:'relative',marginBottom:8}}>
                       <div style={{width:avSize,height:avSize,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?18:14,color:'#fff',border:`${isMe?3:2}px solid ${border}`,boxShadow:`0 0 ${isMe?24:18}px ${glow}`,overflow:'hidden',flexShrink:0,lineHeight:1}}>
@@ -2560,7 +2560,7 @@ body,html{margin:0;padding:0;background:#070710;}
                       </div>
                       <div style={{position:'absolute',bottom:-4,right:-6,fontSize:18,lineHeight:1,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.45))',pointerEvents:'none'}}>{medal}</div>
                     </div>
-                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'12px 6px 14px',textAlign:'center',minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'center',gap:10,boxShadow:isMe?'inset 0 0 18px rgba(139,92,246,.25)':'none'}}>
+                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'12px 6px 14px',textAlign:'center',minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'center',gap:10,boxShadow:isMe?'inset 0 0 18px rgba(201,162,75,.25)':'none'}}>
                       <div>
                         <div style={{fontFamily:'var(--fh)',fontSize:20,color:isMe?'#fff':'var(--tx)',letterSpacing:.5,lineHeight:1}}>{(u.xp||0).toLocaleString()}</div>
                         <div style={{fontSize:9,color:isMe?'rgba(255,255,255,.7)':'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isMonthly?'XP this month':'XP'}</div>
@@ -2587,13 +2587,13 @@ body,html{margin:0;padding:0;background:#070710;}
                 {lb.map((u,i)=>{
                   const isMe=u.id===profile?.id;const col=avc(u.username);const medal=i===0?'🥇':i===1?'🥈':'🥉';
                   return(
-                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(139,92,246,.22) 0%, rgba(139,92,246,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #a78bfa':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(139,92,246,.18)':'none'}}>
+                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(201,162,75,.22) 0%, rgba(201,162,75,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #d4b465':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(201,162,75,.18)':'none'}}>
                       <div style={{fontSize:16,width:24,textAlign:'center'}}>{medal}</div>
-                      <div style={{width:36,height:36,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #a78bfa':'none',boxShadow:isMe?'0 0 12px rgba(168,85,247,.5)':'none'}}>{u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}</div>
+                      <div style={{width:36,height:36,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #d4b465':'none',boxShadow:isMe?'0 0 12px rgba(201,162,75,.5)':'none'}}>{u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:'flex',alignItems:'center',gap:5,fontSize:13,fontWeight:600}}>
                           <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:isMe?'#fff':'var(--tx)'}}>{u.username}</span>
-                          {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
+                          {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
                         </div>
                         <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
                       </div>
@@ -2613,15 +2613,15 @@ body,html{margin:0;padding:0;background:#070710;}
                 const isMe=u.id===profile?.id;
                 const col=avc(u.username);
                 return(
-                  <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<lb.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(139,92,246,.22) 0%, rgba(139,92,246,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #a78bfa':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(139,92,246,.18)':'none'}}>
+                  <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<lb.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(201,162,75,.22) 0%, rgba(201,162,75,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #d4b465':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(201,162,75,.18)':'none'}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:isMe?'#fff':'var(--tx3)',flexShrink:0}}>{rank}</div>
-                    <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #a78bfa':'none',boxShadow:isMe?'0 0 12px rgba(168,85,247,.5)':'none'}}>
+                    <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #d4b465':'none',boxShadow:isMe?'0 0 12px rgba(201,162,75,.5)':'none'}}>
                       {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
                     </div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:'flex',alignItems:'center',gap:5,fontSize:13,fontWeight:500}}>
                         <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:isMe?'#fff':'var(--tx)',fontWeight:isMe?700:500}}>{u.username}</span>
-                        {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(168,85,247,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
+                        {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
                       </div>
                       <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
                     </div>
@@ -2667,7 +2667,7 @@ body,html{margin:0;padding:0;background:#070710;}
             const cur=l.level===lv.level;
             const rw=rewards.find(r=>r.level===l.level+1);
             return(
-              <div key={l.level} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',borderBottom:i<LEVELS.length-1?'1px solid var(--bo)':'none',background:cur?'rgba(139,92,246,.07)':'transparent'}}>
+              <div key={l.level} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',borderBottom:i<LEVELS.length-1?'1px solid var(--bo)':'none',background:cur?'rgba(201,162,75,.07)':'transparent'}}>
                 <div style={{width:32,height:32,borderRadius:'50%',background:done?'var(--gr)':cur?'var(--pu)':'var(--card3)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0}}>{done&&!cur?'✓':l.level}</div>
                 <div style={{flex:1}}>
                   <div style={{fontSize:13,fontWeight:cur?600:400,color:cur?'var(--tx)':'var(--tx2)'}}>Level {l.level}</div>
@@ -2675,7 +2675,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   {rw?.image_url&&<img src={rw.image_url} alt="" style={{width:28,height:28,borderRadius:6,objectFit:'cover',opacity:done?1:.4}}/>}
-                  {cur&&<div style={{fontSize:11,background:'rgba(139,92,246,.2)',color:'var(--pu2)',padding:'3px 9px',borderRadius:99,fontWeight:600}}>YOU</div>}
+                  {cur&&<div style={{fontSize:11,background:'rgba(201,162,75,.2)',color:'var(--pu2)',padding:'3px 9px',borderRadius:99,fontWeight:600}}>YOU</div>}
                 </div>
               </div>
             );
@@ -2687,7 +2687,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
           {[
             {icon:'🛒',label:'Generate Sales',sub:'Every £10 in net GMV (after returns)',val:'+100 XP'},
-            {icon:'🔥',label:'Daily Streak',sub:'Go live for Loophole every day — hit milestones for bonus XP',val:'Bonus XP'},
+            {icon:'🔥',label:'Daily Streak',sub:'Go live for Hollen every day — hit milestones for bonus XP',val:'Bonus XP'},
             {icon:'👥',label:'Refer a Creator',sub:'They earn, you earn 1% of their GMV forever',val:'+100 XP & 1% GMV'},
           ].map((item,i,arr)=>(
             <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',borderBottom:i<arr.length-1?'1px solid var(--bo)':'none'}}>
@@ -2710,10 +2710,10 @@ body,html{margin:0;padding:0;background:#070710;}
         {/* DATE FILTER */}
         <div style={{display:'flex',gap:5,marginBottom:11,flexWrap:'wrap',alignItems:'center'}}>
           {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
-            <button key={val} onClick={()=>setRefDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange===val?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:refDateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
+            <button key={val} onClick={()=>setRefDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange===val?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:refDateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
           ))}
-          {refDateRange==='month'&&<input type='month' value={refSelectedMonth} onChange={e=>setRefSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(139,92,246,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
-          <button onClick={()=>setRefDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange==='custom'?'rgba(139,92,246,.18)':'rgba(255,255,255,.03)',color:refDateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
+          {refDateRange==='month'&&<input type='month' value={refSelectedMonth} onChange={e=>setRefSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(201,162,75,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
+          <button onClick={()=>setRefDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange==='custom'?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:refDateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
           {refDateRange==='custom'&&(<>
             <input type="date" value={refCustomStart} onChange={e=>setRefCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
             <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
@@ -2746,15 +2746,15 @@ body,html{margin:0;padding:0;background:#070710;}
           return(<>
             {/* HERO EARNINGS CARD — matches the home Net GMV layout */}
             <div style={{borderRadius:16,overflow:'hidden',marginBottom:10}}>
-              <div style={{height:3,background:'linear-gradient(90deg,#8b5cf6,#06b6d4,#10b981)'}}/>
+              <div style={{height:3,background:'linear-gradient(90deg,#c9a24b,#8ba4a8,#6b9b7d)'}}/>
               <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
                 <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Referral Earnings{isRefFiltered?'':' · All Time'}</div>
                 <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1,marginBottom:20}}>{fmtGBP(isRefFiltered?refEarnings:parseFloat((lifetimeNetGMV*0.01).toFixed(2)))}</div>
                 <div style={{display:'flex',gap:0}}>
                   {[
-                    {label:'Their Net GMV',val:fmtGBP(isRefFiltered?netRefGMV:lifetimeNetGMV),color:'#10b981',bg:'rgba(16,185,129,.08)'},
-                    {label:'Affiliates',val:referralStats.length.toLocaleString(),color:'#06b6d4',bg:'rgba(6,182,212,.08)'},
-                    {label:'Bonus XP',val:(referralStats.length*100).toLocaleString(),color:'#8b5cf6',bg:'rgba(139,92,246,.08)'},
+                    {label:'Their Net GMV',val:fmtGBP(isRefFiltered?netRefGMV:lifetimeNetGMV),color:'#6b9b7d',bg:'rgba(107,155,125,.08)'},
+                    {label:'Affiliates',val:referralStats.length.toLocaleString(),color:'#8ba4a8',bg:'rgba(139,164,168,.08)'},
+                    {label:'Bonus XP',val:(referralStats.length*100).toLocaleString(),color:'#c9a24b',bg:'rgba(201,162,75,.08)'},
                   ].map((s,i)=>(
                     <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
                       <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
@@ -2766,8 +2766,8 @@ body,html{margin:0;padding:0;background:#070710;}
             </div>
 
             {/* XP INCENTIVE BANNER */}
-            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11,background:'linear-gradient(135deg,rgba(139,92,246,.16) 0%,rgba(245,158,11,.1) 100%)',border:'1px solid rgba(139,92,246,.35)',padding:'13px 15px',display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 4px rgba(139,92,246,.4))'}}>⚡</span>
+            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11,background:'linear-gradient(135deg,rgba(201,162,75,.16) 0%,rgba(201,162,75,.1) 100%)',border:'1px solid rgba(201,162,75,.35)',padding:'13px 15px',display:'flex',alignItems:'center',gap:12}}>
+              <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 4px rgba(201,162,75,.4))'}}>⚡</span>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.3,marginBottom:2,color:'#fff'}}>+100 XP — BOTH SIDES</div>
                 <div style={{fontSize:11,color:'var(--tx2)',lineHeight:1.45}}>You get <strong style={{color:'var(--pu2)'}}>+100 XP</strong> for every creator who signs up with your code. They also get <strong style={{color:'var(--pu2)'}}>+100 XP</strong> to kickstart their journey.</div>
@@ -2776,7 +2776,7 @@ body,html{margin:0;padding:0;background:#070710;}
 
             {/* REFERRAL CODE / LINK */}
             <div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
-              <div style={{height:3,background:'linear-gradient(90deg,#f59e0b,#f97316,#ef4444)'}}/>
+              <div style={{height:3,background:'linear-gradient(90deg,#c9a24b,#f97316,#ef4444)'}}/>
               <div style={{background:'var(--card)',padding:'14px 16px'}}>
                 <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Your Referral Code</div>
                 <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.45}}>Share this — they get +100 XP, you get +100 XP, then <strong style={{color:'var(--gr)'}}>1% of their net GMV forever</strong>.</div>
@@ -2820,15 +2820,15 @@ body,html{margin:0;padding:0;background:#070710;}
           const pending=payouts.filter(p=>!p.paid).reduce((s,p)=>s+(p.amount||0),0);
           const accruing=Math.max(0,parseFloat((earned-paid-pending).toFixed(2)));
           return(<div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
-            <div style={{height:3,background:'linear-gradient(90deg,#10b981,#f59e0b,#f43f5e,#8b5cf6)'}}/>
+            <div style={{height:3,background:'linear-gradient(90deg,#6b9b7d,#c9a24b,#b04a55,#c9a24b)'}}/>
             <div style={{background:'var(--card)',padding:'14px 16px'}}>
               <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:10,fontWeight:500}}>📊 Payout Breakdown</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
                 {[
                   {l:'Earned',v:fmtGBP(earned),c:'#fff',bg:'rgba(255,255,255,.04)'},
-                  {l:'Paid',v:fmtGBP(paid),c:'var(--gr)',bg:'rgba(16,185,129,.08)'},
-                  {l:'Awaiting',v:fmtGBP(pending),c:'var(--go)',bg:'rgba(245,158,11,.08)'},
-                  {l:'This Month',v:fmtGBP(accruing),c:'var(--pu2)',bg:'rgba(139,92,246,.08)'},
+                  {l:'Paid',v:fmtGBP(paid),c:'var(--gr)',bg:'rgba(107,155,125,.08)'},
+                  {l:'Awaiting',v:fmtGBP(pending),c:'var(--go)',bg:'rgba(201,162,75,.08)'},
+                  {l:'This Month',v:fmtGBP(accruing),c:'var(--pu2)',bg:'rgba(201,162,75,.08)'},
                 ].map((b,i)=>(
                   <div key={i} style={{background:b.bg,borderRadius:9,padding:'9px 6px',textAlign:'center'}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.3,color:b.c,lineHeight:1.1}}>{b.v}</div>
@@ -2852,12 +2852,12 @@ body,html{margin:0;padding:0;background:#070710;}
               const overdue=!po.paid&&due&&due.getTime()<Date.now();
               return(
                 <div key={po.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<payouts.length-1?'1px solid var(--bo)':'none'}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(16,185,129,.1)':overdue?'rgba(244,63,94,.1)':'rgba(245,158,11,.1)',border:`1px solid ${po.paid?'rgba(16,185,129,.25)':overdue?'rgba(244,63,94,.3)':'rgba(245,158,11,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':overdue?'⚠':'⏳'}</div>
+                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(107,155,125,.1)':overdue?'rgba(176,74,85,.1)':'rgba(201,162,75,.1)',border:`1px solid ${po.paid?'rgba(107,155,125,.25)':overdue?'rgba(176,74,85,.3)':'rgba(201,162,75,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':overdue?'⚠':'⏳'}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13,fontWeight:600}}>{monthLabel}</div>
-                    <div style={{fontSize:10,color:po.paid?'var(--gr)':overdue?'#f43f5e':'var(--go)',marginTop:2,fontWeight:600,letterSpacing:.2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:`Due ${dueLabel}${overdue?' · past due, contact Loophole':''}`}</div>
+                    <div style={{fontSize:10,color:po.paid?'var(--gr)':overdue?'#b04a55':'var(--go)',marginTop:2,fontWeight:600,letterSpacing:.2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:`Due ${dueLabel}${overdue?' · past due, contact Hollen':''}`}</div>
                   </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':overdue?'#f43f5e':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':overdue?'#b04a55':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
                 </div>
               );
             })
@@ -2871,8 +2871,8 @@ body,html{margin:0;padding:0;background:#070710;}
           const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
           const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'});
           const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-          return(<div style={{background:'linear-gradient(135deg,rgba(139,92,246,.18) 0%,rgba(6,182,212,.08) 100%)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11,display:'flex',alignItems:'flex-start',gap:13}}>
-            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.5))',lineHeight:1}}>📅</span>
+          return(<div style={{background:'linear-gradient(135deg,rgba(201,162,75,.18) 0%,rgba(139,164,168,.08) 100%)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11,display:'flex',alignItems:'flex-start',gap:13}}>
+            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.5))',lineHeight:1}}>📅</span>
             <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
               <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
               <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any commission you earn from a referred creator is paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>. Buffers returns and gives one clear payday.</div>
@@ -2908,11 +2908,11 @@ body,html{margin:0;padding:0;background:#070710;}
                 {prod.description&&<div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.4}}>{prod.description}</div>}
                 {(prod.commission_rate||prod.free_shipping)&&(
                   <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-                    {prod.commission_rate&&<div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.25)',borderRadius:99,padding:'3px 9px',fontSize:9,color:'var(--go)',fontWeight:700,letterSpacing:.5,textTransform:'uppercase'}}>💰 {prod.commission_rate}% Comm</div>}
-                    {prod.free_shipping&&<div style={{background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.28)',borderRadius:99,padding:'3px 9px',fontSize:9,color:'var(--gr)',fontWeight:700,letterSpacing:.5,textTransform:'uppercase'}}>🚚 Free Shipping</div>}
+                    {prod.commission_rate&&<div style={{background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.25)',borderRadius:99,padding:'3px 9px',fontSize:9,color:'var(--go)',fontWeight:700,letterSpacing:.5,textTransform:'uppercase'}}>💰 {prod.commission_rate}% Comm</div>}
+                    {prod.free_shipping&&<div style={{background:'rgba(107,155,125,.1)',border:'1px solid rgba(107,155,125,.28)',borderRadius:99,padding:'3px 9px',fontSize:9,color:'var(--gr)',fontWeight:700,letterSpacing:.5,textTransform:'uppercase'}}>🚚 Free Shipping</div>}
                   </div>
                 )}
-                {prod.tiktok_url&&<button onClick={()=>{navigator.clipboard.writeText(prod.tiktok_url);toast('Link copied! 📋','ok');}} style={{marginTop:'auto',width:'100%',background:'rgba(139,92,246,.14)',border:'1px solid rgba(139,92,246,.3)',borderRadius:'var(--rsm)',padding:'8px',fontSize:11,color:'var(--pu2)',fontWeight:700,cursor:'pointer',letterSpacing:.6,fontFamily:'var(--fb)'}}>📋 COPY LINK</button>}
+                {prod.tiktok_url&&<button onClick={()=>{navigator.clipboard.writeText(prod.tiktok_url);toast('Link copied! 📋','ok');}} style={{marginTop:'auto',width:'100%',background:'rgba(201,162,75,.14)',border:'1px solid rgba(201,162,75,.3)',borderRadius:'var(--rsm)',padding:'8px',fontSize:11,color:'var(--pu2)',fontWeight:700,cursor:'pointer',letterSpacing:.6,fontFamily:'var(--fb)'}}>📋 COPY LINK</button>}
               </div>
             </div>
           ))}
@@ -2941,7 +2941,7 @@ body,html{margin:0;padding:0;background:#070710;}
         <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:'linear-gradient(135deg,#5865F2 0%,#7c3aed 100%)',borderRadius:'var(--r)',color:'#fff',textDecoration:'none',marginBottom:6,boxShadow:'0 4px 18px rgba(88,101,242,.3)'}}>
           <span style={{fontSize:24,filter:'drop-shadow(0 1px 3px rgba(0,0,0,.25))'}}>💬</span>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.5,lineHeight:1.1}}>JOIN THE LOOPHOLE DISCORD</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.5,lineHeight:1.1}}>JOIN THE HOLLEN DISCORD</div>
             <div style={{fontSize:10,opacity:.85,marginTop:3,letterSpacing:.3}}>Rewards · payouts · training · announcements</div>
           </div>
           <span style={{fontSize:18,opacity:.7}}>›</span>
@@ -2970,7 +2970,7 @@ body,html{margin:0;padding:0;background:#070710;}
             <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}>
               <span>{ic}</span><span>{lb}</span>
               {id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
-              {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+              {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(201,162,75,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
             </button>
           ))}
         </div>
@@ -3044,7 +3044,7 @@ body,html{margin:0;padding:0;background:#070710;}
           const byOwed=Object.entries(owedByProfile).map(([pid,v])=>{const pp=profileById[pid];return pp?{...pp,_owed:v.amount,_months:v.months}:null;}).filter(Boolean).sort((a,b)=>b._owed-a._owed).slice(0,3);
           const PodRow=({p,i,right,rightLabel,rightColor})=>(
             <div style={{display:'flex',alignItems:'center',gap:9,padding:'8px 0',borderBottom:i<2?'1px solid var(--bo)':'none'}}>
-              <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+              <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#c9a24b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
               <div style={{width:28,height:28,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:10,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12.5,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{p.username}</div>
@@ -3076,11 +3076,11 @@ body,html{margin:0;padding:0;background:#070710;}
               </div>
             )}
             {/* HERO PERFORMANCE */}
-            <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.14) 0%,rgba(6,182,212,.06) 60%,rgba(245,158,11,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
+            <div style={{background:'linear-gradient(135deg,rgba(201,162,75,.14) 0%,rgba(139,164,168,.06) 60%,rgba(201,162,75,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(201,162,75,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,position:'relative',flexWrap:'wrap',gap:10}}>
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
-                  <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.3))'}}>📊</span>
+                  <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.3))'}}>📊</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>PERFORMANCE</div>
                     <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{adminPeriod==='all'?'All time':adminPeriod==='today'?'Yesterday':adminPeriod==='7d'?'Last 7 days':adminPeriod==='30d'?'Last 30 days':adminCustomStart&&adminCustomEnd?`${new Date(adminCustomStart).toLocaleDateString('en-GB')} → ${new Date(adminCustomEnd).toLocaleDateString('en-GB')}`:'Pick a custom range'}</div>
@@ -3093,9 +3093,9 @@ body,html{margin:0;padding:0;background:#070710;}
                     ))}
                   </div>
                   {adminPeriod==='custom'&&(<>
-                    <input type="date" value={adminCustomStart} onChange={e=>setAdminCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                    <input type="date" value={adminCustomStart} onChange={e=>setAdminCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(201,162,75,.12)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
                     <span style={{color:'var(--tx3)',fontSize:11}}>→</span>
-                    <input type="date" value={adminCustomEnd} onChange={e=>setAdminCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                    <input type="date" value={adminCustomEnd} onChange={e=>setAdminCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(201,162,75,.12)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
                   </>)}
                 </div>
               </div>
@@ -3119,11 +3119,11 @@ body,html{margin:0;padding:0;background:#070710;}
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11}}>
                 <span style={{fontSize:14}}>📥</span>
                 <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>NEEDS ATTENTION</span>
-                {tasks.length>0&&<span style={{background:'rgba(244,63,94,.15)',color:'var(--re)',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,letterSpacing:.3}}>{tasks.length}</span>}
+                {tasks.length>0&&<span style={{background:'rgba(176,74,85,.15)',color:'var(--re)',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:700,letterSpacing:.3}}>{tasks.length}</span>}
                 <span style={{marginLeft:'auto',fontSize:10,color:'var(--tx3)',letterSpacing:.3}}>Daily checklist — click to act</span>
               </div>
               {tasks.length===0?(
-                <div style={{padding:'18px 8px',textAlign:'center',color:'var(--tx3)',fontSize:12,background:'rgba(16,185,129,.04)',border:'1px dashed rgba(16,185,129,.2)',borderRadius:10}}>✨ All clear — no actions needed</div>
+                <div style={{padding:'18px 8px',textAlign:'center',color:'var(--tx3)',fontSize:12,background:'rgba(107,155,125,.04)',border:'1px dashed rgba(107,155,125,.2)',borderRadius:10}}>✨ All clear — no actions needed</div>
               ):(
                 <div style={{display:'grid',gridTemplateColumns:isDesktop?'1fr 1fr':'1fr',gap:8}}>
                   {tasks.map((t,i)=>(
@@ -3205,7 +3205,7 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{display:'flex',gap:5,marginBottom:10,flexWrap:'wrap',alignItems:'center'}}>
             <span style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginRight:3}}>Sort:</span>
             {[['gmv','Net GMV'],['xp','XP'],['referrals','Referrals'],['newest','Newest'],['name','Name']].map(([val,label])=>(
-              <button key={val} onClick={()=>setAdminSort(val)} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${adminSort===val?'var(--pu)':'var(--bo)'}`,background:adminSort===val?'rgba(139,92,246,.18)':'var(--card)',color:adminSort===val?'var(--pu2)':'var(--tx3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)'}}>{label}</button>
+              <button key={val} onClick={()=>setAdminSort(val)} style={{padding:'4px 10px',borderRadius:99,border:`1px solid ${adminSort===val?'var(--pu)':'var(--bo)'}`,background:adminSort===val?'rgba(201,162,75,.18)':'var(--card)',color:adminSort===val?'var(--pu2)':'var(--tx3)',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)'}}>{label}</button>
             ))}
           </div>
           {/* AFFILIATE CARDS - sorted, with search/level filters applied */}
@@ -3254,7 +3254,7 @@ body,html{margin:0;padding:0;background:#070710;}
                     const referredBy=p.referred_by?profileById[p.referred_by]:null;
                     const referralCount=(referralsByReferrer[p.id]||[]).length;
                     return(<div key={p.id} style={{display:'grid',gridTemplateColumns:cols,gap:6,padding:'11px 14px',borderBottom:i<sorted.length-1?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:1100}}>
-                      <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                      <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#c9a24b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
                         <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                         <div style={{minWidth:0}}>
@@ -3277,16 +3277,16 @@ body,html{margin:0;padding:0;background:#070710;}
                       <div style={{display:'flex',gap:4,justifyContent:'flex-end',alignItems:'center',flexWrap:'nowrap'}}>
                         <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{width:54,padding:'4px 6px',fontSize:11}}/>
                         <button className="xbtn" style={{padding:'4px 7px'}} onClick={()=>admAwardXP(p.id)} title="Add XP">+</button>
-                        <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)',padding:'4px 7px'}} onClick={()=>admAwardXP(p.id,true)} title="Subtract XP">−</button>
-                        <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)',padding:'4px 6px'}} onClick={()=>openEditAffiliate(p)} title="Edit all fields">✏️</button>
+                        <button className="xbtn" style={{background:'rgba(176,74,85,.14)',borderColor:'rgba(176,74,85,.26)',color:'var(--re)',padding:'4px 7px'}} onClick={()=>admAwardXP(p.id,true)} title="Subtract XP">−</button>
+                        <button className="xbtn" style={{background:'rgba(139,164,168,.14)',borderColor:'rgba(139,164,168,.26)',color:'var(--cy)',padding:'4px 6px'}} onClick={()=>openEditAffiliate(p)} title="Edit all fields">✏️</button>
                         {referredBy&&(deleteConfirm===`revertref-${p.id}`?(<>
-                          <button className="xbtn" style={{background:'rgba(245,158,11,.22)',borderColor:'rgba(245,158,11,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>revertReferral(p.id)} title="Confirm revert">✓</button>
+                          <button className="xbtn" style={{background:'rgba(201,162,75,.22)',borderColor:'rgba(201,162,75,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>revertReferral(p.id)} title="Confirm revert">✓</button>
                           <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(null)} title="Cancel">×</button>
-                        </>):(<button className="xbtn" style={{background:'rgba(245,158,11,.1)',borderColor:'rgba(245,158,11,.25)',color:'var(--go)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(`revertref-${p.id}`)} title={`Revert referral by ${referredBy.username} (foul play)`}>↩</button>))}
+                        </>):(<button className="xbtn" style={{background:'rgba(201,162,75,.1)',borderColor:'rgba(201,162,75,.25)',color:'var(--go)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(`revertref-${p.id}`)} title={`Revert referral by ${referredBy.username} (foul play)`}>↩</button>))}
                         {deleteConfirm===`profile-${p.id}`?(<>
-                          <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>deleteAffiliate(p.id)}>✓</button>
+                          <button className="xbtn" style={{background:'rgba(176,74,85,.22)',borderColor:'rgba(176,74,85,.45)',color:'#fff',fontWeight:700,padding:'4px 6px'}} onClick={()=>deleteAffiliate(p.id)}>✓</button>
                           <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(null)}>×</button>
-                        </>):(<button className="xbtn" style={{background:'rgba(244,63,94,.08)',borderColor:'rgba(244,63,94,.2)',color:'var(--re)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
+                        </>):(<button className="xbtn" style={{background:'rgba(176,74,85,.08)',borderColor:'rgba(176,74,85,.2)',color:'var(--re)',padding:'4px 6px'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
                       </div>
                     </div>);
                   })}
@@ -3315,8 +3315,8 @@ body,html{margin:0;padding:0;background:#070710;}
                     </div>
                     {(referredBy||referralCount>0)&&(
                       <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:12}}>
-                        {referredBy&&(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.22)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--pu2)',fontWeight:600}}>↩ Referred by <strong style={{color:'#fff',fontWeight:700,marginLeft:3}}>{referredBy.username}</strong></span>)}
-                        {referralCount>0&&(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.25)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--gr)',fontWeight:700}}>👥 Referred {referralCount}</span>)}
+                        {referredBy&&(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.22)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--pu2)',fontWeight:600}}>↩ Referred by <strong style={{color:'#fff',fontWeight:700,marginLeft:3}}>{referredBy.username}</strong></span>)}
+                        {referralCount>0&&(<span style={{display:'inline-flex',alignItems:'center',gap:4,background:'rgba(107,155,125,.1)',border:'1px solid rgba(107,155,125,.25)',borderRadius:99,padding:'3px 9px',fontSize:10,color:'var(--gr)',fontWeight:700}}>👥 Referred {referralCount}</span>)}
                       </div>
                     )}
                     <div style={{marginBottom:12}}>
@@ -3346,12 +3346,12 @@ body,html{margin:0;padding:0;background:#070710;}
                     <div style={{display:'flex',gap:5,alignItems:'center',flexWrap:'wrap'}}>
                       <input className="xpin" type="number" min="1" value={xpAmounts[p.id]||100} onChange={e=>setXpAmounts({...xpAmounts,[p.id]:parseInt(e.target.value)||100})} style={{flex:1,minWidth:60}}/>
                       <button className="xbtn" onClick={()=>admAwardXP(p.id)}>+XP</button>
-                      <button className="xbtn" style={{background:'rgba(244,63,94,.14)',borderColor:'rgba(244,63,94,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
-                      <button className="xbtn" style={{background:'rgba(6,182,212,.14)',borderColor:'rgba(6,182,212,.26)',color:'var(--cy)'}} onClick={()=>openEditAffiliate(p)}>✏️ Edit</button>
+                      <button className="xbtn" style={{background:'rgba(176,74,85,.14)',borderColor:'rgba(176,74,85,.26)',color:'var(--re)'}} onClick={()=>admAwardXP(p.id,true)}>-XP</button>
+                      <button className="xbtn" style={{background:'rgba(139,164,168,.14)',borderColor:'rgba(139,164,168,.26)',color:'var(--cy)'}} onClick={()=>openEditAffiliate(p)}>✏️ Edit</button>
                       {deleteConfirm===`profile-${p.id}`?(<>
-                        <button className="xbtn" style={{background:'rgba(244,63,94,.22)',borderColor:'rgba(244,63,94,.45)',color:'#fff',fontWeight:700}} onClick={()=>deleteAffiliate(p.id)}>✓ Delete forever</button>
+                        <button className="xbtn" style={{background:'rgba(176,74,85,.22)',borderColor:'rgba(176,74,85,.45)',color:'#fff',fontWeight:700}} onClick={()=>deleteAffiliate(p.id)}>✓ Delete forever</button>
                         <button className="xbtn" style={{background:'var(--card2)',borderColor:'var(--bo)',color:'var(--tx3)'}} onClick={()=>setDeleteConfirm(null)}>Cancel</button>
-                      </>):(<button className="xbtn" style={{background:'rgba(244,63,94,.08)',borderColor:'rgba(244,63,94,.2)',color:'var(--re)'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
+                      </>):(<button className="xbtn" style={{background:'rgba(176,74,85,.08)',borderColor:'rgba(176,74,85,.2)',color:'var(--re)'}} onClick={()=>setDeleteConfirm(`profile-${p.id}`)} title="Delete this affiliate's profile and all their data">🗑️</button>)}
                     </div>
                   </div>);
                 })
@@ -3421,11 +3421,11 @@ body,html{margin:0;padding:0;background:#070710;}
           };
           return(<>
             {/* HERO STRIP */}
-            <div style={{background:'linear-gradient(135deg,rgba(139,92,246,.14) 0%,rgba(6,182,212,.06) 60%,rgba(245,158,11,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(139,92,246,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
+            <div style={{background:'linear-gradient(135deg,rgba(201,162,75,.14) 0%,rgba(139,164,168,.06) 60%,rgba(201,162,75,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(201,162,75,.16) 0%,transparent 70%)',pointerEvents:'none'}}/>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16,position:'relative',flexWrap:'wrap',gap:10}}>
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
-                  <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(139,92,246,.3))'}}>🔗</span>
+                  <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.3))'}}>🔗</span>
                   <div>
                     <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REFERRAL PROGRAMME</div>
                     <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>{referralPeriod==='all'?'All time · 1% of every referred creator\'s net GMV':referralPeriod==='today'?'Yesterday\'s referral activity':referralPeriod==='7d'?'Last 7 days of referral activity':referralPeriod==='30d'?'Last 30 days of referral activity':referralCustomStart&&referralCustomEnd?`${new Date(referralCustomStart).toLocaleDateString('en-GB')} → ${new Date(referralCustomEnd).toLocaleDateString('en-GB')}`:'Pick a custom range'}</div>
@@ -3438,9 +3438,9 @@ body,html{margin:0;padding:0;background:#070710;}
                     ))}
                   </div>
                   {referralPeriod==='custom'&&(<>
-                    <input type="date" value={referralCustomStart} onChange={e=>setReferralCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                    <input type="date" value={referralCustomStart} onChange={e=>setReferralCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(201,162,75,.12)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
                     <span style={{color:'var(--tx3)',fontSize:11}}>→</span>
-                    <input type="date" value={referralCustomEnd} onChange={e=>setReferralCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
+                    <input type="date" value={referralCustomEnd} onChange={e=>setReferralCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(201,162,75,.12)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none',colorScheme:'dark'}}/>
                   </>)}
                 </div>
               </div>
@@ -3469,8 +3469,8 @@ body,html{margin:0;padding:0;background:#070710;}
                   </div>
                   {referrers.map((p,i)=>{const open=expandedReferrer===p.id;return(
                     <React.Fragment key={p.id}>
-                    <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:(open||i<referrers.length-1)?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780,cursor:'pointer',background:open?'rgba(139,92,246,.06)':'transparent'}}>
-                      <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                    <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'grid',gridTemplateColumns:'34px minmax(160px, 1fr) 70px 110px 90px 100px 90px 90px',gap:6,padding:'11px 14px',borderBottom:(open||i<referrers.length-1)?'1px solid var(--bo)':'none',alignItems:'center',fontSize:12,minWidth:780,cursor:'pointer',background:open?'rgba(201,162,75,.06)':'transparent'}}>
+                      <span style={{fontFamily:'var(--fh)',fontSize:14,color:i===0?'#c9a24b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{display:'flex',gap:9,alignItems:'center',minWidth:0}}>
                         <span style={{fontSize:10,color:'var(--tx3)',transform:open?'rotate(90deg)':'none',transition:'transform .18s ease',flexShrink:0}}>▸</span>
                         <div style={{width:30,height:30,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
@@ -3516,7 +3516,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 referrers.map((p,i)=>{const open=expandedReferrer===p.id;return(
                   <div key={p.id} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:12,marginBottom:8}}>
                     <div onClick={()=>setExpandedReferrer(open?null:p.id)} style={{display:'flex',alignItems:'center',gap:10,marginBottom:8,cursor:'pointer'}}>
-                      <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#f59e0b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
+                      <span style={{fontFamily:'var(--fh)',fontSize:15,width:20,textAlign:'center',color:i===0?'#c9a24b':i===1?'#bbb':i===2?'#cd7f32':'var(--tx3)'}}>{i+1}</span>
                       <div style={{width:32,height:32,borderRadius:'50%',background:p.avatar_url?'transparent':avc(p.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden'}}>{p.avatar_url?<img src={p.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(p.username)}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:13,fontWeight:600}}>{p.username}</div>
@@ -3609,13 +3609,13 @@ body,html{margin:0;padding:0;background:#070710;}
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
           // _curLevel = the level displayed on their profile / leaderboard (getLv).
           // Discord roles mirror that convention: someone in the L7 XP band gets
-          // the "Loophole Level 7" Discord role. achievedLevel is used elsewhere
+          // the "Hollen Level 7" Discord role. achievedLevel is used elsewhere
           // for reward-payout logic, not for role display.
           const pending=allProfiles.map(p=>{const lv=getLv(p.xp,LEVELS).level;return{...p,_curLevel:lv,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
           const totalAffiliates=allProfiles.length;
           return(<>
             {/* HERO */}
-            <div style={{background:'linear-gradient(135deg,rgba(88,101,242,.18) 0%,rgba(139,92,246,.10) 60%,rgba(6,182,212,.06) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+            <div style={{background:'linear-gradient(135deg,rgba(88,101,242,.18) 0%,rgba(201,162,75,.10) 60%,rgba(139,164,168,.06) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
               <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(88,101,242,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
               <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,position:'relative'}}>
                 <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(88,101,242,.4))'}}>🎮</span>
@@ -3663,7 +3663,7 @@ body,html{margin:0;padding:0;background:#070710;}
                           <span style={{color:'var(--tx3)',fontSize:11}}>→</span>
                           <span style={{fontFamily:'var(--fh)',fontSize:14,color:'#a5b4fc',padding:'2px 7px',background:'rgba(88,101,242,.18)',borderRadius:6}}>L{p._curLevel}</span>
                         </div>
-                        <button onClick={()=>markDiscordRoleUpdated(p.id,p._curLevel)} style={{padding:'6px 10px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',justifySelf:'end'}}>✓ Mark updated</button>
+                        <button onClick={()=>markDiscordRoleUpdated(p.id,p._curLevel)} style={{padding:'6px 10px',background:'rgba(107,155,125,.14)',border:'1px solid rgba(107,155,125,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',justifySelf:'end'}}>✓ Mark updated</button>
                       </div>
                     ))}
                   </div>
@@ -3683,7 +3683,7 @@ body,html{margin:0;padding:0;background:#070710;}
                           <span style={{fontFamily:'var(--fh)',fontSize:14,color:'#a5b4fc',padding:'2px 7px',background:'rgba(88,101,242,.18)',borderRadius:6}}>L{p._curLevel}</span>
                         </div>
                       </div>
-                      <button onClick={()=>markDiscordRoleUpdated(p.id,p._curLevel)} style={{width:'100%',padding:'8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark Discord role updated</button>
+                      <button onClick={()=>markDiscordRoleUpdated(p.id,p._curLevel)} style={{width:'100%',padding:'8px',background:'rgba(107,155,125,.14)',border:'1px solid rgba(107,155,125,.32)',color:'var(--gr)',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark Discord role updated</button>
                     </div>
                   ))
                 )}
@@ -3751,45 +3751,45 @@ body,html{margin:0;padding:0;background:#070710;}
           const missingValues=rewards.filter(r=>!r.value||Number(r.value)===0).length;
           return(<>
             {/* HERO STRIP */}
-            <div style={{background:'linear-gradient(135deg,rgba(245,158,11,.14) 0%,rgba(139,92,246,.06) 60%,rgba(16,185,129,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(245,158,11,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
+            <div style={{background:'linear-gradient(135deg,rgba(201,162,75,.14) 0%,rgba(201,162,75,.06) 60%,rgba(107,155,125,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:-60,right:-60,width:200,height:200,borderRadius:'50%',background:'radial-gradient(circle,rgba(201,162,75,.22) 0%,transparent 70%)',pointerEvents:'none'}}/>
               <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14,position:'relative'}}>
-                <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>🎁</span>
+                <span style={{fontSize:isDesktop?26:22,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.4))'}}>🎁</span>
                 <div>
                   <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,letterSpacing:2.5,lineHeight:1}}>REWARDS OWED</div>
                   <div style={{fontSize:11,color:'var(--tx3)',marginTop:4,letterSpacing:.3}}>Tick affiliates off after dispatching their level rewards</div>
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4, 1fr)':'1fr 1fr',gap:8,position:'relative'}}>
-                <div className="ahk"><div className="ahkl">Total owed</div><div className="ahkv" style={{color:'#f59e0b'}}>{fmtGBPc(totalOwedValue)}</div><div className="ahkd"><span className="vs">{totalOwedValue>0?`or ${fmtGBPc(totalOwedValue*0.8)} cash · `:''}across {pending.length} affiliate{pending.length===1?'':'s'}</span></div></div>
+                <div className="ahk"><div className="ahkl">Total owed</div><div className="ahkv" style={{color:'#c9a24b'}}>{fmtGBPc(totalOwedValue)}</div><div className="ahkd"><span className="vs">{totalOwedValue>0?`or ${fmtGBPc(totalOwedValue*0.8)} cash · `:''}across {pending.length} affiliate{pending.length===1?'':'s'}</span></div></div>
                 <div className="ahk"><div className="ahkl">Already delivered</div><div className="ahkv" style={{color:'var(--gr)'}}>{fmtGBPc(totalDeliveredValue)}</div><div className="ahkd"><span className="vs">cumulative</span></div></div>
-                <div className="ahk"><div className="ahkl">Pending</div><div className="ahkv" style={{color:pending.length>0?'#f59e0b':'var(--gr)'}}>{pending.length}</div><div className="ahkd"><span className="vs">affiliate{pending.length===1?'':'s'} waiting</span></div></div>
+                <div className="ahk"><div className="ahkl">Pending</div><div className="ahkv" style={{color:pending.length>0?'#c9a24b':'var(--gr)'}}>{pending.length}</div><div className="ahkd"><span className="vs">affiliate{pending.length===1?'':'s'} waiting</span></div></div>
                 <div className="ahk"><div className="ahkl">Up to date</div><div className="ahkv" style={{color:'var(--gr)'}}>{delivered.length}</div><div className="ahkd"><span className="vs">level rewards delivered</span></div></div>
               </div>
             </div>
             {/* Admin RPC failure — surfaces when the client couldn't fetch the
                 gated rewards.value column (is_admin not set, migration not run, etc). */}
             {adminRewardValuesError&&(
-              <div className="asec" style={{padding:'12px 14px',background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.35)',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+              <div className="asec" style={{padding:'12px 14px',background:'rgba(176,74,85,.1)',border:'1px solid rgba(176,74,85,.35)',display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
                 <span style={{fontSize:18}}>🔒</span>
                 <div style={{flex:1,fontSize:12,color:'var(--tx2)',lineHeight:1.5}}>
-                  <strong style={{color:'#fda4af'}}>Couldn't load reward £ values.</strong>{' '}
+                  <strong style={{color:'#c48a92'}}>Couldn't load reward £ values.</strong>{' '}
                   Check: <code style={{background:'rgba(255,255,255,.05)',padding:'1px 5px',borderRadius:4,fontSize:11}}>{"UPDATE profiles SET is_admin = TRUE WHERE id = '<your-auth-id>'"}</code> in Supabase, and that migration <code style={{background:'rgba(255,255,255,.05)',padding:'1px 5px',borderRadius:4,fontSize:11}}>0005</code> has been applied. Server said: <em style={{color:'var(--tx3)'}}>{adminRewardValuesError}</em>
                 </div>
               </div>
             )}
             {/* Missing values nudge */}
             {missingValues>0&&!adminRewardValuesError&&(
-              <div className="asec" style={{padding:'12px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.3)',display:'flex',alignItems:'center',gap:10}}>
+              <div className="asec" style={{padding:'12px 14px',background:'rgba(201,162,75,.08)',border:'1px solid rgba(201,162,75,.3)',display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:18}}>⚠️</span>
                 <div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>{missingValues} reward tier{missingValues===1?'':'s'} {missingValues===1?'has':'have'} no £ value set — owed totals won't include {missingValues===1?'it':'them'} until {missingValues===1?'it\'s':'they\'re'} filled in.</div>
-                <button onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{padding:'6px 11px',background:'rgba(245,158,11,.15)',border:'1px solid rgba(245,158,11,.4)',color:'#fbbf24',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>Edit rewards →</button>
+                <button onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{padding:'6px 11px',background:'rgba(201,162,75,.15)',border:'1px solid rgba(201,162,75,.4)',color:'#d4b465',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>Edit rewards →</button>
               </div>
             )}
             {/* View toggle — Pending list (default) vs full Delivered history. */}
             <div style={{display:'flex',gap:0,marginBottom:11,background:'var(--card)',borderRadius:'var(--rsm)',border:'1px solid var(--bo)',overflow:'hidden'}}>
               {[['pending',`📦 Pending (${pending.length})`],['delivered',`✅ Delivered (${totalDelivered})`]].map(([k,l])=>(
-                <button key={k} onClick={()=>setRewardsOwedView(k)} style={{flex:1,padding:'10px 0',background:rewardsOwedView===k?'rgba(139,92,246,.18)':'transparent',border:'none',borderRight:k==='pending'?'1px solid var(--bo)':'none',color:rewardsOwedView===k?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{l}</button>
+                <button key={k} onClick={()=>setRewardsOwedView(k)} style={{flex:1,padding:'10px 0',background:rewardsOwedView===k?'rgba(201,162,75,.18)':'transparent',border:'none',borderRight:k==='pending'?'1px solid var(--bo)':'none',color:rewardsOwedView===k?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{l}</button>
               ))}
             </div>
             {rewardsOwedView==='delivered'?(()=>{
@@ -3823,7 +3823,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11,flexWrap:'wrap'}}>
                   <span style={{fontSize:14}}>📜</span>
                   <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>DELIVERED HISTORY</span>
-                  <span style={{background:'rgba(16,185,129,.18)',color:'var(--gr)',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{filtered.length}</span>
+                  <span style={{background:'rgba(107,155,125,.18)',color:'var(--gr)',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{filtered.length}</span>
                   {filtered.length>0&&<span style={{marginLeft:'auto',fontSize:11,color:'var(--tx3)',fontWeight:500}}>Total delivered <strong style={{color:'var(--gr)',fontFamily:'var(--fh)',fontSize:13,marginLeft:4}}>{fmtGBPc(totalDeliveredValue)}</strong> · {cashCount} cash · {filtered.length-cashCount} product</span>}
                 </div>
                 <input className="inp" placeholder="Search affiliate, handle, or reward name…" value={deliveredSearch} onChange={e=>setDeliveredSearch(e.target.value)} style={{marginBottom:10,fontSize:12}}/>
@@ -3844,24 +3844,24 @@ body,html{margin:0;padding:0;background:#070710;}
                     </div>
                     {isDesktop&&(
                       <div style={{display:'flex',alignItems:'center',gap:7,minWidth:0}}>
-                        <div style={{width:22,height:22,borderRadius:5,background:r.reward.image?'transparent':'rgba(245,158,11,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,overflow:'hidden',flexShrink:0}}>{r.reward.image?<img src={r.reward.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+                        <div style={{width:22,height:22,borderRadius:5,background:r.reward.image?'transparent':'rgba(201,162,75,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,overflow:'hidden',flexShrink:0}}>{r.reward.image?<img src={r.reward.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
                         <span style={{fontFamily:'var(--fh)',fontSize:10.5,color:'var(--pu2)',letterSpacing:.5,flexShrink:0}}>L{r.level}</span>
                         <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)',fontSize:11.5}}>{r.reward.name}</span>
                       </div>
                     )}
                     {isDesktop&&(
-                      <span style={{fontSize:9,padding:'2px 7px',background:r.isCash?'rgba(245,158,11,.18)':'rgba(16,185,129,.18)',color:r.isCash?'#fbbf24':'var(--gr)',borderRadius:99,fontWeight:800,letterSpacing:.5,fontFamily:'var(--fb)',textAlign:'center'}}>{r.isCash?'CASH':'PRODUCT'}</span>
+                      <span style={{fontSize:9,padding:'2px 7px',background:r.isCash?'rgba(201,162,75,.18)':'rgba(107,155,125,.18)',color:r.isCash?'#d4b465':'var(--gr)',borderRadius:99,fontWeight:800,letterSpacing:.5,fontFamily:'var(--fb)',textAlign:'center'}}>{r.isCash?'CASH':'PRODUCT'}</span>
                     )}
                     {isDesktop&&(
-                      <span style={{fontFamily:'var(--fh)',fontSize:13,color:r.isCash?'#fbbf24':'var(--gr)',textAlign:'right'}}>{fmtGBPc(r.delivered)}</span>
+                      <span style={{fontFamily:'var(--fh)',fontSize:13,color:r.isCash?'#d4b465':'var(--gr)',textAlign:'right'}}>{fmtGBPc(r.delivered)}</span>
                     )}
                     {isDesktop&&(
                       <span style={{fontSize:10.5,color:'var(--tx3)',textAlign:'right',fontFamily:'var(--fb)',letterSpacing:.2}}>{r.redeemedAt?new Date(r.redeemedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}):'—'}</span>
                     )}
                     {!isDesktop&&(
                       <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:2}}>
-                        <span style={{fontFamily:'var(--fh)',fontSize:13,color:r.isCash?'#fbbf24':'var(--gr)'}}>{fmtGBPc(r.delivered)}</span>
-                        <span style={{fontSize:8.5,padding:'1px 6px',background:r.isCash?'rgba(245,158,11,.18)':'rgba(16,185,129,.18)',color:r.isCash?'#fbbf24':'var(--gr)',borderRadius:99,fontWeight:800,letterSpacing:.4,fontFamily:'var(--fb)'}}>L{r.level} · {r.isCash?'CASH':'PRODUCT'}</span>
+                        <span style={{fontFamily:'var(--fh)',fontSize:13,color:r.isCash?'#d4b465':'var(--gr)'}}>{fmtGBPc(r.delivered)}</span>
+                        <span style={{fontSize:8.5,padding:'1px 6px',background:r.isCash?'rgba(201,162,75,.18)':'rgba(107,155,125,.18)',color:r.isCash?'#d4b465':'var(--gr)',borderRadius:99,fontWeight:800,letterSpacing:.4,fontFamily:'var(--fb)'}}>L{r.level} · {r.isCash?'CASH':'PRODUCT'}</span>
                       </div>
                     )}
                     <button onClick={()=>{if(window.confirm(`Undo redemption of ${r.reward.name} for ${r.profile.username}? Moves it back to pending.`))toggleRewardRedeemed(r.profile.id,r.level);}} title="Undo — move back to pending" style={{padding:'4px 8px',background:'transparent',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:10,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',fontWeight:600,justifySelf:'end'}}>↶ Undo</button>
@@ -3901,8 +3901,8 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11,flexWrap:'wrap'}}>
                   <span style={{fontSize:14}}>📦</span>
                   <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>PENDING DELIVERIES</span>
-                  <span style={{background:'rgba(245,158,11,.85)',color:'#1a1a2e',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{pending.length}</span>
-                  <button onClick={markAllRewardsDelivered} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all delivered</button>
+                  <span style={{background:'rgba(201,162,75,.85)',color:'#1a1a2e',fontSize:10,padding:'2px 8px',borderRadius:99,fontWeight:800,letterSpacing:.3}}>{pending.length}</span>
+                  <button onClick={markAllRewardsDelivered} style={{marginLeft:'auto',padding:'5px 11px',background:'rgba(107,155,125,.14)',border:'1px solid rgba(107,155,125,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>✓ Mark all delivered</button>
                 </div>
                 <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10,lineHeight:1.5}}>Monthly batch: a tier crossed in month <em>N</em> is due by the <em>15th of month N+1</em> — enough buffer past the return window without dragging into a whole-month delay. Dispatch the reward then tick the affiliate off. 'Mark all delivered' bulk-acknowledges everyone at their current level.</div>
                 {pending.map((p,i)=>(
@@ -3921,9 +3921,9 @@ body,html{margin:0;padding:0;background:#070710;}
                             <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:4,fontWeight:700}}>owed</div>
                           </>
                         ):(<>
-                          <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#f59e0b',letterSpacing:.3,lineHeight:1}}>{fmtGBPc(p._owedValue)}</div>
+                          <div style={{fontFamily:'var(--fh)',fontSize:17,color:'#c9a24b',letterSpacing:.3,lineHeight:1}}>{fmtGBPc(p._owedValue)}</div>
                           <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:.6,marginTop:2,fontWeight:700}}>owed</div>
-                          {p._owedValue>0&&<div style={{fontSize:10,color:'#fbbf24',opacity:.75,marginTop:3,letterSpacing:.2,fontWeight:600}}>or {fmtGBPc(p._owedValue*0.8)} cash</div>}
+                          {p._owedValue>0&&<div style={{fontSize:10,color:'#d4b465',opacity:.75,marginTop:3,letterSpacing:.2,fontWeight:600}}>or {fmtGBPc(p._owedValue*0.8)} cash</div>}
                         </>)}
                       </div>
                     </div>
@@ -3937,13 +3937,13 @@ body,html{margin:0;padding:0;background:#070710;}
                         const dueToday=daysLeft===0;
                         const urgent=daysLeft!=null&&daysLeft>0&&daysLeft<=7;
                         const warn=daysLeft!=null&&daysLeft>7&&daysLeft<=14;
-                        const color=overdue||urgent||dueToday?'#f43f5e':warn?'#fbbf24':'#10b981';
-                        const bg=overdue||urgent||dueToday?'rgba(244,63,94,.13)':warn?'rgba(251,191,36,.12)':'rgba(16,185,129,.1)';
-                        const border=overdue||urgent||dueToday?'rgba(244,63,94,.32)':warn?'rgba(251,191,36,.3)':'rgba(16,185,129,.28)';
+                        const color=overdue||urgent||dueToday?'#b04a55':warn?'#d4b465':'#6b9b7d';
+                        const bg=overdue||urgent||dueToday?'rgba(176,74,85,.13)':warn?'rgba(212,180,101,.12)':'rgba(107,155,125,.1)';
+                        const border=overdue||urgent||dueToday?'rgba(176,74,85,.32)':warn?'rgba(212,180,101,.3)':'rgba(107,155,125,.28)';
                         const label=!due?null:overdue?`⚠ Overdue ${Math.abs(daysLeft)}d`:dueToday?'⚠ Due today':`⏱ Due ${fmtDueDate(due)}`;
                         return(
                           <div key={r.level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11.5}}>
-                            <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(245,158,11,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+                            <div style={{width:24,height:24,borderRadius:5,background:r.image?'transparent':'rgba(201,162,75,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,overflow:'hidden',flexShrink:0}}>{r.image?<img src={r.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
                             <span style={{fontFamily:'var(--fh)',fontSize:11,color:'var(--pu2)',letterSpacing:.5,minWidth:24}}>L{r.level}</span>
                             <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{r.name}</span>
                             {label&&<span title={r.crossedAt?`Crossed ${new Date(r.crossedAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`:''} style={{fontSize:10,color,padding:'2px 6px',background:bg,border:`1px solid ${border}`,borderRadius:99,fontWeight:600,letterSpacing:.2,flexShrink:0,fontFamily:'var(--fb)',cursor:'help'}}>{label}</span>}
@@ -3954,11 +3954,11 @@ body,html{margin:0;padding:0;background:#070710;}
                                   <span style={{display:'inline-block',width:52,height:8,marginTop:3,background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
                                 </>
                               ):(<>
-                                <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#fbbf24':'var(--tx3)',lineHeight:1}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
+                                <span style={{fontFamily:'var(--fh)',fontSize:12,color:r.value>0?'#d4b465':'var(--tx3)',lineHeight:1}}>{r.value>0?fmtGBPc(r.value):'£?'}</span>
                                 {r.value>0&&<span style={{fontSize:8.5,color:'var(--tx3)',letterSpacing:.3,fontWeight:600,lineHeight:1}}>or {fmtGBPc(r.value*0.8)} cash</span>}
                               </>)}
                             </span>
-                            <button onClick={()=>setRedeemPick({profileId:p.id,level:r.level,name:r.name,value:r.value,image:r.image})} title="Mark this tier as redeemed — choose product or cash" style={{padding:'3px 8px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
+                            <button onClick={()=>setRedeemPick({profileId:p.id,level:r.level,name:r.name,value:r.value,image:r.image})} title="Mark this tier as redeemed — choose product or cash" style={{padding:'3px 8px',background:'rgba(107,155,125,.14)',border:'1px solid rgba(107,155,125,.32)',color:'var(--gr)',fontSize:10,fontWeight:700,cursor:'pointer',borderRadius:6,fontFamily:'var(--fb)',flexShrink:0,letterSpacing:.2}}>✓ Redeem</button>
                           </div>
                         );
                       })}
@@ -3968,14 +3968,14 @@ body,html{margin:0;padding:0;background:#070710;}
                       const redeemedHere=Array.from(p._redeemed).filter(l=>l>=1&&l<=p._curLevel&&rewardByLevel[l]).sort((a,b)=>a-b);
                       if(redeemedHere.length===0)return null;
                       return(
-                        <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:10,padding:'7px 10px',background:'rgba(16,185,129,.05)',border:'1px solid rgba(16,185,129,.15)',borderRadius:8}}>
-                          <div style={{fontSize:8,color:'rgba(16,185,129,.7)',textTransform:'uppercase',letterSpacing:1.3,fontWeight:700,marginBottom:2}}>Already redeemed</div>
+                        <div style={{display:'flex',flexDirection:'column',gap:4,marginBottom:10,padding:'7px 10px',background:'rgba(107,155,125,.05)',border:'1px solid rgba(107,155,125,.15)',borderRadius:8}}>
+                          <div style={{fontSize:8,color:'rgba(107,155,125,.7)',textTransform:'uppercase',letterSpacing:1.3,fontWeight:700,marginBottom:2}}>Already redeemed</div>
                           {redeemedHere.map(level=>{const r=rewardByLevel[level];const isCash=p._redeemedCash.has(level);const stored=p._redeemedAmounts?.[String(level)];const delivered=typeof stored==='number'?stored:r.value*(isCash?0.8:1);return(
                             <div key={level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
                               <span style={{fontFamily:'var(--fh)',fontSize:10,color:'var(--gr)',letterSpacing:.5,minWidth:22}}>L{level}</span>
                               <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx3)',textDecoration:'line-through'}}>{r.name}</span>
-                              <span style={{fontSize:8,padding:'1px 6px',background:isCash?'rgba(245,158,11,.18)':'rgba(16,185,129,.18)',color:isCash?'#fbbf24':'var(--gr)',borderRadius:99,fontWeight:700,letterSpacing:.4,fontFamily:'var(--fb)',flexShrink:0}}>{isCash?'CASH':'PRODUCT'}</span>
-                              <span style={{fontFamily:'var(--fh)',fontSize:11,color:'rgba(251,191,36,.7)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(delivered):'£?'}</span>
+                              <span style={{fontSize:8,padding:'1px 6px',background:isCash?'rgba(201,162,75,.18)':'rgba(107,155,125,.18)',color:isCash?'#d4b465':'var(--gr)',borderRadius:99,fontWeight:700,letterSpacing:.4,fontFamily:'var(--fb)',flexShrink:0}}>{isCash?'CASH':'PRODUCT'}</span>
+                              <span style={{fontFamily:'var(--fh)',fontSize:11,color:'rgba(212,180,101,.7)',flexShrink:0,minWidth:50,textAlign:'right'}}>{r.value>0?fmtGBPc(delivered):'£?'}</span>
                               <button onClick={()=>toggleRewardRedeemed(p.id,level)} title="Undo: move back to pending" style={{padding:'2px 7px',background:'transparent',border:'1px solid var(--bo)',color:'var(--tx3)',fontSize:9,cursor:'pointer',borderRadius:5,fontFamily:'var(--fb)',flexShrink:0}}>↶ Undo</button>
                             </div>
                           );})}
@@ -3984,7 +3984,7 @@ body,html{margin:0;padding:0;background:#070710;}
                     })()}
                     <div style={{display:'flex',gap:6,alignItems:'center'}}>
                       <div style={{fontSize:10,color:'var(--tx3)',flex:1}}>Achieved: L{p._curLevel} · Redeemed: {p._redeemed.size}/{p._curLevel}</div>
-                      <button onClick={()=>setRedeemAllPick({profileId:p.id,username:p.username,tiers:p._owedLevels.map(r=>({level:r.level,name:r.name,value:r.value,image:r.image}))})} style={{padding:'7px 12px',background:'rgba(16,185,129,.14)',border:'1px solid rgba(16,185,129,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Redeem all owed</button>
+                      <button onClick={()=>setRedeemAllPick({profileId:p.id,username:p.username,tiers:p._owedLevels.map(r=>({level:r.level,name:r.name,value:r.value,image:r.image}))})} style={{padding:'7px 12px',background:'rgba(107,155,125,.14)',border:'1px solid rgba(107,155,125,.32)',color:'var(--gr)',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',flexShrink:0}}>✓ Redeem all owed</button>
                     </div>
                   </div>
                 ))}
@@ -4026,7 +4026,7 @@ body,html{margin:0;padding:0;background:#070710;}
               if(newExclusionEnd)row.end_date=newExclusionEnd;
               const {error}=await supabase.from('xp_exclusions').insert(row);
               if(!error){toast('Exclusion added ✓','ok');setNewExclusionUser('');setNewExclusionProduct('');setNewExclusionStart('');setNewExclusionEnd('');loadXpExclusions();}else toast('Failed: '+error.message,'wn');
-            }} style={{padding:'7px 14px',background:'rgba(244,63,94,.12)',border:'1px solid rgba(244,63,94,.25)',borderRadius:'var(--rxs)',color:'var(--re)',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',marginLeft:'auto'}}>+ Add</button>
+            }} style={{padding:'7px 14px',background:'rgba(176,74,85,.12)',border:'1px solid rgba(176,74,85,.25)',borderRadius:'var(--rxs)',color:'var(--re)',fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',marginLeft:'auto'}}>+ Add</button>
           </div>
           {/* Existing exclusions */}
           {xpExclusions.length===0?<div style={{fontSize:12,color:'var(--tx3)'}}>No exclusions set.</div>:(
@@ -4091,7 +4091,7 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{fontSize:13,fontWeight:600,color:'var(--tx2)',marginBottom:6}}>No payout records yet</div>
                 <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5,marginBottom:accruingTotal>0?12:0}}>Records auto-generate at the end of each calendar month. {monthName} is still in progress.</div>
                 {accruingTotal>0&&(
-                  <div style={{padding:'10px 12px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.25)',borderRadius:8}}>
+                  <div style={{padding:'10px 12px',background:'rgba(201,162,75,.08)',border:'1px solid rgba(201,162,75,.25)',borderRadius:8}}>
                     <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:4,fontWeight:600}}>Accruing this month</div>
                     <div style={{fontFamily:'var(--fh)',fontSize:20,color:'var(--go)',letterSpacing:.3}}>{fmtGBP(accruingTotal)}</div>
                     <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{accruingCount} referrer{accruingCount===1?'':'s'} — will batch on the 1st of next month</div>
@@ -4127,7 +4127,7 @@ body,html{margin:0;padding:0;background:#070710;}
                           <span style={{fontSize:12,fontWeight:500}}>{monthLabel}</span>
                           <span style={{fontSize:12,color:po.paid?'var(--gr)':'var(--go)',marginLeft:8,fontFamily:'var(--fh)'}}>{fmtGBP(po.amount)}</span>
                         </div>
-                        <button onClick={()=>togglePayout(po.id,!po.paid)} style={{padding:'4px 10px',borderRadius:'var(--rxs)',border:`1px solid ${po.paid?'rgba(16,185,129,.3)':'rgba(245,158,11,.3)'}`,background:po.paid?'rgba(16,185,129,.1)':'rgba(245,158,11,.1)',color:po.paid?'var(--gr)':'var(--go)',fontSize:11,fontWeight:600,cursor:'pointer'}}>{po.paid?'✅ Paid':'Mark Paid'}</button>
+                        <button onClick={()=>togglePayout(po.id,!po.paid)} style={{padding:'4px 10px',borderRadius:'var(--rxs)',border:`1px solid ${po.paid?'rgba(107,155,125,.3)':'rgba(201,162,75,.3)'}`,background:po.paid?'rgba(107,155,125,.1)':'rgba(201,162,75,.1)',color:po.paid?'var(--gr)':'var(--go)',fontSize:11,fontWeight:600,cursor:'pointer'}}>{po.paid?'✅ Paid':'Mark Paid'}</button>
                       </div>
                     );
                   })}
@@ -4146,15 +4146,15 @@ body,html{margin:0;padding:0;background:#070710;}
                 <div style={{fontSize:10,color:'var(--tx3)',marginTop:2}}>{ih.profileCount||0} affiliate{(ih.profileCount||0)!==1?'s':''} · GMV {fmtGBP(ih.totalGmv)} · Comm {fmtGBP(ih.totalComm)}</div>
               </div>
               {deleteConfirm===`date-${ih.date}`?(<div style={{display:'flex',gap:5}}>
-                <button onClick={()=>{deleteImportByDate(ih.date);setDeleteConfirm(null);}} style={{background:'rgba(244,63,94,.15)',border:'1px solid rgba(244,63,94,.3)',borderRadius:'var(--rxs)',padding:'4px 8px',color:'var(--re)',fontSize:11,fontWeight:700,cursor:'pointer'}}>Confirm</button>
+                <button onClick={()=>{deleteImportByDate(ih.date);setDeleteConfirm(null);}} style={{background:'rgba(176,74,85,.15)',border:'1px solid rgba(176,74,85,.3)',borderRadius:'var(--rxs)',padding:'4px 8px',color:'var(--re)',fontSize:11,fontWeight:700,cursor:'pointer'}}>Confirm</button>
                 <button onClick={()=>setDeleteConfirm(null)} style={{background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:'var(--rxs)',padding:'4px 8px',color:'var(--tx3)',fontSize:11,cursor:'pointer'}}>Cancel</button>
-              </div>):(<button onClick={()=>setDeleteConfirm(`date-${ih.date}`)} style={{background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.2)',borderRadius:'var(--rxs)',padding:'4px 9px',color:'var(--re)',fontSize:11,fontWeight:600,cursor:'pointer'}}>Delete</button>)}
+              </div>):(<button onClick={()=>setDeleteConfirm(`date-${ih.date}`)} style={{background:'rgba(176,74,85,.1)',border:'1px solid rgba(176,74,85,.2)',borderRadius:'var(--rxs)',padding:'4px 9px',color:'var(--re)',fontSize:11,fontWeight:600,cursor:'pointer'}}>Delete</button>)}
             </div>
           ))}
         </div>)}
 
         {adminTab==='catalog'&&showME&&(<div className="asec"><div className="asect">Edit Streak Milestones</div>{editMilestones.map((m,i)=>(<div key={m.id||i} className="rerow"><div style={{display:'flex',gap:5,alignItems:'flex-end'}}><div style={{width:55}}><div className="lbl">Days</div><input className="ins" type="number" value={m.days} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],days:parseInt(e.target.value)||m.days};setEditMilestones(n);}}/></div><div style={{flex:1}}><div className="lbl">Label</div><input className="ins" value={m.label} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],label:e.target.value};setEditMilestones(n);}}/></div><div style={{width:60}}><div className="lbl">XP</div><input className="ins" type="number" value={m.xp_bonus} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],xp_bonus:parseInt(e.target.value)||m.xp_bonus};setEditMilestones(n);}}/></div><button className="svbtn" onClick={async()=>{const {error}=await supabase.from('streak_milestones').update({days:Number(m.days),label:String(m.label),xp_bonus:Number(m.xp_bonus)}).eq('id',m.id);if(!error){toast('Saved ✓','ok');loadMilestones();}else{console.error('Milestone save error:',error);toast('Failed: '+(error.message||'unknown'),'wn');}}}>Save</button></div></div>))}</div>)}
-        {adminTab==='catalog'&&showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">Value £</div><input className="ins" type="number" step="0.01" value={r.value??0} onChange={e=>{const n=[...editRewards];n[i]={...n[i],value:e.target.value===''?0:parseFloat(e.target.value)};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
+        {adminTab==='catalog'&&showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">Value £</div><input className="ins" type="number" step="0.01" value={r.value??0} onChange={e=>{const n=[...editRewards];n[i]={...n[i],value:e.target.value===''?0:parseFloat(e.target.value)};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(201,162,75,.13)',border:'1px solid rgba(201,162,75,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
       </div>)}
       {adminTab==='catalog'&&showPE&&adminUnlocked&&(<div className="asec" style={{margin:'0 13px 9px'}}>
         <div className="asect">Edit Products</div>
@@ -4165,15 +4165,15 @@ body,html{margin:0;padding:0;background:#070710;}
             <div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={prod.description||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],description:e.target.value};setEditProducts(n);}}/></div>
             <div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">TikTok Shop URL</div><input className="ins" value={prod.tiktok_url||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],tiktok_url:e.target.value};setEditProducts(n);}}/></div><div style={{width:70}}><div className="lbl">Comm %</div><input className="ins" type="number" value={prod.commission_rate||''} onChange={e=>{const n=[...editProducts];n[i]={...n[i],commission_rate:e.target.value};setEditProducts(n);}}/></div></div>
             <div style={{marginBottom:5}}><div className="lbl">Import Keywords <span style={{fontWeight:400,color:'var(--tx3)'}}>(comma separated — matches filename)</span></div><input className="ins" value={(prod.keywords||[]).join(', ')} onChange={e=>{const n=[...editProducts];n[i]={...n[i],keywords:e.target.value.split(',').map(k=>k.trim()).filter(Boolean)};setEditProducts(n);}} placeholder="e.g. teeth, tooth, cleaner"/></div>
-            <div style={{marginBottom:5}}><div className="lbl">Image URL</div><div style={{display:'flex',gap:4}}><input className="ins" value={prod.image_url&&prod.image_url.startsWith('data:')?'[uploaded]':(prod.image_url||'')} onChange={e=>{const n=[...editProducts];n[i]={...n[i],image_url:e.target.value||null};setEditProducts(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(139,92,246,.13)',border:'1px solid rgba(139,92,246,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0]){const r=new FileReader();r.onload=ev=>{const n=[...editProducts];n[i]={...n[i],image_url:ev.target.result};setEditProducts(n);toast('Image ready — click Save','info');};r.readAsDataURL(e.target.files[0]);}}}/></label></div>{prod.image_url&&<img src={prod.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div>
+            <div style={{marginBottom:5}}><div className="lbl">Image URL</div><div style={{display:'flex',gap:4}}><input className="ins" value={prod.image_url&&prod.image_url.startsWith('data:')?'[uploaded]':(prod.image_url||'')} onChange={e=>{const n=[...editProducts];n[i]={...n[i],image_url:e.target.value||null};setEditProducts(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(201,162,75,.13)',border:'1px solid rgba(201,162,75,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0]){const r=new FileReader();r.onload=ev=>{const n=[...editProducts];n[i]={...n[i],image_url:ev.target.result};setEditProducts(n);toast('Image ready — click Save','info');};r.readAsDataURL(e.target.files[0]);}}}/></label></div>{prod.image_url&&<img src={prod.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div>
             <label style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,cursor:'pointer',padding:'4px 2px'}}>
               <input type="checkbox" checked={!!prod.free_shipping} onChange={e=>{const n=[...editProducts];n[i]={...n[i],free_shipping:e.target.checked};setEditProducts(n);}} style={{width:18,height:18,accentColor:'var(--gr)',cursor:'pointer'}}/>
               <span style={{fontSize:12,color:'var(--tx2)'}}>🚚 Show <strong style={{color:'var(--gr)'}}>Free Shipping</strong> chip on this product</span>
             </label>
-            <div style={{display:'flex',gap:5,marginTop:5}}><button className="svbtn" onClick={async()=>{const p=editProducts[i];if(p.id){const {error}=await supabase.from('products').update({name:p.name,description:p.description,price:p.price,tiktok_url:p.tiktok_url,commission_rate:p.commission_rate,image_url:p.image_url,keywords:p.keywords||[],sort_order:p.sort_order||i,free_shipping:!!p.free_shipping}).eq('id',p.id);if(!error){toast('Saved ✓','ok');loadProducts();}else toast('Failed: '+(error.message||''),'wn');}else{const {error}=await supabase.from('products').insert({name:p.name,description:p.description,price:p.price,tiktok_url:p.tiktok_url,commission_rate:p.commission_rate,image_url:p.image_url,keywords:p.keywords||[],sort_order:i,free_shipping:!!p.free_shipping});if(!error){toast('Added ✓','ok');loadProducts();}else toast('Failed: '+(error.message||''),'wn');}}}>Save</button><button onClick={async()=>{if(prod.id){await supabase.from('products').delete().eq('id',prod.id);toast('Deleted','ok');loadProducts();}setEditProducts(editProducts.filter((_,j)=>j!==i));}} style={{background:'rgba(244,63,94,.1)',border:'1px solid rgba(244,63,94,.2)',borderRadius:'var(--rxs)',padding:'5px 9px',color:'var(--re)',fontSize:11,fontWeight:600,cursor:'pointer'}}>Delete</button></div>
+            <div style={{display:'flex',gap:5,marginTop:5}}><button className="svbtn" onClick={async()=>{const p=editProducts[i];if(p.id){const {error}=await supabase.from('products').update({name:p.name,description:p.description,price:p.price,tiktok_url:p.tiktok_url,commission_rate:p.commission_rate,image_url:p.image_url,keywords:p.keywords||[],sort_order:p.sort_order||i,free_shipping:!!p.free_shipping}).eq('id',p.id);if(!error){toast('Saved ✓','ok');loadProducts();}else toast('Failed: '+(error.message||''),'wn');}else{const {error}=await supabase.from('products').insert({name:p.name,description:p.description,price:p.price,tiktok_url:p.tiktok_url,commission_rate:p.commission_rate,image_url:p.image_url,keywords:p.keywords||[],sort_order:i,free_shipping:!!p.free_shipping});if(!error){toast('Added ✓','ok');loadProducts();}else toast('Failed: '+(error.message||''),'wn');}}}>Save</button><button onClick={async()=>{if(prod.id){await supabase.from('products').delete().eq('id',prod.id);toast('Deleted','ok');loadProducts();}setEditProducts(editProducts.filter((_,j)=>j!==i));}} style={{background:'rgba(176,74,85,.1)',border:'1px solid rgba(176,74,85,.2)',borderRadius:'var(--rxs)',padding:'5px 9px',color:'var(--re)',fontSize:11,fontWeight:600,cursor:'pointer'}}>Delete</button></div>
           </div>
         ))}
-        <button onClick={()=>setEditProducts([...editProducts,{name:'',description:'',price:'',tiktok_url:'',commission_rate:'',image_url:null,sort_order:editProducts.length,free_shipping:false}])} style={{width:'100%',marginTop:9,padding:'8px',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.2)',borderRadius:'var(--rsm)',color:'var(--pu2)',fontSize:12,cursor:'pointer',fontWeight:600}}>+ Add Product</button>
+        <button onClick={()=>setEditProducts([...editProducts,{name:'',description:'',price:'',tiktok_url:'',commission_rate:'',image_url:null,sort_order:editProducts.length,free_shipping:false}])} style={{width:'100%',marginTop:9,padding:'8px',background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.2)',borderRadius:'var(--rsm)',color:'var(--pu2)',fontSize:12,cursor:'pointer',fontWeight:600}}>+ Add Product</button>
       </div>)}
       </div>
     </div>
@@ -4195,11 +4195,11 @@ body,html{margin:0;padding:0;background:#070710;}
           <div style={{flex:1,padding:'20px 16px',overflowY:'auto'}}>
             {/* Big streak number */}
             <div style={{textAlign:'center',marginBottom:24,padding:'28px 0',background:'var(--card)',borderRadius:'var(--r)',border:'1px solid var(--bo2)',position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 50% 60%,rgba(245,158,11,.12) 0%,transparent 70%)',pointerEvents:'none'}}/>
+              <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 50% 60%,rgba(201,162,75,.12) 0%,transparent 70%)',pointerEvents:'none'}}/>
               <div style={{fontSize:72,lineHeight:1,marginBottom:6}}>🔥</div>
               <div style={{fontFamily:'var(--fh)',fontSize:80,letterSpacing:2,color:'var(--go)',lineHeight:1}}>{todayClaimed?streak:nextStreak}</div>
               <div style={{fontSize:13,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:3,marginTop:6}}>Day Streak</div>
-              {todayClaimed&&<div style={{marginTop:10,display:'inline-block',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.25)',borderRadius:99,padding:'4px 14px',fontSize:12,color:'var(--gr)',fontWeight:600}}>✓ Claimed today</div>}
+              {todayClaimed&&<div style={{marginTop:10,display:'inline-block',background:'rgba(107,155,125,.12)',border:'1px solid rgba(107,155,125,.25)',borderRadius:99,padding:'4px 14px',fontSize:12,color:'var(--gr)',fontWeight:600}}>✓ Claimed today</div>}
             </div>
 
             {/* Next milestone pill - tappable to open carousel */}
@@ -4216,9 +4216,9 @@ body,html{margin:0;padding:0;background:#070710;}
                 'brightness(1.6) saturate(2.5) hue-rotate(-20deg) drop-shadow(0 0 10px rgba(220,38,38,.9)) drop-shadow(0 0 25px rgba(220,38,38,.5)) drop-shadow(0 0 40px rgba(220,38,38,.3))',
                 'brightness(1.9) saturate(3) hue-rotate(-30deg) contrast(1.2) drop-shadow(0 0 12px rgba(185,28,28,1)) drop-shadow(0 0 30px rgba(185,28,28,.7)) drop-shadow(0 0 50px rgba(185,28,28,.4))',
               ];
-              const glowColors=['rgba(245,158,11,.3)','rgba(245,158,11,.4)','rgba(249,115,22,.45)','rgba(239,68,68,.45)','rgba(239,68,68,.55)','rgba(239,68,68,.6)'];
-              const borderColors=['rgba(245,158,11,.4)','rgba(245,158,11,.5)','rgba(249,115,22,.5)','rgba(239,68,68,.5)','rgba(239,68,68,.6)','rgba(239,68,68,.7)'];
-              const bgColors=['rgba(245,158,11,.08)','rgba(245,158,11,.1)','rgba(249,115,22,.1)','rgba(239,68,68,.1)','rgba(239,68,68,.12)','rgba(239,68,68,.14)'];
+              const glowColors=['rgba(201,162,75,.3)','rgba(201,162,75,.4)','rgba(249,115,22,.45)','rgba(239,68,68,.45)','rgba(239,68,68,.55)','rgba(239,68,68,.6)'];
+              const borderColors=['rgba(201,162,75,.4)','rgba(201,162,75,.5)','rgba(249,115,22,.5)','rgba(239,68,68,.5)','rgba(239,68,68,.6)','rgba(239,68,68,.7)'];
+              const bgColors=['rgba(201,162,75,.08)','rgba(201,162,75,.1)','rgba(249,115,22,.1)','rgba(239,68,68,.1)','rgba(239,68,68,.12)','rgba(239,68,68,.14)'];
               return(<div style={{marginBottom:11}}>
                 {/* Pill */}
                 <button onClick={()=>setShowMilestoneCarousel(!showMilestoneCarousel)} style={{width:'100%',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',padding:'14px',cursor:'pointer',textAlign:'left'}}>
@@ -4228,7 +4228,7 @@ body,html{margin:0;padding:0;background:#070710;}
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:1,color:'var(--tx)'}}>{nm.label}</div>
-                    <div style={{background:'rgba(245,158,11,.14)',border:'1px solid rgba(245,158,11,.28)',borderRadius:99,padding:'3px 10px',fontFamily:'var(--fh)',fontSize:14,color:'var(--go)'}}>+{nm.xp_bonus} XP</div>
+                    <div style={{background:'rgba(201,162,75,.14)',border:'1px solid rgba(201,162,75,.28)',borderRadius:99,padding:'3px 10px',fontFamily:'var(--fh)',fontSize:14,color:'var(--go)'}}>+{nm.xp_bonus} XP</div>
                   </div>
                   <div style={{height:8,background:'var(--card3)',borderRadius:99,overflow:'hidden',marginBottom:6}}><div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--go),#f97316)',width:`${Math.min(100,Math.round((currentDay/nm.days)*100))}%`,transition:'width .8s ease'}}/></div>
                   <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)'}}>
@@ -4246,8 +4246,8 @@ body,html{margin:0;padding:0;background:#070710;}
                       const isNext=!done&&!isCur&&i===allStages.findIndex(x=>currentDay<x.days);
                       const fi=Math.min(i,flameStages.length-1);
                       return(
-                        <div key={i} style={{minWidth:170,maxWidth:170,height:200,flexShrink:0,scrollSnapAlign:'start',background:done?'rgba(16,185,129,.07)':isCur?bgColors[fi]:'var(--card)',border:`1px solid ${done?'rgba(16,185,129,.3)':isCur?borderColors[fi]:'var(--bo)'}`,borderRadius:'var(--r)',padding:'16px 12px',textAlign:'center',position:'relative',overflow:'hidden',boxShadow:isCur?`0 0 18px ${glowColors[fi]}`:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                          {done&&<div style={{position:'absolute',top:8,right:8,background:'rgba(16,185,129,.2)',border:'1px solid rgba(16,185,129,.4)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--gr)',fontWeight:700}}>DONE ✓</div>}
+                        <div key={i} style={{minWidth:170,maxWidth:170,height:200,flexShrink:0,scrollSnapAlign:'start',background:done?'rgba(107,155,125,.07)':isCur?bgColors[fi]:'var(--card)',border:`1px solid ${done?'rgba(107,155,125,.3)':isCur?borderColors[fi]:'var(--bo)'}`,borderRadius:'var(--r)',padding:'16px 12px',textAlign:'center',position:'relative',overflow:'hidden',boxShadow:isCur?`0 0 18px ${glowColors[fi]}`:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+                          {done&&<div style={{position:'absolute',top:8,right:8,background:'rgba(107,155,125,.2)',border:'1px solid rgba(107,155,125,.4)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--gr)',fontWeight:700}}>DONE ✓</div>}
                           {isCur&&<div style={{position:'absolute',top:8,right:8,background:bgColors[fi],border:`1px solid ${borderColors[fi]}`,borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--go)',fontWeight:700}}>NOW</div>}
                           {isNext&&<div style={{position:'absolute',top:8,right:8,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--tx3)',fontWeight:700}}>NEXT</div>}
                           {(isCur||done)&&<div style={{position:'absolute',inset:0,background:`radial-gradient(circle at 50% 25%,${glowColors[fi]} 0%,transparent 70%)`,pointerEvents:'none'}}/>}
@@ -4266,7 +4266,7 @@ body,html{margin:0;padding:0;background:#070710;}
             })()}
 
             {/* Today milestone banner */}
-            {todayMilestone&&!todayClaimed&&(<div style={{background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.3)',borderRadius:'var(--r)',padding:'12px 14px',marginBottom:11,textAlign:'center'}}>
+            {todayMilestone&&!todayClaimed&&(<div style={{background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.3)',borderRadius:'var(--r)',padding:'12px 14px',marginBottom:11,textAlign:'center'}}>
               <div style={{fontSize:22,marginBottom:4}}>🎉</div>
               <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--go)',letterSpacing:1}}>MILESTONE REACHED!</div>
               <div style={{fontSize:13,color:'var(--tx2)',marginTop:3}}>{todayMilestone.label} — claim your <strong style={{color:'var(--go)'}}>+{todayMilestone.xp_bonus} XP</strong> bonus</div>
@@ -4321,14 +4321,14 @@ body,html{margin:0;padding:0;background:#070710;}
             <div className="pw"><div className="pf" style={{width:`${prog}%`}}/></div>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:3,fontSize:10,color:'var(--tx3)'}}><span>{profile.xp.toLocaleString()}</span><span>{showReward.xp_required.toLocaleString()} XP</span></div>
             {un&&(
-              <div style={{marginTop:8,background:delivered?'rgba(16,185,129,.09)':'rgba(139,92,246,.1)',border:`1px solid ${delivered?'rgba(16,185,129,.2)':'rgba(139,92,246,.25)'}`,borderRadius:7,padding:10,textAlign:'center',fontSize:12,color:delivered?'var(--gr)':'var(--pu2)',lineHeight:1.45}}>
-                {delivered?(<>✅ <strong>Delivered</strong> — enjoy your reward!</>):(<>🎉 <strong>Unlocked!</strong> Contact Loophole to claim — or swap it for <strong style={{color:'#fff'}}>80% cash</strong>.</>)}
+              <div style={{marginTop:8,background:delivered?'rgba(107,155,125,.09)':'rgba(201,162,75,.1)',border:`1px solid ${delivered?'rgba(107,155,125,.2)':'rgba(201,162,75,.25)'}`,borderRadius:7,padding:10,textAlign:'center',fontSize:12,color:delivered?'var(--gr)':'var(--pu2)',lineHeight:1.45}}>
+                {delivered?(<>✅ <strong>Delivered</strong> — enjoy your reward!</>):(<>🎉 <strong>Unlocked!</strong> Contact Hollen to claim — or swap it for <strong style={{color:'#fff'}}>80% cash</strong>.</>)}
                 {unlockIso&&!delivered&&(()=>{
                   const due=payoutDueDate(unlockIso);
                   const daysLeft=due?daysUntil(due):null;
                   const overdue=due&&due.getTime()<Date.now();
-                  const c=overdue||(daysLeft!=null&&daysLeft<=7)?'#f43f5e':daysLeft!=null&&daysLeft<=14?'#fbbf24':'#10b981';
-                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Due ${fmtDueDate(due)} · past due, contact Loophole`:`⏱ Due ${fmtDueDate(due)}`}</div>);
+                  const c=overdue||(daysLeft!=null&&daysLeft<=7)?'#b04a55':daysLeft!=null&&daysLeft<=14?'#d4b465':'#6b9b7d';
+                  return(<div style={{marginTop:6,fontSize:11,color:c,fontWeight:600}}>{overdue?`⚠ Due ${fmtDueDate(due)} · past due, contact Hollen`:`⏱ Due ${fmtDueDate(due)}`}</div>);
                 })()}
                 {unlockIso&&delivered&&(<div style={{marginTop:6,fontSize:11,color:'var(--tx3)',fontWeight:500}}>Unlocked {waited} day{waited===1?'':'s'} ago</div>)}
               </div>
@@ -4399,7 +4399,7 @@ body,html{margin:0;padding:0;background:#070710;}
       return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowFlashSale(false)}>
         <div className="sheet" style={{maxWidth:520,maxHeight:'85vh',display:'flex',flexDirection:'column'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}>
-            <span style={{fontSize:24,filter:'drop-shadow(0 2px 6px rgba(245,158,11,.4))'}}>🚀</span>
+            <span style={{fontSize:24,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.4))'}}>🚀</span>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:2,lineHeight:1}}>FLASH SALE HANDLES</div>
               <div style={{fontSize:11,color:'var(--tx3)',marginTop:3}}>{copiedCount} / {rows.length} copied · click a handle to copy</div>
@@ -4407,7 +4407,7 @@ body,html{margin:0;padding:0;background:#070710;}
             <button onClick={()=>setShowFlashSale(false)} style={{background:'transparent',border:'none',color:'var(--tx3)',fontSize:22,cursor:'pointer',padding:'0 4px',lineHeight:1}} aria-label="Close">×</button>
           </div>
           {allDone&&(
-            <div style={{margin:'10px 0 6px',padding:'9px 12px',background:'rgba(16,185,129,.1)',border:'1px solid rgba(16,185,129,.32)',borderRadius:8,fontSize:12,color:'var(--gr)',fontWeight:600,display:'flex',alignItems:'center',gap:8}}>
+            <div style={{margin:'10px 0 6px',padding:'9px 12px',background:'rgba(107,155,125,.1)',border:'1px solid rgba(107,155,125,.32)',borderRadius:8,fontSize:12,color:'var(--gr)',fontWeight:600,display:'flex',alignItems:'center',gap:8}}>
               <span style={{fontSize:16}}>✓</span> All handles copied — ready to paste into TikTok Shop.
             </div>
           )}
@@ -4422,7 +4422,7 @@ body,html{margin:0;padding:0;background:#070710;}
             ):filtered.map((r,i)=>{
               const done=flashCopied.has(r.copyVal);
               return(
-                <div key={r.copyVal} onClick={()=>copyOne(r.copyVal)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:i<filtered.length-1?'1px solid var(--bo)':'none',background:done?'rgba(16,185,129,.08)':'transparent',cursor:'pointer',transition:'background .12s'}}>
+                <div key={r.copyVal} onClick={()=>copyOne(r.copyVal)} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderBottom:i<filtered.length-1?'1px solid var(--bo)':'none',background:done?'rgba(107,155,125,.08)':'transparent',cursor:'pointer',transition:'background .12s'}}>
                   <div style={{width:22,height:22,borderRadius:'50%',border:`1.5px solid ${done?'var(--gr)':'var(--bo)'}`,background:done?'var(--gr)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:12,color:'#fff',fontWeight:700}}>{done?'✓':''}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13.5,fontWeight:600,color:done?'var(--gr)':'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.display}</div>
@@ -4467,22 +4467,22 @@ body,html{margin:0;padding:0;background:#070710;}
               <div key={t.level} style={{display:'flex',alignItems:'center',gap:8,fontSize:11}}>
                 <span style={{fontFamily:'var(--fh)',fontSize:10,color:'var(--pu2)',letterSpacing:.5,minWidth:22}}>L{t.level}</span>
                 <span style={{flex:1,minWidth:0,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:'var(--tx2)'}}>{t.name||`Level ${t.level}`}</span>
-                <span style={{fontFamily:'var(--fh)',fontSize:11,color:'#fbbf24',flexShrink:0}}>{t.value>0?fmtGBP(t.value):'£?'}</span>
+                <span style={{fontFamily:'var(--fh)',fontSize:11,color:'#d4b465',flexShrink:0}}>{t.value>0?fmtGBP(t.value):'£?'}</span>
               </div>
             ))}
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:11}}>
-            <button onClick={()=>confirmAll('product')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(16,185,129,.12)',border:'1px solid rgba(16,185,129,.4)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
+            <button onClick={()=>confirmAll('product')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(107,155,125,.12)',border:'1px solid rgba(107,155,125,.4)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
               <span style={{fontSize:22,flexShrink:0}}>📦</span>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:700,color:'var(--gr)'}}>All as Product</div>
                 <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(totalProduct)} delivered total</div>
               </div>
             </button>
-            <button onClick={()=>confirmAll('cash')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.35)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
+            <button onClick={()=>confirmAll('cash')} style={{display:'flex',alignItems:'center',gap:11,padding:'12px 14px',background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.35)',borderRadius:10,color:'var(--tx)',cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)'}}>
               <span style={{fontSize:22,flexShrink:0}}>💷</span>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:'#fbbf24'}}>All as Cash <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
+                <div style={{fontSize:13,fontWeight:700,color:'#d4b465'}}>All as Cash <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
                 <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>Records {fmtGBP(totalCash)} delivered total</div>
               </div>
             </button>
@@ -4514,7 +4514,7 @@ body,html{margin:0;padding:0;background:#070710;}
       return(<div className="ov" onClick={e=>e.target===e.currentTarget&&setRedeemPick(null)}>
         <div className="sheet" style={{maxWidth:400}}>
           <div style={{display:'flex',alignItems:'center',gap:11,marginBottom:14}}>
-            <div style={{width:46,height:46,borderRadius:10,background:redeemPick.image?'transparent':'rgba(245,158,11,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,overflow:'hidden',flexShrink:0,border:'1px solid var(--bo)'}}>{redeemPick.image?<img src={redeemPick.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
+            <div style={{width:46,height:46,borderRadius:10,background:redeemPick.image?'transparent':'rgba(201,162,75,.14)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,overflow:'hidden',flexShrink:0,border:'1px solid var(--bo)'}}>{redeemPick.image?<img src={redeemPick.image} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'🎁'}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.4,textTransform:'uppercase',fontWeight:600}}>L{redeemPick.level}</div>
               <div style={{fontSize:15,fontWeight:700,color:'var(--tx)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{redeemPick.name||`Level ${redeemPick.level} Reward`}</div>
@@ -4522,23 +4522,23 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
           <div style={{fontSize:12,color:'var(--tx2)',marginBottom:12,lineHeight:1.5}}>How was this delivered? Amounts default to the catalog guesstimate — edit if the real cost differed.</div>
           <div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:12}}>
-            <div style={{padding:'12px 14px',background:'rgba(16,185,129,.09)',border:'1px solid rgba(16,185,129,.32)',borderRadius:10}}>
+            <div style={{padding:'12px 14px',background:'rgba(107,155,125,.09)',border:'1px solid rgba(107,155,125,.32)',borderRadius:10}}>
               <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
                 <span style={{fontSize:20}}>📦</span>
                 <div style={{fontSize:13,fontWeight:700,color:'var(--gr)',fontFamily:'var(--fb)',flex:1}}>Product</div>
                 <span style={{fontSize:9,color:'var(--tx3)',letterSpacing:.5,fontWeight:600}}>GUESSTIMATE {fmtGBP(v)}</span>
               </div>
-              {amtInput(redeemPickProductAmt,setRedeemPickProductAmt,'rgba(16,185,129,.4)')}
-              <button onClick={()=>confirm('product')} style={{marginTop:8,width:'100%',padding:'9px',background:'rgba(16,185,129,.18)',border:'1px solid rgba(16,185,129,.4)',color:'var(--gr)',fontSize:12,fontWeight:700,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',letterSpacing:.4}}>✓ CONFIRM PRODUCT</button>
+              {amtInput(redeemPickProductAmt,setRedeemPickProductAmt,'rgba(107,155,125,.4)')}
+              <button onClick={()=>confirm('product')} style={{marginTop:8,width:'100%',padding:'9px',background:'rgba(107,155,125,.18)',border:'1px solid rgba(107,155,125,.4)',color:'var(--gr)',fontSize:12,fontWeight:700,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',letterSpacing:.4}}>✓ CONFIRM PRODUCT</button>
             </div>
-            <div style={{padding:'12px 14px',background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.32)',borderRadius:10}}>
+            <div style={{padding:'12px 14px',background:'rgba(201,162,75,.08)',border:'1px solid rgba(201,162,75,.32)',borderRadius:10}}>
               <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:8}}>
                 <span style={{fontSize:20}}>💷</span>
-                <div style={{fontSize:13,fontWeight:700,color:'#fbbf24',fontFamily:'var(--fb)',flex:1}}>Cash alternative <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
+                <div style={{fontSize:13,fontWeight:700,color:'#d4b465',fontFamily:'var(--fb)',flex:1}}>Cash alternative <span style={{fontSize:10,color:'var(--tx3)',fontWeight:500}}>(80%)</span></div>
                 <span style={{fontSize:9,color:'var(--tx3)',letterSpacing:.5,fontWeight:600}}>GUESSTIMATE {fmtGBP(v*0.8)}</span>
               </div>
-              {amtInput(redeemPickCashAmt,setRedeemPickCashAmt,'rgba(245,158,11,.4)')}
-              <button onClick={()=>confirm('cash')} style={{marginTop:8,width:'100%',padding:'9px',background:'rgba(245,158,11,.18)',border:'1px solid rgba(245,158,11,.4)',color:'#fbbf24',fontSize:12,fontWeight:700,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',letterSpacing:.4}}>✓ CONFIRM CASH</button>
+              {amtInput(redeemPickCashAmt,setRedeemPickCashAmt,'rgba(201,162,75,.4)')}
+              <button onClick={()=>confirm('cash')} style={{marginTop:8,width:'100%',padding:'9px',background:'rgba(201,162,75,.18)',border:'1px solid rgba(201,162,75,.4)',color:'#d4b465',fontSize:12,fontWeight:700,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)',letterSpacing:.4}}>✓ CONFIRM CASH</button>
             </div>
           </div>
           <button onClick={()=>setRedeemPick(null)} style={{width:'100%',padding:9,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx2)',fontSize:12,cursor:'pointer',fontFamily:'var(--fb)'}}>Cancel</button>
@@ -4569,16 +4569,16 @@ body,html{margin:0;padding:0;background:#070710;}
 
     {showDiscordCta&&(()=>{
       const canClose=discordCountdown<=0;
-      const dismiss=()=>{if(profile?.id)localStorage.setItem(`ll-discord-cta-${profile.id}`,'1');setShowDiscordCta(false);};
+      const dismiss=()=>{if(profile?.id)localStorage.setItem(`hn-discord-cta-${profile.id}`,'1');setShowDiscordCta(false);};
       return(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',zIndex:600,display:'flex',alignItems:'center',justifyContent:'center',padding:'18px',backdropFilter:'blur(4px)',animation:'fi .25s ease'}}>
-          <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#5865F2 0%,#7c3aed 55%,#8b5cf6 100%)',borderRadius:22,padding:'30px 22px 22px',color:'#fff',boxShadow:'0 0 60px rgba(88,101,242,.45),0 20px 50px rgba(0,0,0,.55)',textAlign:'center'}}>
+          <div style={{position:'relative',width:'100%',maxWidth:380,background:'linear-gradient(155deg,#5865F2 0%,#7c3aed 55%,#c9a24b 100%)',borderRadius:22,padding:'30px 22px 22px',color:'#fff',boxShadow:'0 0 60px rgba(88,101,242,.45),0 20px 50px rgba(0,0,0,.55)',textAlign:'center'}}>
             <button onClick={canClose?dismiss:undefined} disabled={!canClose} aria-label={canClose?'Close':`Wait ${discordCountdown}s`} style={{position:'absolute',top:12,right:12,width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.18)',border:'none',color:'#fff',fontSize:canClose?15:13,cursor:canClose?'pointer':'not-allowed',opacity:canClose?1:.55,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontFamily:'var(--fb)',transition:'opacity .2s'}}>{canClose?'✕':discordCountdown}</button>
             <div style={{fontSize:36,marginBottom:6,filter:'drop-shadow(0 2px 6px rgba(0,0,0,.3))'}}>⚠️</div>
-            <div style={{fontFamily:'var(--fh)',fontSize:26,letterSpacing:1.8,lineHeight:1.05,marginBottom:8}}>JOIN THE LOOPHOLE DISCORD</div>
+            <div style={{fontFamily:'var(--fh)',fontSize:26,letterSpacing:1.8,lineHeight:1.05,marginBottom:8}}>JOIN THE HOLLEN DISCORD</div>
             <div style={{fontSize:10,textTransform:'uppercase',letterSpacing:2.4,fontWeight:800,opacity:.9,marginBottom:14,color:'#fff'}}>Required to use this app</div>
             <div style={{fontSize:13,lineHeight:1.55,opacity:.94,marginBottom:22}}>
-              Loophole Levels works <strong>alongside</strong> our Discord. Without joining, you'll miss reward drops, payouts, training, and product announcements.<br/><br/>This app is built on top of the Discord community — <strong>it is not optional</strong>.
+              Hollen works <strong>alongside</strong> our Discord. Without joining, you'll miss reward drops, payouts, training, and product announcements.<br/><br/>This app is built on top of the Discord community — <strong>it is not optional</strong>.
             </div>
             <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" onClick={dismiss} style={{display:'block',width:'100%',padding:'14px',background:'#fff',color:'#5865F2',borderRadius:12,fontFamily:'var(--fh)',fontSize:19,letterSpacing:2,textDecoration:'none',fontWeight:600,boxShadow:'0 6px 18px rgba(0,0,0,.18)'}}>💬 JOIN DISCORD</a>
             <div style={{fontSize:10,opacity:.55,marginTop:11,letterSpacing:.5}}>discord.gg/eR4eJAhcVG</div>
@@ -4614,13 +4614,13 @@ body,html{margin:0;padding:0;background:#070710;}
               base with a wireframe grid overlay, atmospheric purple mist
               glow from the centre. Big logo top. ~340 wide.
               id='ll-recap-card' for share. */}
-          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:340,background:'#0a0218',backgroundImage:'radial-gradient(ellipse at 50% 25%, rgba(168,85,247,.55) 0%, rgba(139,92,246,.18) 30%, transparent 65%),linear-gradient(rgba(139,92,246,.12) 1px, transparent 1px),linear-gradient(90deg, rgba(139,92,246,.12) 1px, transparent 1px)',backgroundSize:'auto, 32px 32px, 32px 32px',backgroundPosition:'center center, center center, center center',borderRadius:24,overflow:'hidden',border:'1px solid rgba(139,92,246,.35)',boxShadow:'0 24px 60px rgba(0,0,0,.7),0 0 100px rgba(139,92,246,.4)',flexShrink:0}}>
+          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:340,background:'#0a0218',backgroundImage:'radial-gradient(ellipse at 50% 25%, rgba(201,162,75,.55) 0%, rgba(201,162,75,.18) 30%, transparent 65%),linear-gradient(rgba(201,162,75,.12) 1px, transparent 1px),linear-gradient(90deg, rgba(201,162,75,.12) 1px, transparent 1px)',backgroundSize:'auto, 32px 32px, 32px 32px',backgroundPosition:'center center, center center, center center',borderRadius:24,overflow:'hidden',border:'1px solid rgba(201,162,75,.35)',boxShadow:'0 24px 60px rgba(0,0,0,.7),0 0 100px rgba(201,162,75,.4)',flexShrink:0}}>
             {/* Atmospheric mist puffs — soft purple radials with blur */}
             <div style={{position:'absolute',top:'18%',left:'18%',width:180,height:180,background:'radial-gradient(circle, rgba(192,38,211,.45) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(24px)'}}/>
-            <div style={{position:'absolute',bottom:'12%',right:'12%',width:160,height:160,background:'radial-gradient(circle, rgba(168,85,247,.35) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(20px)'}}/>
+            <div style={{position:'absolute',bottom:'12%',right:'12%',width:160,height:160,background:'radial-gradient(circle, rgba(201,162,75,.35) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(20px)'}}/>
             {/* LARGE LOGO at top, centered — the hero brand element */}
             <div style={{position:'relative',padding:'30px 18px 8px',display:'flex',justifyContent:'center'}}>
-              <img src="/logo.png" alt="Loophole Levels" style={{width:220,filter:'drop-shadow(0 4px 20px rgba(168,85,247,.7))'}}/>
+              <img src="/hollen-logo.png" alt="Hollen" style={{width:220,filter:'invert(1) drop-shadow(0 4px 20px rgba(245,241,235,.35))'}} onError={e=>{e.target.style.display='none';}}/>
             </div>
             {/* Month label below logo */}
             <div style={{position:'relative',textAlign:'center',marginTop:6}}>
@@ -4638,7 +4638,7 @@ body,html{margin:0;padding:0;background:#070710;}
               {/* HERO NUMBER — green money, glow on the dark backdrop */}
               <div style={{position:'relative',padding:'22px 18px 0',textAlign:'center'}}>
                 <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3,fontWeight:700,marginBottom:6}}>Net GMV</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:54,lineHeight:1,color:'#10b981',letterSpacing:1,textShadow:'0 0 30px rgba(16,185,129,.55),0 2px 12px rgba(0,0,0,.4)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:54,lineHeight:1,color:'#6b9b7d',letterSpacing:1,textShadow:'0 0 30px rgba(107,155,125,.55),0 2px 12px rgba(0,0,0,.4)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
               </div>
               {/* SPARKLINE — daily GMV. Green line with glow to match the GMV. */}
               {(()=>{
@@ -4654,13 +4654,13 @@ body,html{margin:0;padding:0;background:#070710;}
                 const peakIdx=dailyGMV.indexOf(max);
                 return(
                   <div style={{position:'relative',padding:'18px 18px 0'}}>
-                    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:'block',filter:'drop-shadow(0 0 8px rgba(16,185,129,.5))'}}>
+                    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:'block',filter:'drop-shadow(0 0 8px rgba(107,155,125,.5))'}}>
                       <defs>
-                        <linearGradient id="rcSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".45"/><stop offset="100%" stopColor="#10b981" stopOpacity="0"/></linearGradient>
+                        <linearGradient id="rcSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6b9b7d" stopOpacity=".45"/><stop offset="100%" stopColor="#6b9b7d" stopOpacity="0"/></linearGradient>
                       </defs>
                       <polygon points={areaPts} fill="url(#rcSpark)"/>
-                      <polyline points={pts} fill="none" stroke="#10b981" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-                      {dailyGMV[peakIdx]>0&&(<circle cx={xAt(peakIdx)} cy={yAt(max)} r="3.5" fill="#fff" stroke="#10b981" strokeWidth="1.5"/>)}
+                      <polyline points={pts} fill="none" stroke="#6b9b7d" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
+                      {dailyGMV[peakIdx]>0&&(<circle cx={xAt(peakIdx)} cy={yAt(max)} r="3.5" fill="#fff" stroke="#6b9b7d" strokeWidth="1.5"/>)}
                     </svg>
                     <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'rgba(255,255,255,.45)',marginTop:2,fontFamily:'var(--fb)',fontWeight:600}}>
                       <span>1</span>
@@ -4671,46 +4671,46 @@ body,html{margin:0;padding:0;background:#070710;}
                 );
               })()}
               {/* STATS — purple-tinted panel for the dark backdrop */}
-              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',margin:'18px 18px 0',background:'rgba(139,92,246,.12)',border:'1px solid rgba(139,92,246,.28)',borderRadius:12,padding:'10px 0',backdropFilter:'blur(8px)'}}>
-                <div style={{textAlign:'center',borderRight:'1px solid rgba(139,92,246,.25)'}}>
+              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',margin:'18px 18px 0',background:'rgba(201,162,75,.12)',border:'1px solid rgba(201,162,75,.28)',borderRadius:12,padding:'10px 0',backdropFilter:'blur(8px)'}}>
+                <div style={{textAlign:'center',borderRight:'1px solid rgba(201,162,75,.25)'}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#fff',letterSpacing:.5,lineHeight:1}}>{fmtGBPc(monthlyRecap.commission)}</div>
                   <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Commission</div>
                 </div>
-                <div style={{textAlign:'center',borderRight:'1px solid rgba(139,92,246,.25)'}}>
+                <div style={{textAlign:'center',borderRight:'1px solid rgba(201,162,75,.25)'}}>
                   <div style={{fontFamily:'var(--fh)',fontSize:16,color:monthlyRecap.rank===1?'#fde047':'#fff',letterSpacing:.5,lineHeight:1}}>{monthlyRecap.rank?'#'+monthlyRecap.rank:'—'}</div>
                   <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Rank{monthlyRecap.totalRanked?'/'+monthlyRecap.totalRanked:''}</div>
                 </div>
                 <div style={{textAlign:'center'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#a78bfa',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained>=1000?(monthlyRecap.xpGained/1000).toFixed(1)+'k':monthlyRecap.xpGained.toLocaleString()}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#d4b465',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained>=1000?(monthlyRecap.xpGained/1000).toFixed(1)+'k':monthlyRecap.xpGained.toLocaleString()}</div>
                   <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>XP</div>
                 </div>
               </div>
               {/* TOP PRODUCT */}
               {monthlyRecap.topName&&(
-                <div style={{position:'relative',margin:'10px 18px 0',display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(139,92,246,.1)',border:'1px solid rgba(139,92,246,.22)',borderRadius:10,backdropFilter:'blur(8px)'}}>
+                <div style={{position:'relative',margin:'10px 18px 0',display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.22)',borderRadius:10,backdropFilter:'blur(8px)'}}>
                   <div style={{width:32,height:32,borderRadius:6,background:monthlyRecap.topImage?'transparent':'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:8,color:'rgba(255,255,255,.5)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700}}>🏆 Top Product</div>
                     <div style={{fontSize:12,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{monthlyRecap.topName}</div>
                   </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'#10b981',flexShrink:0}}>{fmtGBPc(monthlyRecap.topGMV)}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'#6b9b7d',flexShrink:0}}>{fmtGBPc(monthlyRecap.topGMV)}</div>
                 </div>
               )}
             </>)}
             {/* USER + REFERRAL FOOTER — purple-tinted glass card */}
-            <div style={{position:'relative',margin:'14px 18px 0',padding:'12px 12px',background:'rgba(139,92,246,.14)',border:'1px solid rgba(139,92,246,.3)',borderRadius:12,backdropFilter:'blur(10px)'}}>
+            <div style={{position:'relative',margin:'14px 18px 0',padding:'12px 12px',background:'rgba(201,162,75,.14)',border:'1px solid rgba(201,162,75,.3)',borderRadius:12,backdropFilter:'blur(10px)'}}>
               <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:refCode?9:0}}>
-                <div style={{width:30,height:30,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden',border:'1.5px solid rgba(168,85,247,.6)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
+                <div style={{width:30,height:30,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden',border:'1.5px solid rgba(201,162,75,.6)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{handle}</div>
                   <div style={{fontSize:10,color:'rgba(255,255,255,.65)'}}>LVL {lv.level} · {(profile?.xp||0).toLocaleString()} XP</div>
                 </div>
               </div>
               {refCode&&(
-                <div style={{paddingTop:9,borderTop:'1px solid rgba(168,85,247,.25)',textAlign:'center'}}>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,.7)',lineHeight:1.4,marginBottom:5}}><strong style={{color:'#10b981',fontWeight:700}}>+100 XP</strong> sign-up bonus when you join with code:</div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,marginBottom:4,textShadow:'0 0 14px rgba(168,85,247,.6)'}}>{refCode}</div>
-                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.55)'}}>loopholelevels.vercel.app</div>
+                <div style={{paddingTop:9,borderTop:'1px solid rgba(201,162,75,.25)',textAlign:'center'}}>
+                  <div style={{fontSize:10,color:'rgba(255,255,255,.7)',lineHeight:1.4,marginBottom:5}}><strong style={{color:'#6b9b7d',fontWeight:700}}>+100 XP</strong> sign-up bonus when you join with code:</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,marginBottom:4,textShadow:'0 0 14px rgba(201,162,75,.6)'}}>{refCode}</div>
+                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.55)'}}>hollen.app</div>
                 </div>
               )}
             </div>
@@ -4718,7 +4718,7 @@ body,html{margin:0;padding:0;background:#070710;}
           </div>
           {/* SHARE BUTTON — lives outside the card so it doesn't appear in the rasterised image. */}
           <div style={{position:'relative',display:'flex',gap:10,justifyContent:'center',marginTop:18,width:'100%',maxWidth:380,flexShrink:0}}>
-            <button onClick={shareRecap} disabled={shareLoading||monthlyRecap.isEmpty} style={{flex:1,padding:'13px 18px',background:shareLoading?'rgba(139,92,246,.4)':'linear-gradient(135deg,#8b5cf6 0%,#06b6d4 100%)',border:'none',color:'#fff',fontSize:14,fontWeight:700,letterSpacing:.5,cursor:(shareLoading||monthlyRecap.isEmpty)?'not-allowed':'pointer',borderRadius:14,fontFamily:'var(--fb)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 8px 24px rgba(139,92,246,.4)',opacity:monthlyRecap.isEmpty?.5:1}}>
+            <button onClick={shareRecap} disabled={shareLoading||monthlyRecap.isEmpty} style={{flex:1,padding:'13px 18px',background:shareLoading?'rgba(201,162,75,.4)':'linear-gradient(135deg,#c9a24b 0%,#8ba4a8 100%)',border:'none',color:'#fff',fontSize:14,fontWeight:700,letterSpacing:.5,cursor:(shareLoading||monthlyRecap.isEmpty)?'not-allowed':'pointer',borderRadius:14,fontFamily:'var(--fb)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 8px 24px rgba(201,162,75,.4)',opacity:monthlyRecap.isEmpty?.5:1}}>
               {shareLoading?'⏳ Generating...':'📤 Share Recap'}
             </button>
           </div>
@@ -4736,7 +4736,7 @@ body,html{margin:0;padding:0;background:#070710;}
                     const isFuture=pickerYear>now.getFullYear()||(pickerYear===now.getFullYear()&&i>now.getMonth());
                     const isSelected=pickerYear===monthlyRecap.year&&i===monthlyRecap.month;
                     return(
-                      <button key={i} disabled={isFuture||monthlyRecapLoading} onClick={()=>{loadRecapForMonth(pickerYear,i);setShowMonthPicker(false);}} style={{padding:'14px 0',borderRadius:12,border:isSelected?'1px solid rgba(139,92,246,.5)':'1px solid var(--bo)',background:isSelected?'rgba(139,92,246,.22)':'var(--card2)',color:isFuture?'rgba(255,255,255,.25)':'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1.5,cursor:isFuture?'not-allowed':'pointer',transition:'background .15s'}}>{label}</button>
+                      <button key={i} disabled={isFuture||monthlyRecapLoading} onClick={()=>{loadRecapForMonth(pickerYear,i);setShowMonthPicker(false);}} style={{padding:'14px 0',borderRadius:12,border:isSelected?'1px solid rgba(201,162,75,.5)':'1px solid var(--bo)',background:isSelected?'rgba(201,162,75,.22)':'var(--card2)',color:isFuture?'rgba(255,255,255,.25)':'#fff',fontFamily:'var(--fh)',fontSize:15,letterSpacing:1.5,cursor:isFuture?'not-allowed':'pointer',transition:'background .15s'}}>{label}</button>
                     );
                   })}
                 </div>

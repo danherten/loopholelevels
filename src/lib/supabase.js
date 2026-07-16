@@ -11,7 +11,7 @@ export const supabase = createClient(
       // password-reset email links (fires a PASSWORD_RECOVERY auth event).
       // Required for the in-app password reset flow.
       detectSessionInUrl: true,
-      storageKey: 'll-auth',
+      storageKey: 'hn-auth',
     }
   }
 );

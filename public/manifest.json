@@ -1,6 +1,7 @@
 {
-  "short_name": "Loophole Levels",
-  "name": "Loophole Levels",
+  "short_name": "Hollen",
+  "name": "Hollen Rewards",
+  "description": "The Hollen affiliate rewards platform.",
   "icons": [
     {
       "src": "icon-192.png",
@@ -15,7 +16,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#070710",
-  "background_color": "#070710",
+  "theme_color": "#0d0d0e",
+  "background_color": "#0d0d0e",
   "orientation": "any"
 }
