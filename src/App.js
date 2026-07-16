@@ -2360,280 +2360,223 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
       })()}
 
       {/* LEVEL REWARDS (Battle Pass) */}
-      {page==='rewards'&&(<div style={{paddingBottom:14}}>
-        <div style={{padding:'13px 13px 9px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontFamily:'var(--fh)',fontSize:21,letterSpacing:3}}>LEVEL REWARDS</div>
-          <div style={{fontFamily:'var(--fh)',fontSize:13,color:'var(--pu2)',letterSpacing:1}}>Level {lv.level}</div>
-        </div>
-        {/* Payout schedule — front-and-centre so creators always know when their reward lands. */}
-        {(()=>{
-          const now=new Date();
-          const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'}); // last month
-          const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of current
-          const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'}); // this month
-          const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); // 15th of next
-          return(<div style={{margin:'0 13px 11px',padding:'14px 16px',background:'linear-gradient(135deg,rgba(201,162,75,.18) 0%,rgba(139,164,168,.08) 100%)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--r)',display:'flex',alignItems:'flex-start',gap:13}}>
-            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.5))',lineHeight:1}}>📅</span>
-            <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
-              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
-              <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any time you unlock a level, it's paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>.</div>
-              <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'var(--tx3)',lineHeight:1.45}}>
-                <div>· Unlock any time in <strong style={{color:'var(--tx2)'}}>{m1}</strong> → paid <strong style={{color:'var(--gr)'}}>{m1pay}</strong></div>
-                <div>· Unlock any time in <strong style={{color:'var(--tx2)'}}>{m2}</strong> → paid <strong style={{color:'var(--gr)'}}>{m2pay}</strong></div>
+      {page==='rewards'&&(()=>{
+        const now=new Date();
+        const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'});
+        const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'});
+        const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        const myUnlocks=computeUnlockDates(xpEvents,rewards);
+        const myRedeemed=redeemedLevelsFor(profile);
+        return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
+          {/* HEADER */}
+          <div style={{marginBottom:22,paddingBottom:18,borderBottom:'1px solid var(--bo)',display:'flex',justifyContent:'space-between',alignItems:'flex-end',gap:12,flexWrap:'wrap'}}>
+            <div>
+              <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?26:22,fontWeight:700,letterSpacing:-0.5,color:'var(--tx)',lineHeight:1.15}}>Rewards</div>
+              <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{(profile.xp||0).toLocaleString()} XP · Level {lv.level}{nx?` · ${(nx.min-profile.xp).toLocaleString()} to next`:''}</div>
+            </div>
+            {nx&&<div style={{minWidth:isDesktop?200:160}}>
+              <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,marginBottom:6,fontWeight:500,textAlign:'right'}}>Level progress</div>
+              <div style={{height:3,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
+                <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${pct}%`,transition:'width 1s ease'}}/>
+              </div>
+              <div style={{fontSize:10,color:'var(--tx3)',marginTop:5,textAlign:'right',fontVariantNumeric:'tabular-nums'}}>{(profile.xp||0).toLocaleString()} / {nx.min.toLocaleString()}</div>
+            </div>}
+          </div>
+
+          {/* PAID ON THE 15TH — subtle info card, no gradient */}
+          <div style={{padding:'16px 18px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:14}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'rgba(201,162,75,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>📅</div>
+              <div>
+                <div style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:700,color:'var(--tx)',letterSpacing:.1}}>Paid on the 15th</div>
+                <div style={{fontSize:11.5,color:'var(--tx3)',marginTop:2}}>Rewards ship on the 15th of the month after you unlock them.</div>
               </div>
             </div>
-          </div>);
-        })()}
-        <div style={{margin:'0 13px 11px',padding:'11px 14px',background:'linear-gradient(135deg,rgba(107,155,125,.12) 0%,rgba(201,162,75,.07) 100%)',border:'1px solid rgba(107,155,125,.3)',borderRadius:'var(--r)',display:'flex',alignItems:'center',gap:11}}>
-          <span style={{fontSize:22,flexShrink:0}}>💷</span>
-          <div style={{flex:1,minWidth:0,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
-            Prefer cash? Swap any reward for <strong style={{color:'var(--gr)'}}>80% of its value in cash</strong>. <span style={{color:'var(--tx3)'}}>Contact Hollen for the exact amount.</span>
+            <div style={{display:'flex',flexDirection:isDesktop?'row':'column',gap:isDesktop?24:6,fontSize:11.5,color:'var(--tx2)',paddingTop:10,borderTop:'1px solid var(--bo)',fontVariantNumeric:'tabular-nums'}}>
+              <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m1}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m1pay}</strong></div>
+              <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m2}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m2pay}</strong></div>
+            </div>
           </div>
-        </div>
-        <div style={{padding:'0 13px 11px'}}>
-          <div style={{background:'var(--card)',border:'1px solid var(--bo2)',borderRadius:'var(--r)',padding:11}}>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--tx2)',marginBottom:6}}><span style={{fontWeight:600,color:'var(--pu2)'}}>Level {lv.level}</span><span>{(profile.xp||0).toLocaleString()} / {nx?nx.min.toLocaleString():'MAX'} XP</span></div>
-            <div className="xpbar"><div className="xpfill" style={{width:`${pct}%`}}/></div>
-            {nx&&<div style={{fontSize:10,color:'var(--tx3)',marginTop:3,textAlign:'right'}}>{(nx.min-profile.xp).toLocaleString()} XP to Level {nx.level}</div>}
+
+          {/* CASH SWAP — one-liner, subtle */}
+          <div style={{padding:'12px 16px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:22,display:'flex',alignItems:'center',gap:10,fontSize:12,color:'var(--tx2)',lineHeight:1.45}}>
+            <span style={{fontSize:16,flexShrink:0,opacity:.7}}>💷</span>
+            <span>Prefer cash? Swap any reward for <strong style={{color:'var(--gr)'}}>80% of its value</strong>. Contact Hollen for the exact amount.</span>
           </div>
-        </div>
-        <div style={{paddingTop:4}}>
-          {(()=>{
-            // Compute unlock timestamps ONCE for the whole list. Walks the
-            // user's own xp_events to find when each reward threshold was
-            // first crossed.
-            const myUnlocks=computeUnlockDates(xpEvents,rewards);
-            const myRedeemed=redeemedLevelsFor(profile);
-            return rewards.map((r,i)=>{
+
+          {/* REWARDS LIST — editorial catalogue rows, not battle-pass cards */}
+          <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>All rewards</div>
+          <div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>
+            {rewards.map((r,i)=>{
               const un=profile.xp>=r.xp_required;
               const isCur=!un&&(i===0||profile.xp>=rewards[i-1]?.xp_required);
               const prog=Math.min(100,Math.round((profile.xp/r.xp_required)*100));
               const need=Math.max(0,r.xp_required-profile.xp);
               const delivered=un&&myRedeemed.has(r.level);
               const waited=un?daysSince(myUnlocks[r.level]):null;
-              const badgeText=delivered?'✅ DELIVERED':un?'✓ UNLOCKED':isCur?'IN PROGRESS':'🔒';
+              const status=delivered?{label:'Delivered',color:'var(--gr)',bg:'rgba(107,155,125,.10)'}:un?{label:'Unlocked',color:'var(--go)',bg:'rgba(201,162,75,.10)'}:isCur?{label:'In progress',color:'var(--tx2)',bg:'rgba(245,241,235,.04)'}:{label:'Locked',color:'var(--tx3)',bg:'transparent'};
+              let dueChip=null;
+              if(un&&myUnlocks[r.level]&&!delivered){
+                const due=payoutDueDate(myUnlocks[r.level]);
+                if(due){
+                  const daysLeft=daysUntil(due);
+                  const overdue=due.getTime()<Date.now();
+                  dueChip={label:overdue?`Overdue · ${fmtDueDate(due)}`:daysLeft===0?'Due today':daysLeft===1?'Due tomorrow':`Due ${fmtDueDate(due)}`,color:overdue?'var(--re)':'var(--tx2)'};
+                }
+              }else if(delivered&&waited!=null){
+                dueChip={label:`Unlocked ${waited}d ago`,color:'var(--tx3)'};
+              }
               return(
-                <div key={r.id} className={`bp-vcard${un?' un':isCur?' cur':' lk'}`} onClick={()=>setShowReward(r)}>
-                  <div className={`bp-vbadge${un?' un':isCur?' cur':' lk'}`}>{badgeText}</div>
-                  <div className="bp-vimg">
-                    {r.image_url?<img src={r.image_url} alt={r.name}/>:<span style={{fontSize:26,opacity:.35}}>🎁</span>}
+                <div key={r.id} onClick={()=>setShowReward(r)} style={{display:'flex',alignItems:'center',gap:14,padding:'16px 18px',borderBottom:i<rewards.length-1?'1px solid var(--bo)':'none',cursor:'pointer',opacity:un||isCur?1:.65,transition:'opacity .2s',position:'relative'}}>
+                  <div style={{width:56,height:56,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--bo)',position:'relative'}}>
+                    {r.image_url?<img src={r.image_url} alt={r.name} style={{width:'100%',height:'100%',objectFit:'cover',filter:un||isCur?'none':'grayscale(80%) brightness(.7)'}}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
+                    {!un&&!isCur&&<div style={{position:'absolute',inset:0,background:'rgba(13,13,14,.4)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🔒</div>}
                   </div>
-                  <div className="bp-vbody">
-                    <div className="bp-vlv">Level {r.level}</div>
-                    <div className="bp-vnm">{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
-                    <div className="bp-vxp">{r.xp_required.toLocaleString()} XP required</div>
-                    <div className="bp-vbar"><div className="bp-vfill" style={{width:`${prog}%`,background:un?'var(--gr)':undefined}}/></div>
-                    {isCur&&<div className="bp-vneed">{need.toLocaleString()} XP to go</div>}
-                    {un&&myUnlocks[r.level]&&(()=>{
-                      const due=payoutDueDate(myUnlocks[r.level]);
-                      const daysLeft=due?daysUntil(due):null;
-                      const overdue=!delivered&&due&&due.getTime()<Date.now();
-                      const urgent=!delivered&&daysLeft!=null&&daysLeft>=0&&daysLeft<=7;
-                      const warn=!delivered&&daysLeft!=null&&daysLeft>7&&daysLeft<=14;
-                      const color=delivered?'var(--gr)':overdue||urgent?'#b04a55':warn?'#d4b465':'#6b9b7d';
-                      const bg=delivered?'rgba(107,155,125,.12)':overdue||urgent?'rgba(176,74,85,.13)':warn?'rgba(212,180,101,.12)':'rgba(107,155,125,.1)';
-                      const border=delivered?'rgba(107,155,125,.32)':overdue||urgent?'rgba(176,74,85,.32)':warn?'rgba(212,180,101,.3)':'rgba(107,155,125,.28)';
-                      const icon=delivered?'✅':overdue?'⚠':'📅';
-                      const main=delivered?'DELIVERED':`DUE ${fmtDueDate(due).toUpperCase()}`;
-                      const sub=delivered?`Unlocked ${waited}d ago`:overdue?'Past due — contact Hollen':daysLeft===0?'Today!':daysLeft===1?'Tomorrow':`In ${daysLeft} days`;
-                      return(
-                        <div style={{marginTop:7,padding:'7px 10px',background:bg,border:`1px solid ${border}`,borderRadius:8,display:'flex',alignItems:'center',gap:8}}>
-                          <span style={{fontSize:18,flexShrink:0}}>{icon}</span>
-                          <div style={{flex:1,minWidth:0,lineHeight:1.15}}>
-                            <div style={{fontFamily:'var(--fh)',fontSize:13,letterSpacing:.6,color}}>{main}</div>
-                            <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,fontWeight:500}}>{sub}</div>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
+                      <span style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:600}}>Level {r.level}</span>
+                      <span style={{fontSize:10,padding:'2px 8px',background:status.bg,color:status.color,borderRadius:99,fontWeight:600,letterSpacing:.3,fontFamily:'var(--fb)'}}>{status.label}</span>
+                    </div>
+                    <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:6,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{r.name&&r.name!==`Level ${r.level} Reward`?r.name:`Level ${r.level} Reward`}</div>
+                    <div style={{display:'flex',alignItems:'center',gap:12,fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>
+                      <span>{r.xp_required.toLocaleString()} XP</span>
+                      {isCur&&<span style={{color:'var(--go)'}}>· {need.toLocaleString()} to go</span>}
+                      {dueChip&&<span style={{color:dueChip.color}}>· {dueChip.label}</span>}
+                    </div>
+                    {isCur&&<div style={{marginTop:8,height:2,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
+                      <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${prog}%`,transition:'width 1s ease'}}/>
+                    </div>}
                   </div>
+                  <span style={{fontSize:14,color:'var(--tx3)',flexShrink:0}}>→</span>
                 </div>
               );
-            });
-          })()}
-        </div>
-
-      </div>)}
+            })}
+          </div>
+        </div>);
+      })()}
 
       {/* LEADERBOARD */}
-      {page==='lb'&&(<div className="pg">
-        <div className="sh" style={{marginBottom:10}}>RANKINGS</div>
-        {/* Tabs */}
-        <div style={{display:'flex',gap:0,marginBottom:14,background:'var(--card)',borderRadius:'var(--rsm)',border:'1px solid var(--bo)',overflow:'hidden'}}>
-          {[['alltime','🏆 All Time'],['monthly','📅 Monthly']].map(([key,label])=>(
-            <button key={key} onClick={()=>setLbTab(key)} style={{flex:1,padding:'10px 0',background:lbTab===key?'rgba(201,162,75,.18)':'transparent',border:'none',borderRight:key==='alltime'?'1px solid var(--bo)':'none',color:lbTab===key?'var(--pu2)':'var(--tx3)',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'var(--fb)',letterSpacing:.3}}>{label}</button>
-          ))}
-        </div>
-        {/* Month nav — only when Monthly is selected. ‹ Month YYYY ›, no future months. */}
-        {lbTab==='monthly'&&(()=>{
-          const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
-          const now=new Date();
-          const atCurrent=lbMonth.year===now.getFullYear()&&lbMonth.month===now.getMonth();
-          const goPrev=()=>{const d=new Date(lbMonth.year,lbMonth.month-1,1);const ny=d.getFullYear(),nm=d.getMonth();setLbMonth({year:ny,month:nm});loadMonthlyLeaderboard(ny,nm);};
-          const goNext=()=>{if(atCurrent)return;const d=new Date(lbMonth.year,lbMonth.month+1,1);const ny=d.getFullYear(),nm=d.getMonth();setLbMonth({year:ny,month:nm});loadMonthlyLeaderboard(ny,nm);};
-          return(
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14,marginBottom:14,padding:'8px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)'}}>
-              <button onClick={goPrev} style={{width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fb)',fontWeight:700}}>‹</button>
-              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2,color:'#fff',minWidth:160,textAlign:'center'}}>{monthNames[lbMonth.month].toUpperCase()} {lbMonth.year}</div>
-              <button onClick={goNext} disabled={atCurrent} style={{width:30,height:30,borderRadius:'50%',background:'var(--card2)',border:'1px solid var(--bo)',color:'#fff',fontSize:14,cursor:atCurrent?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fb)',fontWeight:700,opacity:atCurrent?.3:1}}>›</button>
+      {page==='lb'&&(()=>{
+        const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const lb=lbTab==='monthly'?monthlyLeaderboard:leaderboard;
+        const isMonthly=lbTab==='monthly';
+        const nowDate=new Date();
+        const atCurrent=lbMonth.year===nowDate.getFullYear()&&lbMonth.month===nowDate.getMonth();
+        const goPrev=()=>{const d=new Date(lbMonth.year,lbMonth.month-1,1);const ny=d.getFullYear(),nm=d.getMonth();setLbMonth({year:ny,month:nm});loadMonthlyLeaderboard(ny,nm);};
+        const goNext=()=>{if(atCurrent)return;const d=new Date(lbMonth.year,lbMonth.month+1,1);const ny=d.getFullYear(),nm=d.getMonth();setLbMonth({year:ny,month:nm});loadMonthlyLeaderboard(ny,nm);};
+        const myIdx=profile?lb.findIndex(u=>u.id===profile.id):-1;
+        return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
+          {/* HEADER */}
+          <div style={{marginBottom:18,paddingBottom:16,borderBottom:'1px solid var(--bo)',display:'flex',justifyContent:'space-between',alignItems:'flex-end',gap:12,flexWrap:'wrap'}}>
+            <div>
+              <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?26:22,fontWeight:700,letterSpacing:-0.5,color:'var(--tx)',lineHeight:1.15}}>Rankings</div>
+              <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{isMonthly?`${monthNames[lbMonth.month]} ${lbMonth.year} · ${lb.length} creator${lb.length===1?'':'s'}`:`Top ${lb.length} all time`}</div>
             </div>
-          );
-        })()}
-        {(()=>{
-          const lb=lbTab==='monthly'?monthlyLeaderboard:leaderboard;
-          const isMonthly=lbTab==='monthly';
-          // Spinner / skeleton state — shown while the active query is in
-          // flight AND there's nothing to render yet. Stops the page from
-          // flashing 'No affiliates yet' before the rows arrive.
-          if(lbLoading&&lb.length===0){
-            const skel=(h)=>(<div style={{height:h,background:'linear-gradient(90deg, var(--card) 0%, var(--card2) 50%, var(--card) 100%)',backgroundSize:'200% 100%',animation:'lbSkel 1.4s ease-in-out infinite',borderRadius:'var(--rsm)',marginBottom:8}}/>);
-            return(<>
-              <style>{`@keyframes lbSkel{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
-              <div style={{padding:'40px 14px 24px',textAlign:'center'}}>
-                <div className="spin-el" style={{margin:'0 auto 14px'}}/>
-                <div style={{fontSize:12,color:'var(--tx3)',letterSpacing:.5,marginBottom:18}}>Loading rankings…</div>
-                <div style={{textAlign:'left'}}>{skel(58)}{skel(58)}{skel(58)}{skel(58)}{skel(58)}</div>
+            {isMonthly&&(
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <button onClick={goPrev} style={{width:28,height:28,borderRadius:6,background:'transparent',border:'1px solid var(--bo)',color:'var(--tx2)',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+                <div style={{fontSize:12,fontWeight:500,color:'var(--tx2)',minWidth:110,textAlign:'center',fontVariantNumeric:'tabular-nums'}}>{monthNames[lbMonth.month]} {lbMonth.year}</div>
+                <button onClick={goNext} disabled={atCurrent} style={{width:28,height:28,borderRadius:6,background:'transparent',border:'1px solid var(--bo)',color:atCurrent?'var(--tx3)':'var(--tx2)',fontSize:14,cursor:atCurrent?'not-allowed':'pointer',display:'flex',alignItems:'center',justifyContent:'center',opacity:atCurrent?.35:1}}>›</button>
               </div>
-            </>);
-          }
-          return(<>
-            {/* YOUR POSITION — pinned to the top so the user can see their rank
-                immediately without scrolling. Big bright purple gradient card
-                so it stands out as 'this is you'. */}
-            {profile&&lb.length>0&&(()=>{
-              const myIdx=lb.findIndex(u=>u.id===profile.id);
-              if(myIdx<0){
-                return(
-                  <div style={{background:'var(--card)',border:'1px dashed rgba(201,162,75,.3)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,textAlign:'center',fontSize:12.5,color:'var(--tx2)'}}>
-                    {isMonthly?'You haven\'t earned any XP this month yet — start selling to get ranked.':'You\'re not on the leaderboard yet — start selling to get ranked.'}
+            )}
+          </div>
+
+          {/* TABS — same subtle text-tab pattern as home */}
+          <div style={{display:'flex',gap:0,marginBottom:20,borderBottom:'1px solid var(--bo)'}}>
+            {[['alltime','All time'],['monthly','Monthly']].map(([key,label])=>(
+              <button key={key} onClick={()=>setLbTab(key)} style={{padding:'10px 16px',background:'none',border:'none',borderBottom:`2px solid ${lbTab===key?'var(--pu)':'transparent'}`,color:lbTab===key?'var(--tx)':'var(--tx3)',fontSize:12.5,fontWeight:lbTab===key?600:500,cursor:'pointer',marginBottom:-1,letterSpacing:.15}}>{label}</button>
+            ))}
+          </div>
+
+          {(()=>{
+            if(lbLoading&&lb.length===0){
+              const skel=(w)=>(<div style={{height:14,width:w,background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>);
+              return(<div style={{border:'1px solid var(--bo)',borderRadius:12,background:'var(--card)',overflow:'hidden'}}>
+                {[0,1,2,3,4].map(i=>(
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',borderBottom:i<4?'1px solid var(--bo)':'none',opacity:.85-i*0.12}}>
+                    <div style={{width:24,height:14,background:'var(--card2)',borderRadius:4,animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                    <div style={{width:36,height:36,borderRadius:'50%',background:'var(--card2)',animation:'ll-pulse 1.4s ease-in-out infinite'}}/>
+                    <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>{skel('40%')}{skel('25%')}</div>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:5}}>{skel(70)}{skel(48)}</div>
                   </div>
-                );
-              }
-              const me=lb[myIdx];
-              const myRank=myIdx+1;
-              const pct=Math.round((myRank/lb.length)*100);
-              return(
-                <div style={{background:'linear-gradient(135deg,rgba(201,162,75,.32) 0%,rgba(201,162,75,.18) 50%,rgba(139,164,168,.14) 100%)',border:'1.5px solid rgba(201,162,75,.6)',borderRadius:'var(--r)',padding:'13px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:12,boxShadow:'0 0 30px rgba(201,162,75,.28)'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:34,color:'#fff',letterSpacing:.5,lineHeight:1,minWidth:54,textAlign:'center',textShadow:'0 0 14px rgba(201,162,75,.75)'}}>#{myRank}</div>
-                  <div style={{width:1,height:38,background:'rgba(255,255,255,.18)'}}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
-                      <div style={{fontSize:13.5,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{me.username}</div>
-                      <span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'2px 7px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>
-                    </div>
-                    <div style={{fontSize:10.5,color:'rgba(255,255,255,.7)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{isMonthly?(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][lbMonth.month]+' '+lbMonth.year):'All-time'} · top {pct}% of {lb.length}</div>
+                ))}
+              </div>);
+            }
+            if(lb.length===0){
+              return(<div style={{padding:'60px 20px',textAlign:'center',border:'1px dashed var(--bo)',borderRadius:12}}>
+                <div style={{fontSize:13,color:'var(--tx2)',marginBottom:4,fontWeight:500}}>No rankings yet</div>
+                <div style={{fontSize:11.5,color:'var(--tx3)'}}>{isMonthly?'No activity in this month.':'Rankings will appear once creators start earning XP.'}</div>
+              </div>);
+            }
+            return(<>
+              {/* YOUR POSITION — subtle gold-tinted callout, no glow */}
+              {profile&&(
+                myIdx<0?(
+                  <div style={{padding:'16px 18px',background:'var(--card)',border:'1px dashed var(--bo)',borderRadius:12,marginBottom:16,fontSize:12,color:'var(--tx2)',textAlign:'center'}}>
+                    {isMonthly?"You haven't earned XP this month yet — get selling to appear here.":"You're not ranked yet — start selling to join the leaderboard."}
                   </div>
-                  <div style={{textAlign:'right',flexShrink:0}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:17,color:'var(--pu2)',letterSpacing:.5,lineHeight:1}}>{(me.xp||0).toLocaleString()} XP</div>
-                    <div style={{fontSize:11,color:'var(--gr)',fontFamily:'var(--fh)',marginTop:4,letterSpacing:.3,lineHeight:1}}>{fmtGBP(me.total_gmv||0)}</div>
-                  </div>
-                </div>
-              );
-            })()}
-            {/* TOP 3 PODIUM */}
-            {lb.length>=3&&(()=>{
-              const [first,second,third]=lb;
-              const PodCard=({u,rank,minH})=>{
-                const col=avc(u.username);
-                const isMe=u.id===profile?.id;
-                const medal=rank===1?'🥇':rank===2?'🥈':'🥉';
-                // When the current user is the one in this podium slot, swap the medal-coloured
-                // glow/border/bg for a brighter purple treatment so it stands out — matches the
-                // list-row 'YOU' highlight below.
-                const glow=isMe?'rgba(201,162,75,.55)':(rank===1?'rgba(201,162,75,.3)':rank===2?'rgba(187,187,187,.25)':'rgba(205,127,50,.25)');
-                const border=isMe?'rgba(201,162,75,.85)':(rank===1?'rgba(201,162,75,.5)':rank===2?'rgba(187,187,187,.4)':'rgba(205,127,50,.4)');
-                const bg=isMe?'rgba(201,162,75,.22)':(rank===1?'rgba(201,162,75,.08)':rank===2?'rgba(187,187,187,.06)':'rgba(205,127,50,.06)');
-                const avSize=rank===1?54:44;
-                return(
-                  <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-end',minWidth:0}}>
-                    <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:5,marginBottom:6,maxWidth:'100%',padding:'0 2px',width:'100%'}}>
-                      <span style={{fontSize:11,fontWeight:700,color:isMe?'#fff':'var(--tx2)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',lineHeight:1.2,minWidth:0}}>{u.username}</span>
-                      {isMe&&<span style={{fontSize:7.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.75)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1px 5px',letterSpacing:.7,textTransform:'uppercase',flexShrink:0,lineHeight:1}}>You</span>}
-                    </div>
-                    <div style={{position:'relative',marginBottom:8}}>
-                      <div style={{width:avSize,height:avSize,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:rank===1?18:14,color:'#fff',border:`${isMe?3:2}px solid ${border}`,boxShadow:`0 0 ${isMe?24:18}px ${glow}`,overflow:'hidden',flexShrink:0,lineHeight:1}}>
-                        {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
-                      </div>
-                      <div style={{position:'absolute',bottom:-4,right:-6,fontSize:18,lineHeight:1,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.45))',pointerEvents:'none'}}>{medal}</div>
-                    </div>
-                    <div style={{width:'100%',background:bg,border:`1px solid ${border}`,borderRadius:'var(--rsm) var(--rsm) 0 0',padding:'12px 6px 14px',textAlign:'center',minHeight:minH,display:'flex',flexDirection:'column',justifyContent:'center',gap:10,boxShadow:isMe?'inset 0 0 18px rgba(201,162,75,.25)':'none'}}>
-                      <div>
-                        <div style={{fontFamily:'var(--fh)',fontSize:20,color:isMe?'#fff':'var(--tx)',letterSpacing:.5,lineHeight:1}}>{(u.xp||0).toLocaleString()}</div>
-                        <div style={{fontSize:9,color:isMe?'rgba(255,255,255,.7)':'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isMonthly?'XP this month':'XP'}</div>
-                      </div>
-                      <div>
-                        <div style={{fontFamily:'var(--fh)',fontSize:15,color:'var(--gr)',letterSpacing:.3,lineHeight:1}}>{fmtGBP(u.total_gmv||0)}</div>
-                        <div style={{fontSize:9,color:isMe?'rgba(255,255,255,.7)':'var(--tx3)',textTransform:'uppercase',letterSpacing:.7,marginTop:3,lineHeight:1}}>{isMonthly?'GMV this month':'GMV'}</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              };
-              return(
-                <div style={{display:'flex',alignItems:'flex-end',gap:6,marginBottom:16,padding:'10px 0 0'}}>
-                  <PodCard u={second} rank={2} minH={108}/>
-                  <PodCard u={first} rank={1} minH={140}/>
-                  <PodCard u={third} rank={3} minH={92}/>
-                </div>
-              );
-            })()}
-            {/* If less than 3, show simple list for all */}
-            {lb.length>0&&lb.length<3&&(
-              <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
-                {lb.map((u,i)=>{
-                  const isMe=u.id===profile?.id;const col=avc(u.username);const medal=i===0?'🥇':i===1?'🥈':'🥉';
+                ):(()=>{
+                  const me=lb[myIdx];const myRank=myIdx+1;const pct=Math.round((myRank/lb.length)*100);
                   return(
-                    <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 13px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(201,162,75,.22) 0%, rgba(201,162,75,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #d4b465':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(201,162,75,.18)':'none'}}>
-                      <div style={{fontSize:16,width:24,textAlign:'center'}}>{medal}</div>
-                      <div style={{width:36,height:36,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #d4b465':'none',boxShadow:isMe?'0 0 12px rgba(201,162,75,.5)':'none'}}>{u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}</div>
+                    <div style={{padding:'14px 18px',background:'rgba(201,162,75,.06)',border:'1px solid rgba(201,162,75,.28)',borderRadius:12,marginBottom:16,display:'flex',alignItems:'center',gap:14}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:24,fontWeight:700,letterSpacing:-0.5,color:'var(--go)',lineHeight:1,minWidth:44,fontVariantNumeric:'tabular-nums'}}>#{myRank}</div>
+                      <div style={{width:1,alignSelf:'stretch',background:'var(--bo)'}}/>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:'flex',alignItems:'center',gap:5,fontSize:13,fontWeight:600}}>
-                          <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:isMe?'#fff':'var(--tx)'}}>{u.username}</span>
-                          {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
+                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:2}}>
+                          <span style={{fontSize:13,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{me.username}</span>
+                          <span style={{fontSize:9,padding:'2px 8px',background:'rgba(201,162,75,.16)',color:'var(--go)',borderRadius:99,fontWeight:600,letterSpacing:.4,fontFamily:'var(--fb)'}}>You</span>
                         </div>
-                        <div style={{fontSize:10,color:'var(--tx3)',marginTop:1}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
+                        <div style={{fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>Top {pct}% of {lb.length}{isMonthly?` in ${monthNames[lbMonth.month]}`:''}</div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
-                        <div style={{fontFamily:'var(--fh)',fontSize:15,color:'var(--pu2)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()} XP</div>
-                        <div style={{fontSize:10,color:'var(--gr)',marginTop:1}}>{fmtGBP(u.total_gmv||0)}</div>
+                        <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{(me.xp||0).toLocaleString()}</div>
+                        <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3,fontWeight:500}}>XP</div>
                       </div>
+                    </div>
+                  );
+                })()
+              )}
+
+              {/* LEADERBOARD TABLE */}
+              <div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>
+                {/* Column headers */}
+                <div style={{display:'grid',gridTemplateColumns:'48px 1fr auto auto',gap:14,padding:'10px 18px',borderBottom:'1px solid var(--bo)',background:'var(--card2)',fontSize:9.5,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:600}}>
+                  <div>Rank</div>
+                  <div>Creator</div>
+                  <div style={{textAlign:'right',minWidth:70}}>XP</div>
+                  <div style={{textAlign:'right',minWidth:70}}>GMV</div>
+                </div>
+                {lb.map((u,i)=>{
+                  const rank=i+1;
+                  const isMe=u.id===profile?.id;
+                  const col=avc(u.username);
+                  const rankColor=rank<=3?'var(--go)':'var(--tx3)';
+                  return(
+                    <div key={u.id} style={{display:'grid',gridTemplateColumns:'48px 1fr auto auto',gap:14,padding:'14px 18px',borderBottom:i<lb.length-1?'1px solid var(--bo)':'none',alignItems:'center',background:isMe?'rgba(201,162,75,.05)':'transparent',transition:'background .15s'}}>
+                      <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:rank<=3?700:500,color:rankColor,fontVariantNumeric:'tabular-nums',letterSpacing:-0.2}}>{rank}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:12,minWidth:0}}>
+                        <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,fontWeight:700,color:'#fff',flexShrink:0,overflow:'hidden'}}>
+                          {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
+                        </div>
+                        <div style={{minWidth:0}}>
+                          <div style={{display:'flex',alignItems:'center',gap:6}}>
+                            <span style={{fontSize:13,fontWeight:isMe?700:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{u.username}</span>
+                            {isMe&&<span style={{fontSize:9,padding:'1.5px 7px',background:'rgba(201,162,75,.16)',color:'var(--go)',borderRadius:99,fontWeight:600,letterSpacing:.4,fontFamily:'var(--fb)',flexShrink:0}}>You</span>}
+                          </div>
+                          <div style={{fontSize:10.5,color:'var(--tx3)',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')||'—'}</div>
+                        </div>
+                      </div>
+                      <div style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:14,fontWeight:600,color:'var(--tx)',fontVariantNumeric:'tabular-nums',minWidth:70}}>{(u.xp||0).toLocaleString()}</div>
+                      <div style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,fontWeight:500,color:'var(--gr)',fontVariantNumeric:'tabular-nums',minWidth:70}}>{fmtGBP(u.total_gmv||0)}</div>
                     </div>
                   );
                 })}
               </div>
-            )}
-            {/* REST OF LEADERBOARD (4th+) */}
-            {lb.length>=3&&(<div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden'}}>
-              {lb.slice(3).map((u,i)=>{
-                const rank=i+4;
-                const isMe=u.id===profile?.id;
-                const col=avc(u.username);
-                return(
-                  <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:i<lb.slice(3).length-1?'1px solid var(--bo)':'none',background:isMe?'linear-gradient(90deg, rgba(201,162,75,.22) 0%, rgba(201,162,75,.1) 100%)':'transparent',borderLeft:isMe?'3px solid #d4b465':'3px solid transparent',boxShadow:isMe?'inset 0 0 14px rgba(201,162,75,.18)':'none'}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.5,width:24,textAlign:'center',color:isMe?'#fff':'var(--tx3)',flexShrink:0}}>{rank}</div>
-                    <div style={{width:34,height:34,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0,overflow:'hidden',border:isMe?'2px solid #d4b465':'none',boxShadow:isMe?'0 0 12px rgba(201,162,75,.5)':'none'}}>
-                      {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:'flex',alignItems:'center',gap:5,fontSize:13,fontWeight:500}}>
-                        <span style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',color:isMe?'#fff':'var(--tx)',fontWeight:isMe?700:500}}>{u.username}</span>
-                        {isMe&&<span style={{fontSize:8.5,fontWeight:800,color:'#fff',background:'rgba(201,162,75,.7)',border:'1px solid rgba(255,255,255,.4)',borderRadius:99,padding:'1.5px 6px',letterSpacing:.8,textTransform:'uppercase',flexShrink:0}}>You</span>}
-                      </div>
-                      <div style={{fontSize:10,color:'var(--tx3)',marginTop:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(u.tiktok_handles||[]).slice(0,2).join(' · ')}</div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontFamily:'var(--fh)',fontSize:14,color:'var(--pu2)',letterSpacing:.5}}>{(u.xp||0).toLocaleString()} XP</div>
-                      <div style={{fontSize:10,color:'var(--gr)',marginTop:1}}>{fmtGBP(u.total_gmv||0)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>)}
-            {lb.length===0&&<div style={{padding:'40px 20px',textAlign:'center',color:'var(--tx3)',fontSize:13}}>{isMonthly?'No activity in this month yet.':'No affiliates yet.'}</div>}
-            {/* (The "Your position" callout used to live here; now pinned at the top of the page.) */}
-          </>);
-        })()}
-      </div>)}
+            </>);
+          })()}
+        </div>);
+      })()}
 
       {/* REFERRALS */}
       {/* LEVEL PAGE */}
