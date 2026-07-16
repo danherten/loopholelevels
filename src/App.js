@@ -2538,6 +2538,50 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                 })()
               )}
 
+              {/* TOP 3 LEADERS — classy editorial strip, no podium, no glow.
+                  Three balanced cards side-by-side. Rank 1 gets slightly larger
+                  avatar and a subtle gold top-line. Ranks 2 & 3 quieter. */}
+              {lb.length>=3&&(
+                <div style={{marginBottom:22}}>
+                  <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>Leaders</div>
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3, 1fr)',gap:isDesktop?14:8}}>
+                    {[lb[0],lb[1],lb[2]].map((u,i)=>{
+                      const rank=i+1;
+                      const col=avc(u.username);
+                      const isMe=u.id===profile?.id;
+                      // Muted rank accent colours — deep gold / muted silver / warm bronze.
+                      const rankTint=rank===1?'#c9a24b':rank===2?'#a8a8a8':'#a67c52';
+                      const avSize=rank===1?(isDesktop?60:52):(isDesktop?48:42);
+                      const isFirst=rank===1;
+                      return(
+                        <div key={u.id} style={{padding:isDesktop?'20px 16px 22px':'16px 12px 18px',background:isFirst?'linear-gradient(180deg, rgba(201,162,75,.06) 0%, var(--card) 100%)':'var(--card)',border:'1px solid var(--bo)',borderRadius:12,borderTop:isFirst?`1.5px solid ${rankTint}`:'1px solid var(--bo)',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',position:'relative',minWidth:0}}>
+                          <div style={{fontFamily:'var(--fh)',fontSize:11,fontWeight:700,color:rankTint,letterSpacing:1.2,marginBottom:10,fontVariantNumeric:'tabular-nums'}}>#{rank}</div>
+                          <div style={{width:avSize,height:avSize,borderRadius:'50%',background:u.avatar_url?'transparent':col,display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:isFirst?16:13,fontWeight:700,color:'#fff',flexShrink:0,overflow:'hidden',marginBottom:12,border:isFirst?`2px solid ${rankTint}`:'none'}}>
+                            {u.avatar_url?<img src={u.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(u.username)}
+                          </div>
+                          <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:2,maxWidth:'100%',padding:'0 4px'}}>
+                            <span style={{fontSize:isFirst?13.5:12.5,fontWeight:isFirst?700:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1,minWidth:0}}>{u.username}</span>
+                            {isMe&&<span style={{fontSize:8.5,padding:'1.5px 6px',background:'rgba(201,162,75,.16)',color:'var(--go)',borderRadius:99,fontWeight:600,letterSpacing:.4,fontFamily:'var(--fb)',flexShrink:0}}>You</span>}
+                          </div>
+                          <div style={{fontSize:10,color:'var(--tx3)',marginBottom:10,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'100%',padding:'0 4px'}}>{(u.tiktok_handles||[]).slice(0,1).join('')||'—'}</div>
+                          <div style={{width:'100%',paddingTop:10,borderTop:'1px solid var(--bo)',display:'flex',justifyContent:'center',gap:isDesktop?16:10,fontVariantNumeric:'tabular-nums'}}>
+                            <div style={{textAlign:'center'}}>
+                              <div style={{fontFamily:'var(--fh)',fontSize:isFirst?15:13,fontWeight:700,color:'var(--tx)',lineHeight:1}}>{(u.xp||0).toLocaleString()}</div>
+                              <div style={{fontSize:8.5,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:4,fontWeight:500}}>XP</div>
+                            </div>
+                            <div style={{width:1,background:'var(--bo)'}}/>
+                            <div style={{textAlign:'center'}}>
+                              <div style={{fontFamily:'var(--fh)',fontSize:isFirst?13:11.5,fontWeight:600,color:'var(--gr)',lineHeight:1}}>{fmtGBP(u.total_gmv||0)}</div>
+                              <div style={{fontSize:8.5,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:4,fontWeight:500}}>GMV</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* LEADERBOARD TABLE */}
               <div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>
                 {/* Column headers */}
@@ -2643,193 +2687,204 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         <button onClick={()=>setPage('home')} style={{width:'100%',padding:12,background:'none',border:'1px solid var(--bo2)',borderRadius:'var(--rsm)',color:'var(--tx3)',fontSize:13,cursor:'pointer',marginBottom:8}}>← Back to Home</button>
       </div>)}
 
-      {page==='referrals'&&(<div className="pg">
-        <div className="sh" style={{marginBottom:11}}>REFERRALS</div>
+      {page==='referrals'&&(()=>{
+        let filteredRefEvts=referralEvents;
+        if(refDateRange!=='all'){
+          let start,end=new Date();end.setHours(23,59,59,999);
+          if(refDateRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
+          else if(refDateRange==='30d'){start=new Date();start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
+          else if(refDateRange==='month'){const[my,mm]=refSelectedMonth.split('-').map(Number);start=new Date(my,mm-1,1);end=new Date(my,mm,0,23,59,59,999);}
+          else if(refDateRange==='custom'&&refCustomStart&&refCustomEnd){start=new Date(refCustomStart);start.setHours(0,0,0,0);end=new Date(refCustomEnd);end.setHours(23,59,59,999);}
+          if(start)filteredRefEvts=referralEvents.filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
+        }
+        const refGMV=filteredRefEvts.reduce((s,e)=>s+(e.gmv||0),0);
+        const refCancelledGMV=filteredRefEvts.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
+        const netRefGMV=Math.max(0,refGMV-refCancelledGMV);
+        const refEarnings=parseFloat((netRefGMV*0.01).toFixed(2));
+        const isRefFiltered=refDateRange!=='all';
+        const lifetimeNetGMV=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
+        const lifetimeEarned=parseFloat((lifetimeNetGMV*0.01).toFixed(2));
+        const displayEarnings=isRefFiltered?refEarnings:lifetimeEarned;
+        const displayGMV=isRefFiltered?netRefGMV:lifetimeNetGMV;
+        const byUser={};
+        filteredRefEvts.forEach(e=>{
+          if(!byUser[e.profile_id])byUser[e.profile_id]={gmv:0,cancelled_gmv:0};
+          byUser[e.profile_id].gmv+=(e.gmv||0);
+          byUser[e.profile_id].cancelled_gmv+=(e.cancelled_gmv||0);
+        });
+        const paid=payouts.filter(p=>p.paid).reduce((s,p)=>s+(p.amount||0),0);
+        const pending=payouts.filter(p=>!p.paid).reduce((s,p)=>s+(p.amount||0),0);
+        const accruing=Math.max(0,parseFloat((lifetimeEarned-paid-pending).toFixed(2)));
+        const rangeLabel=isRefFiltered?(refDateRange==='7d'?'Last 7 days':refDateRange==='30d'?'Last 30 days':refDateRange==='month'?new Date(refSelectedMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}):refDateRange==='custom'&&refCustomStart&&refCustomEnd?`${new Date(refCustomStart).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} — ${new Date(refCustomEnd).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`:''):'All time';
+        const now=new Date();
+        const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'});
+        const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'});
+        const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
+          {/* HEADER */}
+          <div style={{marginBottom:22,paddingBottom:18,borderBottom:'1px solid var(--bo)'}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?26:22,fontWeight:700,letterSpacing:-0.5,color:'var(--tx)',lineHeight:1.15}}>Refer &amp; earn</div>
+            <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{referralStats.length} referred creator{referralStats.length===1?'':'s'} · {fmtGBP(lifetimeEarned)} earned all time</div>
+          </div>
 
-        {/* DATE FILTER */}
-        <div style={{display:'flex',gap:5,marginBottom:11,flexWrap:'wrap',alignItems:'center'}}>
-          {[['all','All'],['7d','7D'],['30d','30D'],['month','Month']].map(([val,label])=>(
-            <button key={val} onClick={()=>setRefDateRange(val)} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange===val?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange===val?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:refDateRange===val?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>{label}</button>
-          ))}
-          {refDateRange==='month'&&<input type='month' value={refSelectedMonth} onChange={e=>setRefSelectedMonth(e.target.value)} style={{padding:'6px 10px',background:'rgba(201,162,75,.18)',border:'1px solid var(--pu)',borderRadius:99,color:'var(--pu2)',fontSize:12,fontWeight:600,outline:'none',cursor:'pointer',maxWidth:120}}/>}
-          <button onClick={()=>setRefDateRange('custom')} style={{padding:'6px 14px',borderRadius:99,border:`1px solid ${refDateRange==='custom'?'var(--pu)':'rgba(255,255,255,.06)'}`,background:refDateRange==='custom'?'rgba(201,162,75,.18)':'rgba(255,255,255,.03)',color:refDateRange==='custom'?'var(--pu2)':'var(--tx3)',fontSize:12,fontWeight:600,cursor:'pointer'}}>Custom</button>
-          {refDateRange==='custom'&&(<>
-            <input type="date" value={refCustomStart} onChange={e=>setRefCustomStart(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
-            <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
-            <input type="date" value={refCustomEnd} onChange={e=>setRefCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:'var(--rxs)',color:'var(--tx)',fontSize:11,outline:'none'}}/>
-          </>)}
-        </div>
+          {/* PRIMARY METRIC — Referral earnings */}
+          <div style={{marginBottom:24}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500}}>Referral earnings</div>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:.3}}>{rangeLabel}</div>
+            </div>
+            <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?56:44,fontWeight:700,letterSpacing:-1.5,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(displayEarnings)}</div>
+          </div>
 
-        {(()=>{
-          let filteredRefEvts=referralEvents;
-          if(refDateRange!=='all'){
-            let start,end=new Date();end.setHours(23,59,59,999);
-            if(refDateRange==='7d'){start=new Date();start.setDate(start.getDate()-6);start.setHours(0,0,0,0);}
-            else if(refDateRange==='30d'){start=new Date();start.setDate(start.getDate()-29);start.setHours(0,0,0,0);}
-            else if(refDateRange==='month'){const[my,mm]=refSelectedMonth.split('-').map(Number);start=new Date(my,mm-1,1);end=new Date(my,mm,0,23,59,59,999);}
-            else if(refDateRange==='custom'&&refCustomStart&&refCustomEnd){start=new Date(refCustomStart);start.setHours(0,0,0,0);end=new Date(refCustomEnd);end.setHours(23,59,59,999);}
-            if(start)filteredRefEvts=referralEvents.filter(e=>{const d=new Date(e.created_at);return d>=start&&d<=end;});
-          }
-          const refGMV=filteredRefEvts.reduce((s,e)=>s+(e.gmv||0),0);
-          const refCancelledGMV=filteredRefEvts.reduce((s,e)=>s+(e.cancelled_gmv||0),0);
-          const netRefGMV=Math.max(0,refGMV-refCancelledGMV);
-          const refEarnings=parseFloat((netRefGMV*0.01).toFixed(2));
-          const isRefFiltered=refDateRange!=='all';
-          const lifetimeNetGMV=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
-          const byUser={};
-          filteredRefEvts.forEach(e=>{
-            if(!byUser[e.profile_id])byUser[e.profile_id]={gmv:0,cancelled_gmv:0};
-            byUser[e.profile_id].gmv+=(e.gmv||0);
-            byUser[e.profile_id].cancelled_gmv+=(e.cancelled_gmv||0);
-          });
-          return(<>
-            {/* HERO EARNINGS CARD — matches the home Net GMV layout */}
-            <div style={{borderRadius:16,overflow:'hidden',marginBottom:10}}>
-              <div style={{height:3,background:'linear-gradient(90deg,#c9a24b,#8ba4a8,#6b9b7d)'}}/>
-              <div style={{background:'var(--card)',padding:'20px 18px 18px'}}>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Referral Earnings{isRefFiltered?'':' · All Time'}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:48,letterSpacing:1,color:'#fff',lineHeight:1,marginBottom:20}}>{fmtGBP(isRefFiltered?refEarnings:parseFloat((lifetimeNetGMV*0.01).toFixed(2)))}</div>
-                <div style={{display:'flex',gap:0}}>
-                  {[
-                    {label:'Their Net GMV',val:fmtGBP(isRefFiltered?netRefGMV:lifetimeNetGMV),color:'#6b9b7d',bg:'rgba(107,155,125,.08)'},
-                    {label:'Affiliates',val:referralStats.length.toLocaleString(),color:'#8ba4a8',bg:'rgba(139,164,168,.08)'},
-                    {label:'Bonus XP',val:(referralStats.length*100).toLocaleString(),color:'#c9a24b',bg:'rgba(201,162,75,.08)'},
-                  ].map((s,i)=>(
-                    <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:'10px 8px',textAlign:'center',marginRight:i<2?6:0}}>
-                      <div style={{fontFamily:'var(--fh)',fontSize:19,letterSpacing:.5,color:s.color,lineHeight:1}}>{s.val}</div>
-                      <div style={{fontSize:9,color:'var(--tx3)',marginTop:4,textTransform:'uppercase',letterSpacing:.8,fontWeight:500}}>{s.label}</div>
+          {/* DATE FILTER — text tabs */}
+          <div style={{display:'flex',gap:0,marginBottom:24,borderBottom:'1px solid var(--bo)',flexWrap:'wrap'}}>
+            {[['all','All time'],['7d','7 days'],['30d','30 days'],['month','Month'],['custom','Custom']].map(([val,label])=>(
+              <button key={val} onClick={()=>setRefDateRange(val)} style={{padding:'8px 14px',background:'none',border:'none',borderBottom:`2px solid ${refDateRange===val?'var(--pu)':'transparent'}`,color:refDateRange===val?'var(--tx)':'var(--tx3)',fontSize:12,fontWeight:refDateRange===val?600:500,cursor:'pointer',marginBottom:-1,letterSpacing:.15}}>{label}</button>
+            ))}
+            {refDateRange==='month'&&<input type='month' value={refSelectedMonth} onChange={e=>setRefSelectedMonth(e.target.value)} style={{padding:'5px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',marginLeft:10,alignSelf:'center'}}/>}
+            {refDateRange==='custom'&&(<>
+              <input type="date" value={refCustomStart} onChange={e=>setRefCustomStart(e.target.value)} style={{padding:'5px 8px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',marginLeft:10,alignSelf:'center'}}/>
+              <span style={{fontSize:11,color:'var(--tx3)',alignSelf:'center',padding:'0 6px'}}>→</span>
+              <input type="date" value={refCustomEnd} onChange={e=>setRefCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',alignSelf:'center'}}/>
+            </>)}
+          </div>
+
+          {/* KPI GRID — Their Net GMV + Affiliates + Bonus XP */}
+          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(3,1fr)':'repeat(3,1fr)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',marginBottom:26,background:'var(--card)'}}>
+            {[
+              {label:'Their net GMV',val:fmtGBP(displayGMV)},
+              {label:'Referred creators',val:referralStats.length.toLocaleString()},
+              {label:'Bonus XP earned',val:(referralStats.length*100).toLocaleString()},
+            ].map((s,i)=>(
+              <div key={i} style={{padding:'18px 18px 20px',borderRight:i<2?'1px solid var(--bo)':'none'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500,marginBottom:8}}>{s.label}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?22:18,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* REFERRAL CODE — hero card */}
+          <div style={{padding:'20px 22px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:26}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6,gap:10,flexWrap:'wrap'}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500}}>Your referral code</div>
+              <div style={{fontSize:11,color:'var(--go)',fontWeight:500}}>+100 XP · both sides · then 1% forever</div>
+            </div>
+            <div onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied ✓','ok');}} style={{fontFamily:'var(--fh)',fontSize:isDesktop?36:28,fontWeight:700,letterSpacing:isDesktop?4:2.5,color:'var(--tx)',padding:'20px 16px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:10,margin:'12px 0',textAlign:'center',cursor:'pointer',userSelect:'all',fontVariantNumeric:'tabular-nums'}}>{profile.referral_code||'...'}</div>
+            <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied ✓','ok');}} style={{width:'100%',padding:'13px',background:'var(--tx)',border:'none',borderRadius:10,color:'var(--bg)',fontFamily:'var(--fh)',fontSize:13,fontWeight:700,letterSpacing:.6,cursor:'pointer',transition:'opacity .15s'}}>Copy referral link</button>
+          </div>
+
+          {/* PAYOUT BREAKDOWN — 4 KPI cells */}
+          <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>Payout breakdown</div>
+          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4,1fr)':'repeat(2,1fr)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',marginBottom:26,background:'var(--card)'}}>
+            {[
+              {l:'Earned',v:fmtGBP(lifetimeEarned),c:'var(--tx)'},
+              {l:'Paid',v:fmtGBP(paid),c:'var(--gr)'},
+              {l:'Awaiting',v:fmtGBP(pending),c:'var(--go)'},
+              {l:'This month',v:fmtGBP(accruing),c:'var(--tx2)'},
+            ].map((b,i)=>(
+              <div key={i} style={{padding:'18px 18px 20px',borderRight:isDesktop?(i<3?'1px solid var(--bo)':'none'):(i%2===0?'1px solid var(--bo)':'none'),borderBottom:isDesktop?'none':(i<2?'1px solid var(--bo)':'none')}}>
+                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500,marginBottom:8}}>{b.l}</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?20:17,fontWeight:700,letterSpacing:-0.4,color:b.c,lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{b.v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* REFERRED CREATORS */}
+          {referralStats.length>0&&(
+            <div style={{marginBottom:26}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>Referred creators</div>
+              <div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>
+                {referralStats.map((r,i)=>{
+                  const userEvts=byUser[r.id];
+                  const userGMV=isRefFiltered?(userEvts?userEvts.gmv:0):r.total_gmv||0;
+                  const userCancelled=isRefFiltered?(userEvts?userEvts.cancelled_gmv:0):(r.total_cancelled_gmv||0);
+                  const userNet=Math.max(0,userGMV-userCancelled);
+                  return(
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',borderBottom:i<referralStats.length-1?'1px solid var(--bo)':'none'}}>
+                      <div style={{width:36,height:36,borderRadius:'50%',background:avc(r.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}}>{ini(r.username)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13.5,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{r.username}</div>
+                        <div style={{fontSize:11,color:'var(--tx3)',marginTop:2,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(r.tiktok_handles||[]).slice(0,1).join('')||'—'}</div>
+                      </div>
+                      <div style={{textAlign:'right',flexShrink:0}}>
+                        <div style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:700,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(userNet)}</div>
+                        <div style={{fontSize:10.5,color:'var(--go)',marginTop:4,fontWeight:500,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(userNet*0.01)} earned</div>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
-
-            {/* XP INCENTIVE BANNER */}
-            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11,background:'linear-gradient(135deg,rgba(201,162,75,.16) 0%,rgba(201,162,75,.1) 100%)',border:'1px solid rgba(201,162,75,.35)',padding:'13px 15px',display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 4px rgba(201,162,75,.4))'}}>⚡</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:17,letterSpacing:1.3,marginBottom:2,color:'#fff'}}>+100 XP — BOTH SIDES</div>
-                <div style={{fontSize:11,color:'var(--tx2)',lineHeight:1.45}}>You get <strong style={{color:'var(--pu2)'}}>+100 XP</strong> for every creator who signs up with your code. They also get <strong style={{color:'var(--pu2)'}}>+100 XP</strong> to kickstart their journey.</div>
-              </div>
-            </div>
-
-            {/* REFERRAL CODE / LINK */}
-            <div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
-              <div style={{height:3,background:'linear-gradient(90deg,#c9a24b,#f97316,#ef4444)'}}/>
-              <div style={{background:'var(--card)',padding:'14px 16px'}}>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:6,fontWeight:500}}>Your Referral Code</div>
-                <div style={{fontSize:11,color:'var(--tx3)',marginBottom:9,lineHeight:1.45}}>Share this — they get +100 XP, you get +100 XP, then <strong style={{color:'var(--gr)'}}>1% of their net GMV forever</strong>.</div>
-                <div className="ref-code" onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{margin:0,marginBottom:9}}>{profile.referral_code||'...'}</div>
-                <button onClick={()=>{navigator.clipboard.writeText(refLink);toast('Link copied! 📋','ok');}} style={{width:'100%',padding:'11px',background:'linear-gradient(135deg,var(--pu) 0%,#7c3aed 100%)',border:'none',borderRadius:'var(--rsm)',color:'#fff',fontFamily:'var(--fh)',fontSize:16,letterSpacing:1.5,cursor:'pointer'}}>📋 COPY REFERRAL LINK</button>
-              </div>
-            </div>
-            {/* Referred affiliates list */}
-            {referralStats.length>0&&(<div className="asec" style={{marginBottom:11}}>
-              <div className="asect">Your Referred Affiliates</div>
-              {referralStats.map((r,i)=>{
-                const userEvts=byUser[r.id];
-                const userGMV=isRefFiltered?(userEvts?userEvts.gmv:0):r.total_gmv||0;
-                const userCancelled=isRefFiltered?(userEvts?userEvts.cancelled_gmv:0):(r.total_cancelled_gmv||0);
-                const userNet=Math.max(0,userGMV-userCancelled);
-                return(
-                  <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:i<referralStats.length-1?'1px solid var(--bo)':'none'}}>
-                    <div style={{width:32,height:32,borderRadius:'50%',background:avc(r.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:12,color:'#fff',flexShrink:0}}>{ini(r.username)}</div>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:500}}>{r.username}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>{(r.tiktok_handles||[]).slice(0,1).join('')}</div>
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontSize:12,color:'var(--gr)',fontWeight:600}}>{fmtGBP(userNet)}</div>
-                      <div style={{fontSize:10,color:'var(--tx3)'}}>Net GMV</div>
-                      <div style={{fontSize:10,color:'var(--go)',marginTop:1}}>{fmtGBP(userNet*0.01)} earned</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>)}
-          </>);
-        })()}
-
-        {/* PAYOUT BREAKDOWN — three buckets: paid / invoiced+pending / still accruing.
-            Each rounds independently so the three may not exactly equal lifetime — close enough for a summary. */}
-        {(()=>{
-          const lifetimeNetGMV=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
-          const earned=parseFloat((lifetimeNetGMV*0.01).toFixed(2));
-          const paid=payouts.filter(p=>p.paid).reduce((s,p)=>s+(p.amount||0),0);
-          const pending=payouts.filter(p=>!p.paid).reduce((s,p)=>s+(p.amount||0),0);
-          const accruing=Math.max(0,parseFloat((earned-paid-pending).toFixed(2)));
-          return(<div style={{borderRadius:14,overflow:'hidden',marginBottom:11}}>
-            <div style={{height:3,background:'linear-gradient(90deg,#6b9b7d,#c9a24b,#b04a55,#c9a24b)'}}/>
-            <div style={{background:'var(--card)',padding:'14px 16px'}}>
-              <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:2,textTransform:'uppercase',marginBottom:10,fontWeight:500}}>📊 Payout Breakdown</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6}}>
-                {[
-                  {l:'Earned',v:fmtGBP(earned),c:'#fff',bg:'rgba(255,255,255,.04)'},
-                  {l:'Paid',v:fmtGBP(paid),c:'var(--gr)',bg:'rgba(107,155,125,.08)'},
-                  {l:'Awaiting',v:fmtGBP(pending),c:'var(--go)',bg:'rgba(201,162,75,.08)'},
-                  {l:'This Month',v:fmtGBP(accruing),c:'var(--pu2)',bg:'rgba(201,162,75,.08)'},
-                ].map((b,i)=>(
-                  <div key={i} style={{background:b.bg,borderRadius:9,padding:'9px 6px',textAlign:'center'}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:15,letterSpacing:.3,color:b.c,lineHeight:1.1}}>{b.v}</div>
-                    <div style={{fontSize:8.5,color:'var(--tx3)',marginTop:3,textTransform:'uppercase',letterSpacing:.7,fontWeight:600}}>{b.l}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>);
-        })()}
-        {/* PAYOUT INVOICES */}
-        <div className="asec" style={{marginBottom:11}}>
-          <div className="asect">Payout History</div>
-          {payouts.length===0?(<div style={{fontSize:12,color:'var(--tx3)',padding:'10px 0'}}>No payouts yet — earnings are paid on the 15th of the month after they're generated.</div>):(
-            payouts.map((po,i)=>{
-              const monthLabel=new Date(po.month+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-              // payout.month is "YYYY-MM" (the month earnings were generated in).
-              // Due date = 15th of next month.
-              const due=payoutDueDate(po.month+'-15');
-              const dueLabel=due?fmtDueDate(due):'';
-              const overdue=!po.paid&&due&&due.getTime()<Date.now();
-              return(
-                <div key={po.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<payouts.length-1?'1px solid var(--bo)':'none'}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:po.paid?'rgba(107,155,125,.1)':overdue?'rgba(176,74,85,.1)':'rgba(201,162,75,.1)',border:`1px solid ${po.paid?'rgba(107,155,125,.25)':overdue?'rgba(176,74,85,.3)':'rgba(201,162,75,.25)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{po.paid?'✅':overdue?'⚠':'⏳'}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:600}}>{monthLabel}</div>
-                    <div style={{fontSize:10,color:po.paid?'var(--gr)':overdue?'#b04a55':'var(--go)',marginTop:2,fontWeight:600,letterSpacing:.2}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:`Due ${dueLabel}${overdue?' · past due, contact Hollen':''}`}</div>
-                  </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,color:po.paid?'var(--gr)':overdue?'#b04a55':'var(--go)',flexShrink:0}}>{fmtGBP(po.amount)}</div>
-                </div>
-              );
-            })
           )}
-        </div>
 
-        {/* Earnings note — mirrors the rewards page banner with live monthly examples. */}
-        {(()=>{
-          const now=new Date();
-          const m1=new Date(now.getFullYear(),now.getMonth()-1,1).toLocaleDateString('en-GB',{month:'long'});
-          const m1pay=new Date(now.getFullYear(),now.getMonth(),15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-          const m2=new Date(now.getFullYear(),now.getMonth(),1).toLocaleDateString('en-GB',{month:'long'});
-          const m2pay=new Date(now.getFullYear(),now.getMonth()+1,15).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-          return(<div style={{background:'linear-gradient(135deg,rgba(201,162,75,.18) 0%,rgba(139,164,168,.08) 100%)',border:'1px solid rgba(201,162,75,.4)',borderRadius:'var(--r)',padding:'14px 16px',marginBottom:11,display:'flex',alignItems:'flex-start',gap:13}}>
-            <span style={{fontSize:30,flexShrink:0,filter:'drop-shadow(0 2px 6px rgba(201,162,75,.5))',lineHeight:1}}>📅</span>
-            <div style={{flex:1,minWidth:0,lineHeight:1.4}}>
-              <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:1.5,color:'#fff',marginBottom:3}}>PAID ON THE 15TH</div>
-              <div style={{fontSize:11.5,color:'var(--tx2)',marginBottom:8}}>Any commission you earn from a referred creator is paid on <strong style={{color:'var(--pu2)'}}>the 15th of the month after</strong>. Buffers returns and gives one clear payday.</div>
-              <div style={{display:'flex',flexDirection:'column',gap:4,fontSize:11,color:'var(--tx3)',lineHeight:1.45}}>
-                <div>· Earn any time in <strong style={{color:'var(--tx2)'}}>{m1}</strong> → paid <strong style={{color:'var(--gr)'}}>{m1pay}</strong></div>
-                <div>· Earn any time in <strong style={{color:'var(--tx2)'}}>{m2}</strong> → paid <strong style={{color:'var(--gr)'}}>{m2pay}</strong></div>
+          {/* PAYOUT HISTORY */}
+          <div style={{marginBottom:26}}>
+            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>Payout history</div>
+            {payouts.length===0?(
+              <div style={{padding:'24px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,textAlign:'center'}}>
+                <div style={{fontSize:13,color:'var(--tx2)',marginBottom:4,fontWeight:500}}>No payouts yet</div>
+                <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.5}}>Earnings are paid on the 15th of the month after they're generated.</div>
+              </div>
+            ):(
+              <div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>
+                {payouts.map((po,i)=>{
+                  const monthLabel=new Date(po.month+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+                  const due=payoutDueDate(po.month+'-15');
+                  const dueLabel=due?fmtDueDate(due):'';
+                  const overdue=!po.paid&&due&&due.getTime()<Date.now();
+                  const status=po.paid?{label:'Paid',color:'var(--gr)',bg:'rgba(107,155,125,.10)'}:overdue?{label:'Overdue',color:'var(--re)',bg:'rgba(176,74,85,.10)'}:{label:'Pending',color:'var(--go)',bg:'rgba(201,162,75,.10)'};
+                  return(
+                    <div key={po.id} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',borderBottom:i<payouts.length-1?'1px solid var(--bo)':'none'}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
+                          <span style={{fontSize:13.5,fontWeight:600,color:'var(--tx)'}}>{monthLabel}</span>
+                          <span style={{fontSize:10,padding:'2px 8px',background:status.bg,color:status.color,borderRadius:99,fontWeight:600,letterSpacing:.3,fontFamily:'var(--fb)'}}>{status.label}</span>
+                        </div>
+                        <div style={{fontSize:11,color:'var(--tx3)'}}>{po.paid?`Paid${po.paid_at?' on '+new Date(po.paid_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):''}`:`Due ${dueLabel}${overdue?' · past due, contact Hollen':''}`}</div>
+                      </div>
+                      <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:po.paid?'var(--gr)':overdue?'var(--re)':'var(--go)',flexShrink:0,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(po.amount)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* PAID ON THE 15TH — same subtle card as rewards page */}
+          <div style={{padding:'16px 18px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,marginBottom:26}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+              <div style={{width:32,height:32,borderRadius:8,background:'rgba(201,162,75,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>📅</div>
+              <div>
+                <div style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:700,color:'var(--tx)',letterSpacing:.1}}>Paid on the 15th</div>
+                <div style={{fontSize:11.5,color:'var(--tx3)',marginTop:2}}>Commissions ship on the 15th of the month after they're earned.</div>
               </div>
             </div>
-          </div>);
-        })()}
-        {/* How it works */}
-        <div className="asec">
-          <div className="asect">How It Works</div>
-          <div className="howto-item"><span className="howto-icon">1️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>Share your code or link with another creator</div></div>
-          <div className="howto-item"><span className="howto-icon">2️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>They sign up using your code — <strong style={{color:'var(--pu2)'}}>both of you get +100 XP instantly</strong></div></div>
-          <div className="howto-item"><span className="howto-icon">3️⃣</span><div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>You earn <strong style={{color:'var(--gr)'}}>1% of all their net GMV</strong> — forever</div></div>
-        </div>
-      </div>)}
+            <div style={{display:'flex',flexDirection:isDesktop?'row':'column',gap:isDesktop?24:6,fontSize:11.5,color:'var(--tx2)',paddingTop:10,borderTop:'1px solid var(--bo)',fontVariantNumeric:'tabular-nums'}}>
+              <div>Earn in <strong style={{color:'var(--tx)',fontWeight:600}}>{m1}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m1pay}</strong></div>
+              <div>Earn in <strong style={{color:'var(--tx)',fontWeight:600}}>{m2}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m2pay}</strong></div>
+            </div>
+          </div>
+
+          {/* HOW IT WORKS — editorial three-step */}
+          <div style={{marginBottom:20}}>
+            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:14}}>How it works</div>
+            <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(3,1fr)':'1fr',gap:12}}>
+              {[
+                {n:'01',t:'Share your code',d:'Send your referral link or code to any creator you know.'},
+                {n:'02',t:'They sign up',d:'Both of you receive +100 XP the moment they join with your code.'},
+                {n:'03',t:'Earn 1% forever',d:'You earn 1% of every referred creator\'s net GMV, paid monthly.'},
+              ].map((s,i)=>(
+                <div key={i} style={{padding:'18px 18px 20px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:12,fontWeight:700,color:'var(--go)',letterSpacing:1,marginBottom:10,fontVariantNumeric:'tabular-nums'}}>{s.n}</div>
+                  <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:5,letterSpacing:.1}}>{s.t}</div>
+                  <div style={{fontSize:11.5,color:'var(--tx3)',lineHeight:1.55}}>{s.d}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>);
+      })()}
 
       {/* PRODUCTS */}
       {page==='products'&&(<div className="pg">
