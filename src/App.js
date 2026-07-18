@@ -2247,7 +2247,16 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         const dateStr=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
         const rankIx=leaderboard.findIndex(u=>u.id===profile?.id);
         const rank=rankIx>=0?rankIx+1:null;
-        const rangeLabel=dateRange==='yesterday'?'Yesterday':dateRange==='7d'?'Last 7 days':dateRange==='30d'?'Last 30 days':dateRange==='month'?new Date(selectedMonth+'-01').toLocaleDateString('en-GB',{month:'long',year:'numeric'}):dateRange==='custom'&&customStart&&customEnd?`${new Date(customStart).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} — ${new Date(customEnd).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`:'All time';
+        const fmtRangeDate=d=>d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+        const rangeLabel=(()=>{
+          if(dateRange==='all')return'All time';
+          if(dateRange==='yesterday'){const y=new Date();y.setDate(y.getDate()-1);return fmtRangeDate(y);}
+          if(dateRange==='7d'){const s=new Date();s.setDate(s.getDate()-6);return `${fmtRangeDate(s)} – ${fmtRangeDate(new Date())}`;}
+          if(dateRange==='30d'){const s=new Date();s.setDate(s.getDate()-29);return `${fmtRangeDate(s)} – ${fmtRangeDate(new Date())}`;}
+          if(dateRange==='month'){const[my,mm]=selectedMonth.split('-').map(Number);const s=new Date(my,mm-1,1);const e=new Date(my,mm,0);return `${fmtRangeDate(s)} – ${fmtRangeDate(e)}`;}
+          if(dateRange==='custom'&&customStart&&customEnd)return `${fmtRangeDate(new Date(customStart))} – ${fmtRangeDate(new Date(customEnd))}`;
+          return'All time';
+        })();
         const deltaPct=(cur,prev)=>{if(!isFiltered||!prev)return null;const d=cur-prev;const pct=prev===0?0:(d/Math.abs(prev))*100;return{d,pct,up:d>0,dn:d<0};};
         const netDelta=deltaPct(filteredNet,prevNet);
         const commDelta=deltaPct(filteredComm,prevComm);
@@ -2276,7 +2285,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           </div>
 
           {/* DATE FILTER — Shopify-style segmented pill */}
-          <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
             <div style={{display:'inline-flex',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:10,padding:3}}>
               {[['yesterday','Yesterday'],['7d','7 days'],['30d','30 days'],['month','Month'],['all','All time'],['custom','Custom']].map(([val,label])=>(
                 <button key={val} onClick={()=>setDateRange(val)} style={{padding:isDesktop?'7px 14px':'6px 11px',background:dateRange===val?'var(--card2)':'transparent',border:'1px solid '+(dateRange===val?'var(--bo2)':'transparent'),borderRadius:7,color:dateRange===val?'var(--tx)':'var(--tx3)',fontSize:12,fontWeight:dateRange===val?600:500,cursor:'pointer',transition:'all .15s',fontFamily:'var(--fb)',letterSpacing:.1}}>{label}</button>
@@ -2288,6 +2297,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
               <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'7px 9px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx)',fontSize:12,outline:'none'}}/>
             </>)}
+            {dateRange!=='all'&&dateRange!=='custom'&&(<span style={{fontSize:12,color:'var(--tx3)',fontVariantNumeric:'tabular-nums',letterSpacing:.15}}>{rangeLabel}</span>)}
           </div>
 
           {/* HERO — Net GMV card */}
