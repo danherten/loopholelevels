@@ -2270,7 +2270,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           <div style={{marginBottom:22,display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
             <div style={{minWidth:0}}>
               <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?28:22,fontWeight:700,letterSpacing:-0.55,color:'var(--tx)',lineHeight:1.15}}>{greeting}, {profile.username||'creator'}</div>
-              <div style={{fontSize:12.5,color:'var(--tx3)',marginTop:6,letterSpacing:.1}}>{dateStr}</div>
+              <div style={{fontSize:12.5,color:'var(--tx3)',marginTop:6,letterSpacing:.1,fontVariantNumeric:'tabular-nums'}}>{dateRange==='all'?dateStr:rangeLabel}</div>
             </div>
             <div style={{display:'flex',gap:8,flexShrink:0}}>
               {rank&&<button onClick={()=>navTo('lb')} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:99,padding:'8px 14px',display:'flex',alignItems:'center',gap:9,cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)'}}>
@@ -2297,7 +2297,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
               <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'7px 9px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx)',fontSize:12,outline:'none'}}/>
             </>)}
-            {dateRange!=='all'&&dateRange!=='custom'&&(<span style={{fontSize:12,color:'var(--tx3)',fontVariantNumeric:'tabular-nums',letterSpacing:.15}}>{rangeLabel}</span>)}
           </div>
 
           {/* HERO — Net GMV card */}
