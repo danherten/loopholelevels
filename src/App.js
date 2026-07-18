@@ -2300,7 +2300,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                   <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:600,color:'var(--gr)',fontVariantNumeric:'tabular-nums'}}>{fmtGBP(filteredGMVGross)}</span>
                 </div>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid var(--bo)'}}>
-                  <span style={{fontSize:12,color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {filteredCancelled} unit{filteredCancelled===1?'':'s'}</span></span>
+                  <span style={{fontSize:12,color:'var(--tx2)'}}>Returns <span style={{color:'var(--tx3)',fontSize:11}}>· {filteredCancelled} unit{filteredCancelled===1?'':'s'}{filteredGMVGross>0?` · ${((filteredCancelledGMV/filteredGMVGross)*100).toFixed(1)}%`:''}</span></span>
                   <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:600,color:'var(--re)',fontVariantNumeric:'tabular-nums'}}>−{fmtGBP(filteredCancelledGMV)}</span>
                 </div>
                 <div style={{fontSize:11,color:'var(--tx3)',marginTop:10,lineHeight:1.5}}>Returns are counted on the day the parcel ships back — not the original sale date. Net GMV can dip below gross in short windows.</div>
@@ -3166,7 +3166,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(5, 1fr)':'1fr 1fr',gap:8,marginTop:12,position:'relative'}}>
                 <div className="asub"><div className="asubl">Units Sold</div><div className="asubv" style={{color:'var(--cy)'}}>{dispUnits.toLocaleString()}</div></div>
-                <div className="asub"><div className="asubl">Returns</div><div className="asubv" style={{color:'var(--re)'}}>{dispCanc} · {fmtGBPc(dispCancGMV)}</div></div>
+                <div className="asub"><div className="asubl">Returns</div><div className="asubv" style={{color:'var(--re)'}}>{dispCanc} · {fmtGBPc(dispCancGMV)}{(dispNet+dispCancGMV)>0?` · ${((dispCancGMV/(dispNet+dispCancGMV))*100).toFixed(1)}%`:''}</div></div>
                 <div className="asub"><div className="asubl">{useP?'Active Refs':'Referrals'}</div><div className="asubv" style={{color:'var(--gr)'}}>{dispReferred}</div></div>
                 <div className="asub"><div className="asubl">Owed</div><div className="asubv" style={{color:'var(--go)'}} title="Cumulative — unpaid referral payouts">{fmtGBPc(totalOwed)}</div></div>
                 <div className="asub"><div className="asubl">{useP?'Avg Lv (Active)':'Avg Level'}</div><div className="asubv">{dispAvgLevel}</div></div>
