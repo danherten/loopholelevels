@@ -8,14 +8,6 @@ import { toPng } from 'html-to-image';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'HollenAdmin2026';
 const XP_PER_10_GMV = 100;
-const DEFAULT_MILESTONES = [
-  { id:1, days:3,   xp_bonus:50,   label:'3 Day Streak' },
-  { id:2, days:7,   xp_bonus:100,  label:'1 Week Streak' },
-  { id:3, days:14,  xp_bonus:250,  label:'2 Week Streak' },
-  { id:4, days:30,  xp_bonus:500,  label:'1 Month Streak' },
-  { id:5, days:60,  xp_bonus:1000, label:'2 Month Streak' },
-  { id:6, days:100, xp_bonus:2000, label:'100 Day Streak' },
-];
 const DEFAULT_LEVELS = [
   {level:1,min:0,max:5000},{level:2,min:5000,max:10000},{level:3,min:10000,max:20000},
   {level:4,min:20000,max:40000},{level:5,min:40000,max:80000},{level:6,min:80000,max:160000},
@@ -143,11 +135,10 @@ function MiniChart({xpEvents}){
   );
 }
 
-function HowToEarnDropdown({milestones}){
+function HowToEarnDropdown(){
   const [open,setOpen]=React.useState(false);
   const items=[
     {icon:'🛒',label:'Generate Sales',sub:'Every £10 in net GMV you generate',val:'+100 XP'},
-    {icon:'🔥',label:'Daily Streak',sub:'Make sales every day to keep your streak',val:'Milestone XP'},
     {icon:'👥',label:'Refer a Creator',sub:'They earn, you earn 1% GMV',val:'+100 XP & 1% GMV'},
   ];
   return(
@@ -257,7 +248,6 @@ input,button{font-family:var(--fb)}
 .topbar.no-st{padding-top:9px}
 .upd-banner{background:rgba(201,162,75,.1);border-bottom:1px solid rgba(201,162,75,.2);padding:5px 14px;padding-top:calc(5px + var(--st));display:flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
 .tr{display:flex;align-items:center;gap:7px}
-.streak-pill{display:flex;align-items:center;gap:4px;background:rgba(201,162,75,.14);border:1px solid rgba(201,162,75,.28);border-radius:99px;padding:3px 9px;font-size:13px;font-weight:700;color:var(--go);cursor:pointer;letter-spacing:.3px}
 .xpchip{background:rgba(201,162,75,.18);border:1px solid rgba(201,162,75,.28);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--pu3)}
 .av{width:29px;height:29px;border-radius:50%;border:2px solid var(--pu);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:1px;overflow:hidden;flex-shrink:0}
 .av img{width:100%;height:100%;object-fit:cover}
@@ -330,7 +320,7 @@ input,button{font-family:var(--fb)}
 .pnm{font-family:var(--fh);font-size:21px;letter-spacing:2px;margin-bottom:5px}
 .ttchips{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}
 .ttchip{background:var(--card2);border:1px solid var(--bo);border-radius:99px;padding:3px 8px;font-size:11px;color:var(--tx2)}
-.pstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:9px}
+.pstats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}
 .pst{background:var(--card);border:1px solid var(--bo);border-radius:var(--rsm);padding:9px;text-align:center}
 .pstv{font-family:var(--fh);font-size:18px;letter-spacing:1px}
 .pstl{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);margin-top:2px}
@@ -506,11 +496,9 @@ export default function App(){
   // True while either rankings query is in-flight. Drives the loading
   // skeleton so we don't briefly flash 'No data' before the rows arrive.
   const [lbLoading,setLbLoading]=useState(false);
-  const [milestones,setMilestones]=useState(DEFAULT_MILESTONES);
   const [page,setPage]=useState('home');
   const [adminUnlocked,setAdminUnlocked]=useState(()=>localStorage.getItem('hn-admin')==='true');
   const [levelUpAnim,setLevelUpAnim]=useState(null);
-  const [showDaily,setShowDaily]=useState(false);
   const [grossOpen,setGrossOpen]=useState(false);
   const [showReward,setShowReward]=useState(null);
   // Active redeem-pick prompt — null means closed. Shape: {profileId, level, name, value, image}.
@@ -589,8 +577,6 @@ export default function App(){
   const [importLog,setImportLog]=useState([]);
   const [showRE,setShowRE]=useState(false);
   const [editRewards,setEditRewards]=useState([]);
-  const [showME,setShowME]=useState(false);
-  const [editMilestones,setEditMilestones]=useState([]);
   const [dragOver,setDragOver]=useState(false);
   const [xpEvents,setXpEvents]=useState([]);
   const [dateRange,setDateRange]=useState('yesterday');
@@ -605,7 +591,6 @@ export default function App(){
   const [unmappedProducts,setUnmappedProducts]=useState([]);
   const [editProducts,setEditProducts]=useState([]);
   const [topProducts,setTopProducts]=useState([]);
-  const [showMilestoneCarousel,setShowMilestoneCarousel]=useState(false);
   const [importHistory,setImportHistory]=useState([]);
   const [lastUpdated,setLastUpdated]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(null);
@@ -654,13 +639,13 @@ export default function App(){
     const init=async()=>{
       try{
         const {data:{session}}=await supabase.auth.getSession();
-        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadMilestones();loadProducts();loadProductMappings();loadXpExclusions();loadLastUpdated();}
+        if(session?.user){await loadProfile(session.user.id);loadRewards();loadLeaderboard();loadProducts();loadProductMappings();loadXpExclusions();loadLastUpdated();}
         else{loadRewards();loadProducts();loadProductMappings();loadLastUpdated();}
       }catch(e){console.error('init error:',e);}
       setLoading(false);
       try{
         const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
-          if(event==='SIGNED_IN'&&session?.user){loadProfile(session.user.id).then(()=>{loadRewards();loadLeaderboard();loadMilestones();});}
+          if(event==='SIGNED_IN'&&session?.user){loadProfile(session.user.id).then(()=>{loadRewards();loadLeaderboard();});}
           else if(event==='SIGNED_OUT'){setProfile(null);}
           // Triggered when (a) the user clicks the magic-link reset email
           // OR (b) we manually call verifyOtp during the OTP forgot-password
@@ -1110,7 +1095,7 @@ export default function App(){
   // Explicit column list — SELECT * was pulling every profile column (including
   // the admin RPC helpers add-ons we never touch) and is the biggest single
   // payload on the admin tab. Restricted to what admin views actually consume.
-  const ADMIN_PROFILE_COLS='id,username,xp,avatar_url,tiktok_handles,streak,last_claim,referral_code,referral_earnings,referred_by,created_at,discord_level,rewards_delivered_level,rewards_redeemed_levels,rewards_redeemed_cash_levels,rewards_redemption_amounts,rewards_redemption_dates,total_sales,total_gmv,total_orders,total_commission,total_cancelled,total_cancelled_gmv,total_live_streams';
+  const ADMIN_PROFILE_COLS='id,username,xp,avatar_url,tiktok_handles,referral_code,referral_earnings,referred_by,created_at,discord_level,rewards_delivered_level,rewards_redeemed_levels,rewards_redeemed_cash_levels,rewards_redemption_amounts,rewards_redemption_dates,total_sales,total_gmv,total_orders,total_commission,total_cancelled,total_cancelled_gmv,total_live_streams';
   async function loadAllProfiles(opts={}){
     if(!opts.force&&isFresh('allProfiles'))return;
     try{
@@ -1119,7 +1104,6 @@ export default function App(){
       if(data){setAllProfiles(data);const a={};data.forEach(p=>{a[p.id]=100;});setXpAmounts(a);markFresh('allProfiles');}
     }finally{setAdminProfilesLoaded(true);}
   }
-  async function loadMilestones(){const {data}=await supabase.from('streak_milestones').select('*').order('days');if(data&&data.length)setMilestones(data);}
   async function loadProducts(){const {data}=await supabase.from('products').select('*').order('sort_order',{ascending:true});if(data)setProducts(data);}
   async function loadReferralStats(){
     if(!profile)return;
@@ -1442,8 +1426,7 @@ export default function App(){
       const refund=parseFloat((byProfile[r.id].netGMVForReferral*0.01).toFixed(2));
       if(refund>0)referralRefunds[r.referred_by]=(referralRefunds[r.referred_by]||0)+refund;
     });
-    // Subtract values from each affected profile. Streak is reset since the deleted day
-    // breaks continuity — next import rebuilds it cleanly.
+    // Subtract values from each affected profile.
     for(const [pid,vals] of Object.entries(byProfile)){
       const {data:p}=await supabase.from('profiles').select('*').eq('id',pid).single();
       if(p){
@@ -1459,7 +1442,7 @@ export default function App(){
         await supabase.from('profiles').update({
           xp:newXP,total_gmv:newGMV,total_commission:newComm,total_orders:newOrders,
           total_sales:newSales,total_cancelled:newCancelled,total_cancelled_gmv:newCancelledGMV,
-          total_live_streams:newLS,total_aov:newAOV,streak:0,last_claim:null
+          total_live_streams:newLS,total_aov:newAOV
         }).eq('id',pid);
       }
     }
@@ -1596,23 +1579,6 @@ export default function App(){
     }
   }
 
-  async function claimDaily(){
-    if(!profile||profile.last_claim===tdy())return;
-    const newStreak=(profile.streak||0)+1;
-    const milestone=milestones.find(m=>m.days===newStreak);
-    const xpBonus=milestone?milestone.xp_bonus:0;
-    const newXP=(profile.xp||0)+xpBonus;
-    const prevLv=getLv(profile.xp,LEVELS).level;
-    await supabase.from('profiles').update({xp:newXP,streak:newStreak,last_claim:tdy()}).eq('id',profile.id);
-    if(xpBonus>0)await supabase.from('xp_events').insert({profile_id:profile.id,amount:xpBonus,reason:'streak_milestone',note:milestone.label});
-    setProfile({...profile,xp:newXP,streak:newStreak,last_claim:tdy()});
-    setShowDaily(false);
-    if(milestone){toast(`🔥 ${milestone.label}! +${xpBonus} XP!`,'ok');}else{toast(`🔥 Day ${newStreak} streak!`,'ok');}
-    const newLv=getLv(newXP).level;
-    if(newLv>prevLv)setTimeout(()=>setLevelUpAnim(newLv),400);
-    loadLeaderboard();
-  }
-
   function openAdminGate(){if(adminUnlocked){navTo('admin');return;}setAdminErr('');setAdminPass('');setShowAdminGate(true);}
   function checkAdminPass(){if(adminPass===ADMIN_PASSWORD){setAdminUnlocked(true);localStorage.setItem('hn-admin','true');setShowAdminGate(false);loadAllProfiles();loadImportHistory();navTo('admin');toast('Admin access granted','ok');}else{setAdminErr('Incorrect password.');}}
   function navTo(pg){
@@ -1645,7 +1611,7 @@ export default function App(){
     setEditForm({
       total_gmv:p.total_gmv||0,total_commission:p.total_commission||0,total_orders:p.total_orders||0,total_sales:p.total_sales||0,
       total_cancelled:p.total_cancelled||0,total_cancelled_gmv:p.total_cancelled_gmv||0,total_live_streams:p.total_live_streams||0,
-      streak:p.streak||0,referral_earnings:p.referral_earnings||0
+      referral_earnings:p.referral_earnings||0
     });
   }
   async function saveEditAffiliate(){
@@ -1661,7 +1627,6 @@ export default function App(){
     const newCancelled=intN(f.total_cancelled);
     const newCancelledGMV=num(f.total_cancelled_gmv);
     const newLiveStreams=intN(f.total_live_streams);
-    const newStreak=intN(f.streak);
     const newReferralEarnings=num(f.referral_earnings);
     const dGMV=newGMV-(p.total_gmv||0);
     const dComm=newComm-(p.total_commission||0);
@@ -1691,7 +1656,7 @@ export default function App(){
     const{error}=await supabase.from('profiles').update({
       total_gmv:newGMV,total_commission:newComm,total_orders:newOrders,total_sales:newSales,
       total_cancelled:newCancelled,total_cancelled_gmv:newCancelledGMV,total_live_streams:newLiveStreams,
-      total_aov:newAOV,streak:newStreak,referral_earnings:newReferralEarnings
+      total_aov:newAOV,referral_earnings:newReferralEarnings
     }).eq('id',p.id);
     if(error){toast('Save failed: '+error.message,'wn');return;}
     toast(`✅ Updated ${p.username}`,'ok');
@@ -1868,31 +1833,11 @@ export default function App(){
       }
       const prevLv=getLv(p.xp,LEVELS).level;const xpGain=Math.floor(netGMVForXP/10)*XP_PER_10_GMV;const newXP=p.xp+xpGain;const newLv=getLv(newXP).level;
       const newOrders=(p.total_orders||0)+(rawO||sales);const newGMV=(p.total_gmv||0)+rawG;const aov=rawAOV||( rawO>0?parseFloat((rawG/rawO).toFixed(2)):0);const newAOV=rawAOV||( newOrders>0?parseFloat((newGMV/newOrders).toFixed(2)):0);
-      // Streak — only update when this import is NOT backdated (importDate >= last_claim).
-      const lastClaim=p.last_claim;
-      const prevDate=lastClaim?new Date(lastClaim):null;
-      const importDateObj=new Date(importDate);
-      const diffDays=prevDate?Math.round((importDateObj-prevDate)/(1000*60*60*24)):null;
-      const isBackdated=diffDays!==null&&diffDays<0;
-      let newStreak=p.streak||0;
-      let streakXP=0;
-      if(!isBackdated){
-        if(diffDays===null){newStreak=1;}
-        else if(diffDays===1){newStreak=(p.streak||0)+1;}
-        else if(diffDays===0){newStreak=p.streak||1;}
-        else{newStreak=1;}
-        const hitMilestone=milestones.find(m=>m.days===newStreak);
-        if(hitMilestone&&diffDays!==0){streakXP=hitMilestone.xp_bonus;}
-      }
-      const finalXP=newXP+streakXP;
-      const xpGainTotal=xpGain+streakXP;
-      const streakNote=isBackdated?` | Backdated — streak unchanged`:(streakXP>0?` | Day ${newStreak} streak +${streakXP} XP`:(diffDays!==0&&diffDays!==null&&diffDays>1?` | Streak reset (${diffDays}d gap)`:` | Day ${newStreak} streak`));
-      const xpInsert={profile_id:p.id,amount:xpGainTotal,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${streakNote}`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
+      const xpInsert={profile_id:p.id,amount:xpGain,reason:'import',note:`${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP`,gmv:rawG,commission:rawC,aov,orders:rawO||sales,sales,live_streams:rawLS,cancelled:rawCan,cancelled_gmv:rawCanG,product_name:prodName||null,created_at:new Date(importDate+'T12:00:00').toISOString()};
       // xp_events FIRST so it is the canonical source of truth — if the profile update
       // then fails, totals can be re-derived from events.
       await supabase.from('xp_events').insert(xpInsert);
-      const profileUpdate={xp:finalXP,total_sales:(p.total_sales||0)+sales,total_gmv:newGMV,total_orders:newOrders,total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
-      if(!isBackdated){profileUpdate.streak=newStreak;profileUpdate.last_claim=importDate;}
+      const profileUpdate={xp:newXP,total_sales:(p.total_sales||0)+sales,total_gmv:newGMV,total_orders:newOrders,total_commission:(p.total_commission||0)+rawC,total_live_streams:(p.total_live_streams||0)+rawLS};
       const newTotalCancelled=(p.total_cancelled||0)+rawCan;
       const newTotalCancelledGMV=(p.total_cancelled_gmv||0)+rawCanG;
       const {error:puErr}=await supabase.from('profiles').update(profileUpdate).eq('id',p.id);
@@ -1912,7 +1857,7 @@ export default function App(){
           refP.referral_earnings=newRefEarnings;
         }
       }
-      logs.push(`✓ ${p.username}: ${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${rawG>0?` | GMV: ${fmtGBP(rawG)}`:''}${rawCanG>0?` | Returns: -${fmtGBP(rawCanG)}`:''}${isBackdated?' (backdated)':''}${newLv>prevLv?` 🎉 Level ${newLv}!`:''}`);
+      logs.push(`✓ ${p.username}: ${fmtGBP(netGMVForXP)} net GMV → +${xpGain} XP${rawG>0?` | GMV: ${fmtGBP(rawG)}`:''}${rawCanG>0?` | Returns: -${fmtGBP(rawCanG)}`:''}${newLv>prevLv?` 🎉 Level ${newLv}!`:''}`);
       matched++;
     }
     logs.push('─────────────',`Done: ${matched} updated · ${unmatched} unmatched · ${skipped} skipped`);
@@ -1926,8 +1871,8 @@ export default function App(){
   }
 
   function exportCSV(){
-    const rows=[['Username','TikTok Handles','XP','Level','Sales','GMV','Orders','Commission','Streak','Referral Code','Referral Earnings']];
-    allProfiles.forEach(p=>{const lv=getLv(p.xp,LEVELS);rows.push([p.username,(p.tiktok_handles||[]).join('; '),p.xp,lv.level,p.total_sales||0,p.total_gmv||0,p.total_orders||0,p.total_commission||0,p.streak||0,p.referral_code||'',p.referral_earnings||0]);});
+    const rows=[['Username','TikTok Handles','XP','Level','Sales','GMV','Orders','Commission','Referral Code','Referral Earnings']];
+    allProfiles.forEach(p=>{const lv=getLv(p.xp,LEVELS);rows.push([p.username,(p.tiktok_handles||[]).join('; '),p.xp,lv.level,p.total_sales||0,p.total_gmv||0,p.total_orders||0,p.total_commission||0,p.referral_code||'',p.referral_earnings||0]);});
     const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`hollen-${tdy()}.csv`;a.click();
     toast('📊 Downloaded','ok');
@@ -2046,7 +1991,6 @@ export default function App(){
     const lv=profile?getLv(profile.xp,LEVELS):LEVELS[0];
   const nx=profile?getNx(profile.xp,LEVELS):LEVELS[1];
   const pct=profile?xpPct(profile.xp,LEVELS):0;
-  const nextMilestone=profile?milestones.find(m=>m.days>(profile.streak||0)):null;
   const refLink=profile?`${window.location.origin}?ref=${profile.referral_code||''}`:'';
   // Debounced version of adminSearch so typing doesn't re-filter/re-sort on
   // every keystroke — waits 180ms after typing stops to update.
@@ -2276,7 +2220,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           <div style={{fontSize:12,fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{profile.username}</div>
           <div style={{fontSize:10,color:'var(--tx3)'}}>{(profile.xp||0).toLocaleString()} XP · Lv{getLv(profile.xp,LEVELS).level}</div>
         </div>
-        <div className="streak-pill" style={{fontSize:11,padding:'2px 7px'}} onClick={()=>setShowDaily(true)}>🔥 {profile.streak||0}</div>
       </div>
     </div>)}
     {/* MOBILE TOPBAR */}
@@ -2287,7 +2230,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
     {!isDesktop&&<div className={`topbar${lastUpdated?' no-st':''}`}>
       <img src="/hollen-rewards-logo.png" alt="Hollen" style={{height:22,filter:'invert(1)'}} onError={e=>{e.target.style.display='none';}}/>
       <div className="tr">
-        <div className="streak-pill" onClick={()=>setShowDaily(true)}>🔥 {profile.streak||0}</div>
         <div className="xpchip" onClick={()=>navTo("level")} style={{cursor:"pointer"}}>{(profile.xp||0).toLocaleString()} XP · Lv{lv.level}</div>
         <div className="av" style={{background:profile.avatar_url?'transparent':avc(profile.username),color:'#fff'}} onClick={()=>navTo('profile')}>
           {profile.avatar_url?<img src={profile.avatar_url} alt=""/>:ini(profile.username)}
@@ -2321,20 +2263,13 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                 <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{dateStr}</div>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:16,flexShrink:0}}>
-                {profile.streak>0&&<div onClick={()=>setShowDaily(true)} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
-                  <span style={{fontSize:15}}>🔥</span>
-                  <div style={{lineHeight:1}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{profile.streak}</div>
-                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Streak</div>
-                  </div>
-                </div>}
-                {rank&&<div onClick={()=>navTo('lb')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6,borderLeft:'1px solid var(--bo)',paddingLeft:16}}>
+                {rank&&<div onClick={()=>navTo('lb')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
                   <div style={{lineHeight:1}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>#{rank}</div>
                     <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Rank</div>
                   </div>
                 </div>}
-                <div onClick={()=>navTo('level')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6,borderLeft:'1px solid var(--bo)',paddingLeft:16}}>
+                <div onClick={()=>navTo('level')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6,borderLeft:rank?'1px solid var(--bo)':'none',paddingLeft:rank?16:0}}>
                   <div style={{lineHeight:1}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--go)',fontVariantNumeric:'tabular-nums'}}>{lv.level}</div>
                     <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Level</div>
@@ -2802,7 +2737,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:14}}>
           {[
             {icon:'🛒',label:'Generate Sales',sub:'Every £10 in net GMV (after returns)',val:'+100 XP'},
-            {icon:'🔥',label:'Daily Streak',sub:'Go live for Hollen every day — hit milestones for bonus XP',val:'Bonus XP'},
             {icon:'👥',label:'Refer a Creator',sub:'They earn, you earn 1% of their GMV forever',val:'+100 XP & 1% GMV'},
           ].map((item,i,arr)=>(
             <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',borderBottom:i<arr.length-1?'1px solid var(--bo)':'none'}}>
@@ -3061,7 +2995,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         <div className="pstats">
           <div className="pst"><div className="pstv">{(profile.xp||0).toLocaleString()}</div><div className="pstl">XP</div></div>
           <div className="pst"><div className="pstv">{lv.level}</div><div className="pstl">Level</div></div>
-          <div className="pst"><div className="pstv">{profile.streak||0}</div><div className="pstl">Streak</div></div>
         </div>
 
         <a href="https://discord.gg/eR4eJAhcVG" target="_blank" rel="noopener noreferrer" style={{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',background:'linear-gradient(135deg,#5865F2 0%,#7c3aed 100%)',borderRadius:'var(--r)',color:'#fff',textDecoration:'none',marginBottom:6,boxShadow:'0 4px 18px rgba(88,101,242,.3)'}}>
@@ -3297,7 +3230,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                 <button className="aqab" onClick={()=>switchAdminTab('imports')}>📥 Import files</button>
                 <button className="aqab" onClick={()=>{setFlashSearch('');setShowFlashSale(true);}} title="Pull every TikTok handle as a tickable checklist for setting up flash sales. Ticks persist — use Reset inside to clear.">🚀 Flash sale handles</button>
                 <button className="aqab" onClick={()=>{switchAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
-                <button className="aqab" onClick={()=>{switchAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
                 <button className="aqab" onClick={()=>{switchAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
                 <button className="aqab" onClick={()=>{switchAdminTab('imports');loadXpExclusions();setShowExclusions(true);}}>🚫 XP exclusions</button>
                 <button className="aqab" onClick={exportCSV}>📊 Export CSV</button>
@@ -3336,7 +3268,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           {(()=>{
             const sorted=affiliatesSorted;
             const hasSearch=adminSearch.trim()||adminLevelFilter!=='';
-            const cols=isDesktop?'34px minmax(150px, 1fr) 40px 80px 96px 96px 60px 60px 56px 124px 264px':null;
+            const cols=isDesktop?'34px minmax(150px, 1fr) 40px 80px 96px 96px 60px 60px 124px 264px':null;
             const headers=[
               {label:'#',align:'left'},
               {label:'Affiliate',align:'left'},
@@ -3346,7 +3278,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               {label:'Commission',align:'right'},
               {label:'Orders',align:'right'},
               {label:'Units',align:'right'},
-              {label:'Streak',align:'right'},
               {label:'Referrals',align:'left'},
               {label:'Actions',align:'right'},
             ];
@@ -3380,7 +3311,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>{fmtGBP(netComm)}</span>
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13}}>{(p.total_orders||0).toLocaleString()}</span>
                       <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13}}>{(p.total_sales||0).toLocaleString()}</span>
-                      <span style={{textAlign:'right',fontFamily:'var(--fh)',fontSize:13,color:'var(--go)'}}>🔥{p.streak||0}</span>
                       <div style={{display:'flex',flexDirection:'column',gap:2,minWidth:0}}>
                         {referralCount>0&&<span style={{fontSize:10,color:'var(--gr)',fontWeight:600,whiteSpace:'nowrap'}}>👥 Referred {referralCount}</span>}
                         {referredBy&&<span style={{fontSize:10,color:'var(--pu2)',fontWeight:600,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>↩ {referredBy.username}</span>}
@@ -3447,7 +3377,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                         {label:'Orders',val:(p.total_orders||0).toLocaleString(),color:'var(--tx)'},
                         {label:'Units Sold',val:(p.total_sales||0).toLocaleString(),color:'var(--tx)'},
                         {label:'Returns',val:`${p.total_cancelled||0} (${fmtGBP(p.total_cancelled_gmv||0)})`,color:'var(--re)'},
-                        {label:'Streak',val:`🔥 ${p.streak||0} days`,color:'var(--go)'},
                       ].map((s,si)=>(
                         <div key={si} style={{background:'var(--card2)',borderRadius:8,padding:'7px 8px'}}>
                           <div style={{fontFamily:'var(--fh)',fontSize:13,color:s.color,lineHeight:1}}>{s.val}</div>
@@ -4216,22 +4145,16 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           ))}
         </div>)}
 
-        {/* Catalog default view — three tiles for opening each editor. Prior
+        {/* Catalog default view — tiles for opening each editor. Prior
             to this the tab was completely blank unless a Quick Action had set
-            one of showME/showRE/showPE first. */}
-        {adminTab==='catalog'&&!showME&&!showRE&&!showPE&&(
-          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(3, 1fr)':'1fr',gap:12,marginTop:8}}>
+            one of showRE/showPE first. */}
+        {adminTab==='catalog'&&!showRE&&!showPE&&(
+          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(2, 1fr)':'1fr',gap:12,marginTop:8}}>
             <button onClick={()=>{if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:8,padding:'20px 22px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)',color:'var(--tx)',transition:'border-color .15s'}}>
               <div style={{fontSize:22}}>🎁</div>
               <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,letterSpacing:.1}}>Reward tiers</div>
               <div style={{fontSize:11.5,color:'var(--tx3)',lineHeight:1.5}}>Edit each level's name, image, XP requirement, and £ value.</div>
               <div style={{fontSize:11,color:'var(--pu2)',marginTop:4,fontWeight:600}}>{rewards.length} tier{rewards.length===1?'':'s'} →</div>
-            </button>
-            <button onClick={()=>{if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}} style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:8,padding:'20px 22px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)',color:'var(--tx)',transition:'border-color .15s'}}>
-              <div style={{fontSize:22}}>🔥</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,letterSpacing:.1}}>Streak milestones</div>
-              <div style={{fontSize:11.5,color:'var(--tx3)',lineHeight:1.5}}>Tune the day count, label, and XP bonus at each streak milestone.</div>
-              <div style={{fontSize:11,color:'var(--pu2)',marginTop:4,fontWeight:600}}>{milestones.length} milestone{milestones.length===1?'':'s'} →</div>
             </button>
             <button onClick={()=>{if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}} style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:8,padding:'20px 22px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',textAlign:'left',fontFamily:'var(--fb)',color:'var(--tx)',transition:'border-color .15s'}}>
               <div style={{fontSize:22}}>📦</div>
@@ -4241,7 +4164,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
             </button>
           </div>
         )}
-        {adminTab==='catalog'&&showME&&(<div className="asec"><div className="asect">Edit Streak Milestones</div>{editMilestones.map((m,i)=>(<div key={m.id||i} className="rerow"><div style={{display:'flex',gap:5,alignItems:'flex-end'}}><div style={{width:55}}><div className="lbl">Days</div><input className="ins" type="number" value={m.days} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],days:parseInt(e.target.value)||m.days};setEditMilestones(n);}}/></div><div style={{flex:1}}><div className="lbl">Label</div><input className="ins" value={m.label} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],label:e.target.value};setEditMilestones(n);}}/></div><div style={{width:60}}><div className="lbl">XP</div><input className="ins" type="number" value={m.xp_bonus} onChange={e=>{const n=[...editMilestones];n[i]={...n[i],xp_bonus:parseInt(e.target.value)||m.xp_bonus};setEditMilestones(n);}}/></div><button className="svbtn" onClick={async()=>{const {error}=await supabase.from('streak_milestones').update({days:Number(m.days),label:String(m.label),xp_bonus:Number(m.xp_bonus)}).eq('id',m.id);if(!error){toast('Saved ✓','ok');loadMilestones();}else{console.error('Milestone save error:',error);toast('Failed: '+(error.message||'unknown'),'wn');}}}>Save</button></div></div>))}</div>)}
         {adminTab==='catalog'&&showRE&&(<div className="asec"><div className="asect">Edit Reward Tiers</div>{editRewards.map((r,i)=>(<div key={r.id} className="rerow"><div style={{fontSize:9,textTransform:'uppercase',letterSpacing:1,color:'var(--tx3)',marginBottom:6,fontWeight:600}}>Level {r.level}</div><div style={{display:'flex',gap:5,marginBottom:5}}><div style={{flex:1}}><div className="lbl">Name</div><input className="ins" value={r.name} onChange={e=>{const n=[...editRewards];n[i]={...n[i],name:e.target.value};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">XP Req</div><input className="ins" type="number" value={r.xp_required} onChange={e=>{const n=[...editRewards];n[i]={...n[i],xp_required:parseInt(e.target.value)||r.xp_required};setEditRewards(n);}}/></div><div style={{width:78}}><div className="lbl">Value £</div><input className="ins" type="number" step="0.01" value={r.value??0} onChange={e=>{const n=[...editRewards];n[i]={...n[i],value:e.target.value===''?0:parseFloat(e.target.value)};setEditRewards(n);}}/></div></div><div style={{marginBottom:5}}><div className="lbl">Description</div><input className="ins" value={r.description} onChange={e=>{const n=[...editRewards];n[i]={...n[i],description:e.target.value};setEditRewards(n);}}/></div><div style={{display:'flex',gap:4,alignItems:'flex-end'}}><div style={{flex:1}}><div className="lbl">Image URL or upload</div><div style={{display:'flex',gap:4}}><input className="ins" value={r.image_url&&r.image_url.startsWith('data:')?'[uploaded]':(r.image_url||'')} onChange={e=>{const n=[...editRewards];n[i]={...n[i],image_url:e.target.value||null};setEditRewards(n);}} placeholder="https://..." style={{flex:1}}/><label style={{cursor:'pointer',background:'rgba(201,162,75,.13)',border:'1px solid rgba(201,162,75,.25)',borderRadius:5,padding:'5px 7px',fontSize:11,color:'var(--pu2)',display:'flex',alignItems:'center'}}>📷<input type="file" accept="image/*" style={{display:'none'}} onChange={e=>{if(e.target.files?.[0])handleImageUpload(i,e.target.files[0]);}}/></label></div>{r.image_url&&<img src={r.image_url} alt="" style={{width:44,height:30,objectFit:'cover',borderRadius:4,marginTop:4}}/>}</div><button className="svbtn" style={{marginLeft:3}} onClick={()=>saveReward(r)}>Save</button></div></div>))}</div>)}
       </div>)}
       {adminTab==='catalog'&&showPE&&adminUnlocked&&(<div className="asec" style={{margin:'0 13px 9px'}}>
@@ -4267,126 +4189,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
     </div>
 
     {/* Bottom nav moved out of .app below — see end of return */}
-
-    {/* DAILY STREAK FULL PAGE */}
-    {showDaily&&(()=>{
-      const streak=profile.streak||0;const nextStreak=streak+1;const todayClaimed=profile.last_claim===tdy();
-      const todayMilestone=milestones.find(m=>m.days===nextStreak);const nm=milestones.find(m=>m.days>streak);
-      return(
-        <div style={{position:'fixed',inset:0,background:'var(--bg)',zIndex:200,display:'flex',flexDirection:'column',overflowY:'auto'}}>
-          {/* Header */}
-          <div style={{padding:'calc(14px + var(--st)) 16px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid var(--bo)',flexShrink:0}}>
-            <div style={{fontFamily:'var(--fh)',fontSize:20,letterSpacing:2}}>🔥 DAILY STREAK</div>
-            <button onClick={()=>setShowDaily(false)} style={{background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:99,width:30,height:30,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--tx3)',fontSize:16}}>✕</button>
-          </div>
-
-          <div style={{flex:1,padding:'20px 16px',overflowY:'auto'}}>
-            {/* Big streak number */}
-            <div style={{textAlign:'center',marginBottom:24,padding:'28px 0',background:'var(--card)',borderRadius:'var(--r)',border:'1px solid var(--bo2)',position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',inset:0,background:'radial-gradient(circle at 50% 60%,rgba(201,162,75,.12) 0%,transparent 70%)',pointerEvents:'none'}}/>
-              <div style={{fontSize:72,lineHeight:1,marginBottom:6}}>🔥</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:80,letterSpacing:2,color:'var(--go)',lineHeight:1}}>{todayClaimed?streak:nextStreak}</div>
-              <div style={{fontSize:13,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:3,marginTop:6}}>Day Streak</div>
-              {todayClaimed&&<div style={{marginTop:10,display:'inline-block',background:'rgba(107,155,125,.12)',border:'1px solid rgba(107,155,125,.25)',borderRadius:99,padding:'4px 14px',fontSize:12,color:'var(--gr)',fontWeight:600}}>✓ Claimed today</div>}
-            </div>
-
-            {/* Next milestone pill - tappable to open carousel */}
-            {nm&&(()=>{
-              const currentDay=todayClaimed?streak:nextStreak;
-              const allStages=milestones.map(m=>({...m,type:'streak'}));
-              const flameStages=['🔥','🔥','🔥','🔥','🔥','🔥'];
-              const flameSizes=[42,42,42,42,42,42];
-              const flameFilters=[
-                'brightness(0.85) saturate(0.8)',
-                'brightness(1.1) saturate(1.2) drop-shadow(0 0 3px rgba(251,146,60,.5))',
-                'brightness(1.25) saturate(1.5) drop-shadow(0 0 6px rgba(251,146,60,.7)) drop-shadow(0 0 12px rgba(251,146,60,.4))',
-                'brightness(1.4) saturate(2) hue-rotate(-10deg) drop-shadow(0 0 8px rgba(239,68,68,.8)) drop-shadow(0 0 20px rgba(239,68,68,.4))',
-                'brightness(1.6) saturate(2.5) hue-rotate(-20deg) drop-shadow(0 0 10px rgba(220,38,38,.9)) drop-shadow(0 0 25px rgba(220,38,38,.5)) drop-shadow(0 0 40px rgba(220,38,38,.3))',
-                'brightness(1.9) saturate(3) hue-rotate(-30deg) contrast(1.2) drop-shadow(0 0 12px rgba(185,28,28,1)) drop-shadow(0 0 30px rgba(185,28,28,.7)) drop-shadow(0 0 50px rgba(185,28,28,.4))',
-              ];
-              const glowColors=['rgba(201,162,75,.3)','rgba(201,162,75,.4)','rgba(249,115,22,.45)','rgba(239,68,68,.45)','rgba(239,68,68,.55)','rgba(239,68,68,.6)'];
-              const borderColors=['rgba(201,162,75,.4)','rgba(201,162,75,.5)','rgba(249,115,22,.5)','rgba(239,68,68,.5)','rgba(239,68,68,.6)','rgba(239,68,68,.7)'];
-              const bgColors=['rgba(201,162,75,.08)','rgba(201,162,75,.1)','rgba(249,115,22,.1)','rgba(239,68,68,.1)','rgba(239,68,68,.12)','rgba(239,68,68,.14)'];
-              return(<div style={{marginBottom:11}}>
-                {/* Pill */}
-                <button onClick={()=>setShowMilestoneCarousel(!showMilestoneCarousel)} style={{width:'100%',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',padding:'14px',cursor:'pointer',textAlign:'left'}}>
-                  <div style={{fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginBottom:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span>Next Milestone</span>
-                    <span style={{fontSize:11,color:'var(--pu2)'}}>{showMilestoneCarousel?'▲ hide':'▼ see all stages'}</span>
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:16,letterSpacing:1,color:'var(--tx)'}}>{nm.label}</div>
-                    <div style={{background:'rgba(201,162,75,.14)',border:'1px solid rgba(201,162,75,.28)',borderRadius:99,padding:'3px 10px',fontFamily:'var(--fh)',fontSize:14,color:'var(--go)'}}>+{nm.xp_bonus} XP</div>
-                  </div>
-                  <div style={{height:8,background:'var(--card3)',borderRadius:99,overflow:'hidden',marginBottom:6}}><div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg,var(--go),#f97316)',width:`${Math.min(100,Math.round((currentDay/nm.days)*100))}%`,transition:'width .8s ease'}}/></div>
-                  <div style={{display:'flex',justifyContent:'space-between',fontSize:10,color:'var(--tx3)'}}>
-                    <span>{currentDay} days</span>
-                    <span>{nm.days-currentDay} more day{nm.days-currentDay!==1?'s':''} to go</span>
-                    <span>{nm.days} days</span>
-                  </div>
-                </button>
-                {/* Carousel - shown when pill tapped */}
-                {showMilestoneCarousel&&(<div style={{marginTop:8}}>
-                  <div style={{display:'flex',gap:10,overflowX:'auto',paddingBottom:8,margin:'0 -16px',paddingLeft:16,paddingRight:16,scrollSnapType:'x mandatory'}}>
-                    {allStages.map((s,i)=>{
-                      const done=currentDay>s.days;
-                      const isCur=currentDay===s.days;
-                      const isNext=!done&&!isCur&&i===allStages.findIndex(x=>currentDay<x.days);
-                      const fi=Math.min(i,flameStages.length-1);
-                      return(
-                        <div key={i} style={{minWidth:170,maxWidth:170,height:200,flexShrink:0,scrollSnapAlign:'start',background:done?'rgba(107,155,125,.07)':isCur?bgColors[fi]:'var(--card)',border:`1px solid ${done?'rgba(107,155,125,.3)':isCur?borderColors[fi]:'var(--bo)'}`,borderRadius:'var(--r)',padding:'16px 12px',textAlign:'center',position:'relative',overflow:'hidden',boxShadow:isCur?`0 0 18px ${glowColors[fi]}`:'none',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
-                          {done&&<div style={{position:'absolute',top:8,right:8,background:'rgba(107,155,125,.2)',border:'1px solid rgba(107,155,125,.4)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--gr)',fontWeight:700}}>DONE ✓</div>}
-                          {isCur&&<div style={{position:'absolute',top:8,right:8,background:bgColors[fi],border:`1px solid ${borderColors[fi]}`,borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--go)',fontWeight:700}}>NOW</div>}
-                          {isNext&&<div style={{position:'absolute',top:8,right:8,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:99,padding:'2px 6px',fontSize:9,color:'var(--tx3)',fontWeight:700}}>NEXT</div>}
-                          {(isCur||done)&&<div style={{position:'absolute',inset:0,background:`radial-gradient(circle at 50% 25%,${glowColors[fi]} 0%,transparent 70%)`,pointerEvents:'none'}}/>}
-                          <div style={{fontSize:flameSizes[fi],lineHeight:1,marginBottom:8,filter:(!done&&!isCur)?'grayscale(.6) brightness(.5)':flameFilters[fi]}}>{flameStages[fi]}</div>
-                          <div style={{fontFamily:'var(--fh)',fontSize:13,letterSpacing:1.5,marginBottom:3,color:done?'var(--gr)':isCur?'var(--go)':'var(--tx2)'}}>{s.label.toUpperCase()}</div>
-                          <div style={{fontSize:11,color:'var(--tx3)',marginBottom:10}}>{s.days} days straight</div>
-                          <div style={{fontFamily:'var(--fh)',fontSize:30,color:done?'var(--gr)':isCur?'var(--go)':'var(--pu2)',letterSpacing:1}}>+{s.xp_bonus}</div>
-                          <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1,marginBottom:6}}>XP BONUS</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{textAlign:'center',fontSize:10,color:'var(--tx3)',marginTop:2}}>← swipe through milestones →</div>
-                </div>)}
-              </div>);
-            })()}
-
-            {/* Today milestone banner */}
-            {todayMilestone&&!todayClaimed&&(<div style={{background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.3)',borderRadius:'var(--r)',padding:'12px 14px',marginBottom:11,textAlign:'center'}}>
-              <div style={{fontSize:22,marginBottom:4}}>🎉</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:18,color:'var(--go)',letterSpacing:1}}>MILESTONE REACHED!</div>
-              <div style={{fontSize:13,color:'var(--tx2)',marginTop:3}}>{todayMilestone.label} — claim your <strong style={{color:'var(--go)'}}>+{todayMilestone.xp_bonus} XP</strong> bonus</div>
-            </div>)}
-
-            {/* How to earn - simple explanation */}
-            <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--r)',overflow:'hidden',marginBottom:16}}>
-              <div style={{padding:'12px 14px',borderBottom:'1px solid var(--bo)',fontSize:11,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1}}>How to Earn XP</div>
-              {[
-                {icon:'🛒',label:'Generate Sales',desc:'Every £10 in net GMV you generate (after returns)',val:'+100 XP'},
-                {icon:'🔥',label:'Daily Streak',desc:'Make at least one sale every day — your streak is updated automatically when data is imported',val:'Bonus XP'},
-                {icon:'👥',label:'Refer a Creator',desc:'When someone signs up with your link and makes sales',val:'+100 XP & 1% GMV'},
-              ].map((item,i,arr)=>(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 14px',borderBottom:i<arr.length-1?'1px solid var(--bo)':'none'}}>
-                  <div style={{fontSize:20,width:32,textAlign:'center',flexShrink:0}}>{item.icon}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:600,marginBottom:2}}>{item.label}</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.4}}>{item.desc}</div>
-                  </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:12,color:'var(--pu2)',flexShrink:0,textAlign:'right',letterSpacing:.5,maxWidth:80}}>{item.val}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',padding:'12px 14px',textAlign:'center',marginBottom:10}}>
-              <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.5}}>Your streak updates automatically each time your admin imports sales data. Make at least one sale per day to keep it going!</div>
-            </div>
-            <button className="shcan" onClick={()=>setShowDaily(false)} style={{width:'100%',padding:11,background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:'var(--rsm)',color:'var(--tx2)',fontSize:13,cursor:'pointer'}}>Close</button>
-          </div>
-        </div>
-      );
-    })()}
 
     {/* REWARD MODAL */}
     {showReward&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setShowReward(null)}>
@@ -4439,7 +4241,6 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         ['total_cancelled','Returns Count','1'],
         ['total_cancelled_gmv','Returns GMV (£)','0.01'],
         ['total_live_streams','Live Streams','1'],
-        ['streak','Streak (days)','1'],
         ['referral_earnings','Referral Earnings (£)','0.01'],
       ];
       return(
