@@ -1205,12 +1205,13 @@ export default function App(){
   // one-time 'mark everyone as currently up-to-date' action when the feature
   // first launches.
   async function markAllDiscordRolesUpdated(){
-    // Discord role display uses getLv semantics: someone in the L7 XP band is
-    // shown as L7 everywhere (including their Discord role). achievedLevel is
-    // reserved for reward-payout logic (which reward tier have they earned).
-    const pending=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+    // Use achievedLevel semantics: a user only needs a role bump once they've
+    // actually crossed the next tier's XP threshold. Fresh 0-XP signups would
+    // otherwise show up as L—→L1 (getLv puts them in the L1 band immediately)
+    // which is a pointless task.
+    const pending=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
     if(pending.length===0){toast('Nothing to mark','info');return;}
-    const updates=pending.map(p=>({id:p.id,level:getLv(p.xp,LEVELS).level}));
+    const updates=pending.map(p=>({id:p.id,level:achievedLevel(p.xp,rewards)}));
     // Per-row updates rather than one giant upsert — safer with RLS and avoids
     // accidentally clobbering other columns.
     for(const u of updates){
@@ -2091,8 +2092,8 @@ export default function App(){
   // Memo the pending Discord role updates — powered both the tab strip badge
   // and the Discord tab body. Was recomputed every render on both surfaces.
   const pendingDiscordProfiles=React.useMemo(()=>{
-    return allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
-  },[allProfiles,LEVELS]);
+    return allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.discord_level??0));
+  },[allProfiles,rewards]);
   // Memo pending rewards-owed count for the tab-strip badge.
   const pendingRewardsCount=React.useMemo(()=>{
     return allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;
@@ -2100,10 +2101,10 @@ export default function App(){
   // Memo the Discord tab's sorted pending list.
   const discordSortedPending=React.useMemo(()=>{
     return pendingDiscordProfiles.map(p=>{
-      const lv=getLv(p.xp,LEVELS).level;
+      const lv=achievedLevel(p.xp,rewards);
       return{...p,_curLevel:lv,_lastLevel:p.discord_level??0};
     }).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
-  },[pendingDiscordProfiles,LEVELS]);
+  },[pendingDiscordProfiles,rewards]);
 
   const RcCard=({r})=>{
     const un=profile&&profile.xp>=r.xp_required;
