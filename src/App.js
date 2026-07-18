@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useTransition } from 'react';
 import { supabase } from './lib/supabase';
 import * as XLSX from 'xlsx';
 // Used only for the Monthly Recap "Share" flow — rasterises the card DOM to
@@ -613,6 +613,11 @@ export default function App(){
   const [adminLevelFilter,setAdminLevelFilter]=useState('');
   const [adminSort,setAdminSort]=useState('gmv');
   const [adminTab,setAdminTab]=useState('overview');
+  // React 18 transition — marks tab switches as low-priority so the click
+  // updates the UI (highlight, tab strip) instantly and React does the heavy
+  // render in the background. isAdminTabPending drives a shimmer while it works.
+  const [isAdminTabPending,startAdminTabTransition]=useTransition();
+  const switchAdminTab=useCallback((t)=>{startAdminTabTransition(()=>setAdminTab(t));},[]);
   const [adminPeriod,setAdminPeriod]=useState('30d');
   const [adminPeriodEvents,setAdminPeriodEvents]=useState([]);
   const [adminCustomStart,setAdminCustomStart]=useState('');
@@ -3042,12 +3047,17 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
       </div>)}
 
       {/* ADMIN */}
-      {page==='admin'&&adminUnlocked&&(<div className="pg">
+      {page==='admin'&&adminUnlocked&&(<div className="pg" style={{opacity:isAdminTabPending?.6:1,transition:'opacity .12s'}}>
+        {/* Thin loading bar at the very top when a tab switch is mid-render — gives
+            immediate feedback that the click was heard while React does the heavy
+            transition in the background. */}
+        {isAdminTabPending&&<div style={{position:'fixed',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg, transparent 0%, var(--go) 50%, transparent 100%)',backgroundSize:'200% 100%',animation:'adminTabBar 1s linear infinite',zIndex:9999,pointerEvents:'none'}}/>}
+        <style>{`@keyframes adminTabBar{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
         {/* TAB STRIP */}
         <div style={{display:'flex',gap:7,marginBottom:14,flexWrap:'wrap',alignItems:'center'}}>
           <span style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:2.5,marginRight:8,color:'var(--tx2)'}}>👑 ADMIN</span>
           {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['rewardsowed','🎁','Rewards'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
-            <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>setAdminTab(id)}>
+            <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>switchAdminTab(id)}>
               <span>{ic}</span><span>{lb}</span>
               {id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
               {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(201,162,75,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
@@ -3098,17 +3108,17 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           const today0=new Date();today0.setHours(0,0,0,0);
           const expiredEx=xpExclusions.filter(e=>e.end_date&&new Date(e.end_date)<today0);
           const unpaid=adminPayouts.filter(po=>!po.paid);
-          if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>setAdminTab('payouts')});
-          if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{setAdminTab('imports');setShowExclusions(true);}});
+          if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>switchAdminTab('payouts')});
+          if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{switchAdminTab('imports');setShowExclusions(true);}});
           // Discord role-update reminders: any profile whose displayed level
           // (getLv) is higher than the last acknowledged discord_level.
           const pendingDiscord=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
-          if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>setAdminTab('discord')});
+          if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>switchAdminTab('discord')});
           // Reward delivery reminders — affiliates with unlocked level rewards that haven't been physically dispatched.
           const rewardByLevelLookup={};rewards.forEach(r=>{rewardByLevelLookup[r.level]={value:Number(r.value||0)};});
           const pendingRewards=allProfiles.map(p=>{const ach=achievedLevel(p.xp,rewards);const last=p.rewards_delivered_level??0;let owed=0;for(let l=last+1;l<=ach;l++){if(rewardByLevelLookup[l])owed+=rewardByLevelLookup[l].value||0;}return{p,owed,hasTiers:ach>last};}).filter(x=>x.hasTiers);
           const totalRewardOwed=pendingRewards.reduce((s,x)=>s+x.owed,0);
-          if(pendingRewards.length>0)tasks.push({k:'warn',e:'🎁',t:`${pendingRewards.length} affiliate${pendingRewards.length===1?'':'s'} owed level rewards${totalRewardOwed>0?' ('+(totalRewardOwed>=1000?'£'+Math.round(totalRewardOwed).toLocaleString('en-GB'):'£'+totalRewardOwed.toFixed(2))+')':''}`,n:'Dispatch their tier reward then tick them off',cta:'Review',fn:()=>setAdminTab('rewardsowed')});
+          if(pendingRewards.length>0)tasks.push({k:'warn',e:'🎁',t:`${pendingRewards.length} affiliate${pendingRewards.length===1?'':'s'} owed level rewards${totalRewardOwed>0?' ('+(totalRewardOwed>=1000?'£'+Math.round(totalRewardOwed).toLocaleString('en-GB'):'£'+totalRewardOwed.toFixed(2))+')':''}`,n:'Dispatch their tier reward then tick them off',cta:'Review',fn:()=>switchAdminTab('rewardsowed')});
           if(allProfiles.length===0)tasks.push({k:'info',e:'🎯',t:'No affiliates yet',n:'Share the signup link to get started',cta:'',fn:()=>{}});
           // === Top performers (top 3 each) ===
           const byGMV=[...allProfiles].sort((a,b)=>(Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0)))-(Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0)))).slice(0,3);
@@ -3146,7 +3156,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           return(<>
             {/* LAST IMPORT STRIP */}
             {lastImp&&(
-              <div className="astrip" onClick={()=>setAdminTab('imports')} style={{cursor:'pointer'}}>
+              <div className="astrip" onClick={()=>switchAdminTab('imports')} style={{cursor:'pointer'}}>
                 <div className="si"><span style={{fontSize:15}}>📥</span><strong>Last import</strong></div>
                 <div className="si"><span className="b">{new Date(lastImp.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span></div>
                 <div className="si"><span className="b pu">{lastImp.profileCount||0}</span> affiliates</div>
@@ -3224,7 +3234,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11}}>
                 <span style={{fontSize:14}}>🏆</span>
                 <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>TOP PERFORMERS</span>
-                <span style={{marginLeft:'auto',fontSize:10,color:'var(--pu2)',fontWeight:600,letterSpacing:.3,cursor:'pointer'}} onClick={()=>setAdminTab('affiliates')}>View all affiliates →</span>
+                <span style={{marginLeft:'auto',fontSize:10,color:'var(--pu2)',fontWeight:600,letterSpacing:.3,cursor:'pointer'}} onClick={()=>switchAdminTab('affiliates')}>View all affiliates →</span>
               </div>
               <div style={{display:'grid',gridTemplateColumns:isDesktop?'1fr 1fr 1fr':'1fr',gap:18}}>
                 <div>
@@ -3250,12 +3260,12 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                 <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>QUICK ACTIONS</span>
               </div>
               <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
-                <button className="aqab" onClick={()=>setAdminTab('imports')}>📥 Import files</button>
+                <button className="aqab" onClick={()=>switchAdminTab('imports')}>📥 Import files</button>
                 <button className="aqab" onClick={()=>{setFlashSearch('');setShowFlashSale(true);}} title="Pull every TikTok handle as a tickable checklist for setting up flash sales. Ticks persist — use Reset inside to clear.">🚀 Flash sale handles</button>
-                <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
-                <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
-                <button className="aqab" onClick={()=>{setAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
-                <button className="aqab" onClick={()=>{setAdminTab('imports');loadXpExclusions();setShowExclusions(true);}}>🚫 XP exclusions</button>
+                <button className="aqab" onClick={()=>{switchAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}}>🎁 Edit rewards</button>
+                <button className="aqab" onClick={()=>{switchAdminTab('catalog');if(!showME)setEditMilestones(milestones.map(m=>({...m})));setShowME(true);}}>🔥 Edit milestones</button>
+                <button className="aqab" onClick={()=>{switchAdminTab('catalog');if(!showPE)setEditProducts(products.map(p=>({...p})));setShowPE(true);}}>📦 Edit products</button>
+                <button className="aqab" onClick={()=>{switchAdminTab('imports');loadXpExclusions();setShowExclusions(true);}}>🚫 XP exclusions</button>
                 <button className="aqab" onClick={exportCSV}>📊 Export CSV</button>
               </div>
             </div>
@@ -3526,7 +3536,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:11}}>
                 <span style={{fontSize:14}}>🏆</span>
                 <span style={{fontFamily:'var(--fh)',fontSize:14,letterSpacing:1.5}}>TOP REFERRERS</span>
-                <span style={{marginLeft:'auto',fontSize:10,color:'var(--pu2)',fontWeight:600,letterSpacing:.3,cursor:'pointer'}} onClick={()=>setAdminTab('payouts')}>Manage payouts →</span>
+                <span style={{marginLeft:'auto',fontSize:10,color:'var(--pu2)',fontWeight:600,letterSpacing:.3,cursor:'pointer'}} onClick={()=>switchAdminTab('payouts')}>Manage payouts →</span>
               </div>
               {referrers.length===0?(
                 <div style={{padding:'18px 8px',textAlign:'center',color:'var(--tx3)',fontSize:12}}>No referrals yet — share your link to start earning 1%.</div>
@@ -3805,7 +3815,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               <div className="asec" style={{padding:'12px 14px',background:'rgba(201,162,75,.08)',border:'1px solid rgba(201,162,75,.3)',display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:18}}>⚠️</span>
                 <div style={{flex:1,fontSize:12,color:'var(--tx2)'}}>{missingValues} reward tier{missingValues===1?'':'s'} {missingValues===1?'has':'have'} no £ value set — owed totals won't include {missingValues===1?'it':'them'} until {missingValues===1?'it\'s':'they\'re'} filled in.</div>
-                <button onClick={()=>{setAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{padding:'6px 11px',background:'rgba(201,162,75,.15)',border:'1px solid rgba(201,162,75,.4)',color:'#d4b465',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>Edit rewards →</button>
+                <button onClick={()=>{switchAdminTab('catalog');if(!showRE)setEditRewards(rewards.map(r=>({...r})));setShowRE(true);}} style={{padding:'6px 11px',background:'rgba(201,162,75,.15)',border:'1px solid rgba(201,162,75,.4)',color:'#d4b465',fontSize:11,fontWeight:600,cursor:'pointer',borderRadius:8,fontFamily:'var(--fb)'}}>Edit rewards →</button>
               </div>
             )}
             {/* View toggle — Pending list (default) vs full Delivered history. */}
