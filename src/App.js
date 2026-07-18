@@ -2119,6 +2119,47 @@ export default function App(){
     adminPayouts.forEach(po=>{if(!m[po.profile_id])m[po.profile_id]=[];m[po.profile_id].push(po);});
     return m;
   },[adminPayouts]);
+  // Memo the all-time aggregate totals used by the Overview hero. Was doing 8
+  // separate .reduce() over allProfiles on every parent re-render — Overview's
+  // biggest contributor to slow tab switching.
+  const overviewAllTimeTotals=React.useMemo(()=>{
+    let totalGross=0,totalCancGMV=0,totalComm=0,totalOrders=0,totalUnits=0,totalCanc=0,totalXP=0,levelSum=0;
+    allProfiles.forEach(p=>{
+      totalGross+=(p.total_gmv||0);totalCancGMV+=(p.total_cancelled_gmv||0);
+      totalComm+=(p.total_commission||0);totalOrders+=(p.total_orders||0);
+      totalUnits+=(p.total_sales||0);totalCanc+=(p.total_cancelled||0);
+      totalXP+=(p.xp||0);levelSum+=getLv(p.xp,LEVELS).level;
+    });
+    const totalNet=Math.max(0,totalGross-totalCancGMV);
+    const avgLevel=allProfiles.length>0?(levelSum/allProfiles.length).toFixed(1):'0';
+    const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
+    return{totalGross,totalCancGMV,totalNet,totalComm,totalOrders,totalUnits,totalCanc,totalXP,avgLevel,totalReferred};
+  },[allProfiles,LEVELS,profileById]);
+  // Memo the top-3 performers by net GMV — was doing a full sort of allProfiles
+  // on every Overview render just to slice the top three.
+  const overviewByGMV=React.useMemo(()=>{
+    return[...allProfiles].sort((a,b)=>{
+      const aN=Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0));
+      const bN=Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0));
+      return bN-aN;
+    }).slice(0,3);
+  },[allProfiles]);
+  // Memo the pending Discord role updates — powered both the tab strip badge
+  // and the Discord tab body. Was recomputed every render on both surfaces.
+  const pendingDiscordProfiles=React.useMemo(()=>{
+    return allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+  },[allProfiles,LEVELS]);
+  // Memo pending rewards-owed count for the tab-strip badge.
+  const pendingRewardsCount=React.useMemo(()=>{
+    return allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;
+  },[allProfiles,rewards]);
+  // Memo the Discord tab's sorted pending list.
+  const discordSortedPending=React.useMemo(()=>{
+    return pendingDiscordProfiles.map(p=>{
+      const lv=getLv(p.xp,LEVELS).level;
+      return{...p,_curLevel:lv,_lastLevel:p.discord_level??0};
+    }).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
+  },[pendingDiscordProfiles,LEVELS]);
 
   const RcCard=({r})=>{
     const un=profile&&profile.xp>=r.xp_required;
@@ -3059,23 +3100,15 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           {[['overview','📊','Overview'],['affiliates','👥','Affiliates'],['referrals','🔗','Referrals'],['discord','🎮','Discord'],['rewardsowed','🎁','Rewards'],['imports','📥','Imports'],['payouts','💷','Payouts'],['catalog','📦','Catalog']].map(([id,ic,lb])=>(
             <button key={id} className={`atab${adminTab===id?' on':''}`} onClick={()=>switchAdminTab(id)}>
               <span>{ic}</span><span>{lb}</span>
-              {id==='discord'&&(()=>{const n=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0)).length;return n>0?<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
-              {id==='rewardsowed'&&(()=>{const n=allProfiles.filter(p=>achievedLevel(p.xp,rewards)>(p.rewards_delivered_level??0)).length;return n>0?<span style={{background:'rgba(201,162,75,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{n}</span>:null;})()}
+              {id==='discord'&&pendingDiscordProfiles.length>0&&<span style={{background:'#5865F2',color:'#fff',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{pendingDiscordProfiles.length}</span>}
+              {id==='rewardsowed'&&pendingRewardsCount>0&&<span style={{background:'rgba(201,162,75,.85)',color:'#1a1a2e',fontSize:9,fontWeight:800,padding:'2px 6px',borderRadius:99,marginLeft:4,letterSpacing:.3}}>{pendingRewardsCount}</span>}
             </button>
           ))}
         </div>
         {adminTab==='overview'&&(()=>{
-          // === All-time totals (used when period === 'all', plus all-time fallback for sub-chips that don't have a per-period meaning) ===
-          const totalGross=allProfiles.reduce((s,p)=>s+(p.total_gmv||0),0);
-          const totalCancGMV=allProfiles.reduce((s,p)=>s+(p.total_cancelled_gmv||0),0);
-          const totalNet=Math.max(0,totalGross-totalCancGMV);
-          const totalComm=allProfiles.reduce((s,p)=>s+(p.total_commission||0),0);
-          const totalOrders=allProfiles.reduce((s,p)=>s+(p.total_orders||0),0);
-          const totalUnits=allProfiles.reduce((s,p)=>s+(p.total_sales||0),0);
-          const totalCanc=allProfiles.reduce((s,p)=>s+(p.total_cancelled||0),0);
-          const totalXP=allProfiles.reduce((s,p)=>s+(p.xp||0),0);
-          const totalReferred=allProfiles.filter(p=>p.referred_by&&profileById[p.referred_by]).length;
-          const avgLevel=allProfiles.length>0?(allProfiles.reduce((s,p)=>s+getLv(p.xp,LEVELS).level,0)/allProfiles.length).toFixed(1):'0';
+          // Pull all-time aggregates from the memo so Overview isn't re-running
+          // 8 separate .reduce() over allProfiles every render.
+          const {totalNet,totalCancGMV,totalGross,totalComm,totalOrders,totalUnits,totalCanc,totalXP,avgLevel,totalReferred}=overviewAllTimeTotals;
           const totalOwed=adminPayouts.filter(po=>!po.paid).reduce((s,po)=>s+(po.amount||0),0);
           // === Period aggregates from adminPeriodEvents (60-day import window) ===
           const sumEvts=(from,to)=>adminPeriodEvents.filter(e=>{const d=new Date(e.created_at);return d>=from&&d<to;}).reduce((a,e)=>({gmv:a.gmv+Math.max(0,(e.gmv||0)-(e.cancelled_gmv||0)),comm:a.comm+(e.commission||0),orders:a.orders+(e.orders||0),xp:a.xp+(e.amount||0),units:a.units+(e.sales||0),canc:a.canc+(e.cancelled||0),cancGmv:a.cancGmv+(e.cancelled_gmv||0),profs:a.profs.add(e.profile_id)}),{gmv:0,comm:0,orders:0,xp:0,units:0,canc:0,cancGmv:0,profs:new Set()});
@@ -3110,9 +3143,9 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           const unpaid=adminPayouts.filter(po=>!po.paid);
           if(unpaid.length>0)tasks.push({k:'warn',e:'💷',t:`${unpaid.length} unpaid payout${unpaid.length===1?'':'s'} · ${fmtGBPc(totalOwed)} owed`,n:'Mark each as paid after sending the transfer',cta:'Review',fn:()=>switchAdminTab('payouts')});
           if(expiredEx.length>0)tasks.push({k:'info',e:'⏰',t:`${expiredEx.length} XP exclusion${expiredEx.length===1?'':'s'} expired`,n:'Affected affiliates are earning XP again — clean up or extend',cta:'Clean up',fn:()=>{switchAdminTab('imports');setShowExclusions(true);}});
-          // Discord role-update reminders: any profile whose displayed level
-          // (getLv) is higher than the last acknowledged discord_level.
-          const pendingDiscord=allProfiles.filter(p=>getLv(p.xp,LEVELS).level>(p.discord_level??0));
+          // Reuse the top-level memo — was also being used by the Discord tab
+          // strip badge, so consolidating means one pass instead of three.
+          const pendingDiscord=pendingDiscordProfiles;
           if(pendingDiscord.length>0)tasks.push({k:'warn',e:'🎮',t:`${pendingDiscord.length} Discord role${pendingDiscord.length===1?'':'s'} need updating`,n:'Affiliates have levelled up since you last bumped their Discord role',cta:'Review',fn:()=>switchAdminTab('discord')});
           // Reward delivery reminders — affiliates with unlocked level rewards that haven't been physically dispatched.
           const rewardByLevelLookup={};rewards.forEach(r=>{rewardByLevelLookup[r.level]={value:Number(r.value||0)};});
@@ -3120,8 +3153,9 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           const totalRewardOwed=pendingRewards.reduce((s,x)=>s+x.owed,0);
           if(pendingRewards.length>0)tasks.push({k:'warn',e:'🎁',t:`${pendingRewards.length} affiliate${pendingRewards.length===1?'':'s'} owed level rewards${totalRewardOwed>0?' ('+(totalRewardOwed>=1000?'£'+Math.round(totalRewardOwed).toLocaleString('en-GB'):'£'+totalRewardOwed.toFixed(2))+')':''}`,n:'Dispatch their tier reward then tick them off',cta:'Review',fn:()=>switchAdminTab('rewardsowed')});
           if(allProfiles.length===0)tasks.push({k:'info',e:'🎯',t:'No affiliates yet',n:'Share the signup link to get started',cta:'',fn:()=>{}});
-          // === Top performers (top 3 each) ===
-          const byGMV=[...allProfiles].sort((a,b)=>(Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0)))-(Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0)))).slice(0,3);
+          // === Top performers (top 3 each) — memoized above so we don't
+          // re-sort allProfiles on every Overview render. ===
+          const byGMV=overviewByGMV;
           // For each referrer compute (a) count of people they referred and (b) sum of
           // net GMV from those referred users — the latter is what drives their 1% earnings.
           const byRef=[...allProfiles].map(p=>{
@@ -3685,11 +3719,9 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         )}
         {adminTab==='discord'&&adminProfilesLoaded&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          // _curLevel = the level displayed on their profile / leaderboard (getLv).
-          // Discord roles mirror that convention: someone in the L7 XP band gets
-          // the "Hollen Level 7" Discord role. achievedLevel is used elsewhere
-          // for reward-payout logic, not for role display.
-          const pending=allProfiles.map(p=>{const lv=getLv(p.xp,LEVELS).level;return{...p,_curLevel:lv,_lastLevel:p.discord_level??0};}).filter(p=>p._curLevel>p._lastLevel).sort((a,b)=>(b._curLevel-b._lastLevel)-(a._curLevel-a._lastLevel)||b._curLevel-a._curLevel);
+          // Pending list memoized at top level so a switch to Discord doesn't
+          // recompute the whole thing every time (it also feeds the tab-strip badge).
+          const pending=discordSortedPending;
           const totalAffiliates=allProfiles.length;
           return(<>
             {/* HERO */}
