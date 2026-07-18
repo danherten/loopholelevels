@@ -2425,33 +2425,29 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         const myUnlocks=computeUnlockDates(xpEvents,rewards);
         const myRedeemed=redeemedLevelsFor(profile);
         return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
-          {/* HEADER */}
-          <div style={{marginBottom:24,paddingBottom:20,borderBottom:'1px solid var(--bo)',display:'flex',justifyContent:'space-between',alignItems:'flex-end',gap:12,flexWrap:'wrap'}}>
-            <div>
-              <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?28:23,fontWeight:700,letterSpacing:-0.6,color:'var(--tx)',lineHeight:1.1}}>Rewards</div>
-              <div style={{fontSize:12,color:'var(--tx3)',marginTop:6,letterSpacing:.15,fontVariantNumeric:'tabular-nums'}}>Level {lv.level} · {(profile.xp||0).toLocaleString()} XP{nx?` · ${(nx.min-profile.xp).toLocaleString()} to next`:''}</div>
-            </div>
-            {nx&&<div style={{minWidth:isDesktop?220:170}}>
-              <div style={{fontSize:9.5,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.4,marginBottom:7,fontWeight:600,textAlign:'right'}}>Level progress</div>
-              <div style={{height:3,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
-                <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg, var(--go), var(--pu))',width:`${pct}%`,transition:'width 1s ease'}}/>
+          {/* HEADER — title + level line + full-width progress bar */}
+          <div style={{marginBottom:24,paddingBottom:20,borderBottom:'1px solid var(--bo)'}}>
+            <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?28:23,fontWeight:700,letterSpacing:-0.6,color:'var(--tx)',lineHeight:1.1}}>Rewards</div>
+            <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',gap:12,marginTop:7,flexWrap:'wrap'}}>
+              <div style={{fontSize:12,color:'var(--tx3)',letterSpacing:.15,fontVariantNumeric:'tabular-nums'}}>
+                <strong style={{color:'var(--tx)',fontWeight:600}}>Level {lv.level}</strong> · {(profile.xp||0).toLocaleString()} XP
               </div>
-              <div style={{fontSize:10.5,color:'var(--tx3)',marginTop:6,textAlign:'right',fontVariantNumeric:'tabular-nums',fontWeight:500}}>{(profile.xp||0).toLocaleString()} / {nx.min.toLocaleString()}</div>
+              {nx&&<div style={{fontSize:11.5,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>
+                <strong style={{color:'var(--go)',fontWeight:600}}>{(nx.min-profile.xp).toLocaleString()} XP</strong> to Level {nx.level}
+              </div>}
+            </div>
+            {nx&&<div style={{height:4,background:'var(--bo)',borderRadius:99,overflow:'hidden',marginTop:12}}>
+              <div style={{height:'100%',borderRadius:99,background:'linear-gradient(90deg, var(--go), var(--pu))',width:`${pct}%`,transition:'width 1s ease'}}/>
             </div>}
           </div>
 
           {/* PAID ON THE 15TH — subtle gold hairline at the top */}
           <div style={{padding:'18px 20px',background:'var(--card)',border:'1px solid var(--bo)',borderTop:'1.5px solid var(--go)',borderRadius:12,marginBottom:12}}>
-            <div style={{display:'flex',alignItems:'flex-start',gap:14}}>
-              <div style={{fontFamily:'var(--fh)',fontSize:22,fontWeight:800,letterSpacing:-1,color:'var(--go)',lineHeight:1,marginTop:2,flexShrink:0}}>15</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:14.5,fontWeight:700,color:'var(--tx)',letterSpacing:.1,marginBottom:3}}>Paid on the 15th</div>
-                <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.55}}>Rewards ship on the 15th of the month after you unlock them.</div>
-                <div style={{display:'flex',flexDirection:isDesktop?'row':'column',gap:isDesktop?22:5,fontSize:11.5,color:'var(--tx2)',marginTop:12,paddingTop:12,borderTop:'1px solid var(--bo)',fontVariantNumeric:'tabular-nums'}}>
-                  <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m1}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m1pay}</strong></div>
-                  <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m2}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m2pay}</strong></div>
-                </div>
-              </div>
+            <div style={{fontFamily:'var(--fh)',fontSize:14.5,fontWeight:700,color:'var(--tx)',letterSpacing:.1,marginBottom:3}}>Paid on the 15th</div>
+            <div style={{fontSize:12,color:'var(--tx3)',lineHeight:1.55}}>Rewards ship on the 15th of the month after you unlock them.</div>
+            <div style={{display:'flex',flexDirection:isDesktop?'row':'column',gap:isDesktop?22:5,fontSize:11.5,color:'var(--tx2)',marginTop:12,paddingTop:12,borderTop:'1px solid var(--bo)',fontVariantNumeric:'tabular-nums'}}>
+              <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m1}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m1pay}</strong></div>
+              <div>Unlock in <strong style={{color:'var(--tx)',fontWeight:600}}>{m2}</strong> · paid <strong style={{color:'var(--gr)',fontWeight:600}}>{m2pay}</strong></div>
             </div>
           </div>
 
