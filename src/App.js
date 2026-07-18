@@ -2239,7 +2239,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
     </div>}
 
     <div className="pages" style={isDesktop?{flex:1,overflowY:'auto',paddingBottom:0,minWidth:0}:{}}>
-      <div style={isDesktop?{maxWidth:page==='admin'?1320:700,margin:'0 auto'}:{}}>
+      <div style={isDesktop?{maxWidth:page==='admin'?1320:page==='home'?1080:700,margin:'0 auto'}:{}}>
       {/* HOME */}
       {page==='home'&&(()=>{
         const now=new Date();const hour=now.getHours();
@@ -2254,47 +2254,58 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
         const ordersDelta=deltaPct(filteredOrders,prevOrders);
         const aovDelta=deltaPct(filteredAOV,prevAOV);
         const unitsDelta=deltaPct(filteredUnits,prevUnits);
-        const Trend=({d,fmt})=>{if(!d)return null;return(<span style={{fontSize:11,color:d.up?'var(--gr)':d.dn?'var(--re)':'var(--tx3)',fontWeight:500,marginLeft:6,fontVariantNumeric:'tabular-nums'}}>{d.up?'↗':d.dn?'↘':'→'} {fmt?fmt(Math.abs(d.d)):Math.abs(Math.round(d.pct))+'%'}</span>);};
-        return(<div className="pg" style={{maxWidth:isDesktop?960:'100%',margin:'0 auto',paddingTop:isDesktop?18:13}}>
+        // Shopify-style delta pill — colored pastel background, % + arrow.
+        const DeltaPill=({d})=>{if(!d)return null;const c=d.up?'var(--gr)':d.dn?'var(--re)':'var(--tx3)';const bg=d.up?'rgba(107,155,125,.13)':d.dn?'rgba(176,74,85,.13)':'var(--card2)';return(<span style={{display:'inline-flex',alignItems:'center',gap:3,fontSize:10.5,color:c,fontWeight:600,fontVariantNumeric:'tabular-nums',padding:'2px 7px',borderRadius:99,background:bg,letterSpacing:.1}}>{d.up?'↑':d.dn?'↓':'→'} {Math.abs(Math.round(d.pct))}%</span>);};
+        return(<div className="pg" style={{maxWidth:isDesktop?1040:'100%',margin:'0 auto',paddingTop:isDesktop?24:14}}>
           {/* GREETING */}
-          <div style={{marginBottom:22,paddingBottom:18,borderBottom:'1px solid var(--bo)'}}>
-            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
-              <div style={{minWidth:0}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?26:22,fontWeight:700,letterSpacing:-0.5,color:'var(--tx)',lineHeight:1.15}}>{greeting}, {profile.username||'creator'}</div>
-                <div style={{fontSize:12,color:'var(--tx3)',marginTop:5,letterSpacing:.15}}>{dateStr}</div>
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:16,flexShrink:0}}>
-                {rank&&<div onClick={()=>navTo('lb')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
-                  <div style={{lineHeight:1}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>#{rank}</div>
-                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Rank</div>
-                  </div>
-                </div>}
-                <div onClick={()=>navTo('level')} style={{cursor:'pointer',display:'flex',alignItems:'center',gap:6,borderLeft:rank?'1px solid var(--bo)':'none',paddingLeft:rank?16:0}}>
-                  <div style={{lineHeight:1}}>
-                    <div style={{fontFamily:'var(--fh)',fontSize:16,fontWeight:700,color:'var(--go)',fontVariantNumeric:'tabular-nums'}}>{lv.level}</div>
-                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1,marginTop:3}}>Level</div>
-                  </div>
-                </div>
-              </div>
+          <div style={{marginBottom:22,display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:14,flexWrap:'wrap'}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?28:22,fontWeight:700,letterSpacing:-0.55,color:'var(--tx)',lineHeight:1.15}}>{greeting}, {profile.username||'creator'}</div>
+              <div style={{fontSize:12.5,color:'var(--tx3)',marginTop:6,letterSpacing:.1}}>{dateStr}</div>
+            </div>
+            <div style={{display:'flex',gap:8,flexShrink:0}}>
+              {rank&&<button onClick={()=>navTo('lb')} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:99,padding:'8px 14px',display:'flex',alignItems:'center',gap:9,cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)'}}>
+                <span style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.1,fontWeight:600}}>Rank</span>
+                <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:700,fontVariantNumeric:'tabular-nums'}}>#{rank}</span>
+              </button>}
+              <button onClick={()=>navTo('level')} style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:99,padding:'8px 14px',display:'flex',alignItems:'center',gap:9,cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)'}}>
+                <span style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.1,fontWeight:600}}>Level</span>
+                <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:700,color:'var(--go)',fontVariantNumeric:'tabular-nums'}}>{lv.level}</span>
+              </button>
             </div>
           </div>
 
-          {/* PRIMARY METRIC — Net GMV */}
-          <div style={{marginBottom:26}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:6}}>
-              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500}}>Net GMV</div>
-              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:.3}}>{rangeLabel}</div>
+          {/* DATE FILTER — Shopify-style segmented pill */}
+          <div style={{marginBottom:16,display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+            <div style={{display:'inline-flex',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:10,padding:3}}>
+              {[['yesterday','Yesterday'],['7d','7 days'],['30d','30 days'],['month','Month'],['all','All time'],['custom','Custom']].map(([val,label])=>(
+                <button key={val} onClick={()=>setDateRange(val)} style={{padding:isDesktop?'7px 14px':'6px 11px',background:dateRange===val?'var(--card2)':'transparent',border:'1px solid '+(dateRange===val?'var(--bo2)':'transparent'),borderRadius:7,color:dateRange===val?'var(--tx)':'var(--tx3)',fontSize:12,fontWeight:dateRange===val?600:500,cursor:'pointer',transition:'all .15s',fontFamily:'var(--fb)',letterSpacing:.1}}>{label}</button>
+              ))}
+            </div>
+            {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'7px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx)',fontSize:12,outline:'none'}}/>}
+            {dateRange==='custom'&&(<>
+              <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'7px 9px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx)',fontSize:12,outline:'none'}}/>
+              <span style={{fontSize:11,color:'var(--tx3)'}}>→</span>
+              <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'7px 9px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:8,color:'var(--tx)',fontSize:12,outline:'none'}}/>
+            </>)}
+          </div>
+
+          {/* HERO — Net GMV card */}
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:isDesktop?'24px 26px':'20px 20px',marginBottom:14}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:10}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.4,textTransform:'uppercase',fontWeight:600}}>Net GMV</div>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:.2}}>{rangeLabel}</div>
             </div>
             <button onClick={()=>setGrossOpen(!grossOpen)} style={{display:'block',background:'none',border:'none',padding:0,width:'100%',textAlign:'left',cursor:'pointer',color:'inherit',font:'inherit'}}>
-              <div style={{display:'flex',alignItems:'baseline',gap:12,flexWrap:'wrap'}}>
-                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?56:44,fontWeight:700,letterSpacing:-1.5,color:filteredNet<0?'var(--re)':'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{filteredNet<0?'−'+fmtGBP(-filteredNet):fmtGBP(filteredNet)}</div>
-                {netDelta&&<div style={{fontSize:13,color:netDelta.up?'var(--gr)':netDelta.dn?'var(--re)':'var(--tx3)',fontWeight:600,fontVariantNumeric:'tabular-nums'}}>{netDelta.up?'↗':netDelta.dn?'↘':'→'} {fmtGBP(Math.abs(netDelta.d))}</div>}
-                <span style={{fontSize:11,color:'var(--tx3)',marginLeft:'auto',opacity:.6,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
+              <div style={{display:'flex',alignItems:'baseline',gap:14,flexWrap:'wrap'}}>
+                <div style={{fontFamily:'var(--fh)',fontSize:isDesktop?54:42,fontWeight:700,letterSpacing:-1.5,color:filteredNet<0?'var(--re)':'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{filteredNet<0?'−'+fmtGBP(-filteredNet):fmtGBP(filteredNet)}</div>
+                <DeltaPill d={netDelta}/>
+                {netDelta&&<span style={{fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>vs previous</span>}
+                <span style={{fontSize:10.5,color:'var(--tx3)',marginLeft:'auto',opacity:.7,transition:'transform .15s',display:'inline-block',transform:grossOpen?'rotate(180deg)':'none'}}>▼</span>
               </div>
             </button>
             {grossOpen&&(
-              <div style={{marginTop:14,padding:'14px 16px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:10}}>
+              <div style={{marginTop:16,padding:'14px 16px',background:'var(--card2)',border:'1px solid var(--bo)',borderRadius:10}}>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingBottom:10,borderBottom:'1px solid var(--bo)'}}>
                   <span style={{fontSize:12,color:'var(--tx2)'}}>Gross GMV</span>
                   <span style={{fontFamily:'var(--fh)',fontSize:14,fontWeight:600,color:'var(--gr)',fontVariantNumeric:'tabular-nums'}}>{fmtGBP(filteredGMVGross)}</span>
@@ -2308,107 +2319,104 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
             )}
           </div>
 
-          {/* DATE FILTER — subtle text-link row, not chunky buttons */}
-          <div style={{display:'flex',gap:0,marginBottom:24,borderBottom:'1px solid var(--bo)',flexWrap:'wrap'}}>
-            {[['yesterday','Yesterday'],['7d','7 days'],['30d','30 days'],['month','Month'],['all','All time'],['custom','Custom']].map(([val,label])=>(
-              <button key={val} onClick={()=>setDateRange(val)} style={{padding:'8px 14px',background:'none',border:'none',borderBottom:`2px solid ${dateRange===val?'var(--pu)':'transparent'}`,color:dateRange===val?'var(--tx)':'var(--tx3)',fontSize:12,fontWeight:dateRange===val?600:500,cursor:'pointer',transition:'all .15s',marginBottom:-1,letterSpacing:.15}}>{label}</button>
-            ))}
-            {dateRange==='month'&&<input type='month' value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} style={{padding:'5px 10px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',marginLeft:10,alignSelf:'center'}}/>}
-            {dateRange==='custom'&&(<>
-              <input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)} style={{padding:'5px 8px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',marginLeft:10,alignSelf:'center'}}/>
-              <span style={{fontSize:11,color:'var(--tx3)',alignSelf:'center',padding:'0 6px'}}>→</span>
-              <input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)} style={{padding:'5px 8px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:6,color:'var(--tx)',fontSize:11,outline:'none',alignSelf:'center'}}/>
-            </>)}
-          </div>
-
-          {/* KPI GRID — 4 clean cells, single border container */}
-          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4,1fr)':'repeat(2,1fr)',border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',marginBottom:26,background:'var(--card)'}}>
+          {/* KPI GRID — 4 individual cards */}
+          <div style={{display:'grid',gridTemplateColumns:isDesktop?'repeat(4,1fr)':'repeat(2,1fr)',gap:10,marginBottom:16}}>
             {[
-              {label:'Commission',val:fmtGBP(filteredComm),d:commDelta,fmt:fmtGBP},
-              {label:'Orders',val:filteredOrders.toLocaleString(),d:ordersDelta,fmt:v=>Math.round(v).toLocaleString()},
-              {label:'Avg order value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',d:aovDelta,fmt:fmtGBP},
-              {label:'Units sold',val:filteredUnits.toLocaleString(),d:unitsDelta,fmt:v=>Math.round(v).toLocaleString()},
+              {label:'Commission',val:fmtGBP(filteredComm),d:commDelta},
+              {label:'Orders',val:filteredOrders.toLocaleString(),d:ordersDelta},
+              {label:'Avg order value',val:filteredAOV>0?fmtGBP(filteredAOV):'£0.00',d:aovDelta},
+              {label:'Units sold',val:filteredUnits.toLocaleString(),d:unitsDelta},
             ].map((s,i)=>(
-              <div key={i} style={{padding:'18px 18px 20px',borderRight:isDesktop?(i<3?'1px solid var(--bo)':'none'):(i%2===0?'1px solid var(--bo)':'none'),borderBottom:isDesktop?'none':(i<2?'1px solid var(--bo)':'none')}}>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500,marginBottom:8}}>{s.label}</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:22,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{s.val}</div>
-                <div style={{marginTop:8,minHeight:14}}>
-                  <Trend d={s.d} fmt={s.fmt}/>
+              <div key={i} style={{padding:'16px 18px 18px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10,minHeight:18}}>
+                  <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.15,textTransform:'uppercase',fontWeight:600}}>{s.label}</div>
+                  <DeltaPill d={s.d}/>
                 </div>
+                <div style={{fontFamily:'var(--fh)',fontSize:22,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{s.val}</div>
               </div>
             ))}
           </div>
 
-          {/* CHART */}
-          <div style={{marginBottom:26}}>
-            <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500,marginBottom:12}}>GMV & Commission</div>
+          {/* CHART — card */}
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:isDesktop?'20px 24px 12px':'18px 18px 8px',marginBottom:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:14}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.4,textTransform:'uppercase',fontWeight:600}}>GMV & Commission</div>
+              <div style={{fontSize:11,color:'var(--tx3)'}}>{rangeLabel}</div>
+            </div>
             <MiniChart xpEvents={filteredEvents} />
           </div>
 
-          {/* TOP PRODUCTS */}
-          <div style={{marginBottom:26}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12}}>
-              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.5,textTransform:'uppercase',fontWeight:500}}>Top products</div>
-              <button onClick={()=>navTo('products')} style={{background:'none',border:'none',color:'var(--tx3)',fontSize:11,cursor:'pointer',padding:0,letterSpacing:.15}}>View all →</button>
+          {/* TOP PRODUCTS — card */}
+          <div style={{background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,padding:isDesktop?'20px 24px':'18px 18px',marginBottom:16}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:14}}>
+              <div style={{fontSize:11,color:'var(--tx3)',letterSpacing:1.4,textTransform:'uppercase',fontWeight:600}}>Top products</div>
+              <button onClick={()=>navTo('products')} style={{background:'none',border:'none',color:'var(--pu2)',fontSize:11.5,cursor:'pointer',padding:0,letterSpacing:.15,fontWeight:600}}>View all →</button>
             </div>
             {(()=>{const list=isFiltered?filteredProducts.slice(0,3):topProducts;
               if(list.length===0)return(
-                <div style={{padding:'24px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,textAlign:'center'}}>
+                <div style={{padding:'20px 0',textAlign:'center'}}>
                   <div style={{fontSize:13,color:'var(--tx2)',marginBottom:4,fontWeight:500}}>No product data yet</div>
                   <div style={{fontSize:11,color:'var(--tx3)'}}>Your top products will appear here after your first import.</div>
                 </div>
               );
-              return(<div style={{border:'1px solid var(--bo)',borderRadius:12,overflow:'hidden',background:'var(--card)'}}>{list.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(
-                <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 16px',borderBottom:i<list.length-1?'1px solid var(--bo)':'none'}}>
-                  {prod?.image_url?<img src={prod.image_url} alt="" style={{width:44,height:44,borderRadius:8,objectFit:'cover',flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:8,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0,color:'var(--tx3)'}}>📦</div>}
+              return(<div>{list.map((tp,i)=>{const prod=products.find(p=>p.name===tp.product_name);return(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'12px 0',borderBottom:i<list.length-1?'1px solid var(--bo)':'none'}}>
+                  {prod?.image_url?<img src={prod.image_url} alt="" style={{width:48,height:48,borderRadius:10,objectFit:'cover',flexShrink:0,border:'1px solid var(--bo)'}}/>:<div style={{width:48,height:48,borderRadius:10,background:'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0,color:'var(--tx3)',border:'1px solid var(--bo)'}}>📦</div>}
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:13.5,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{tp.product_name||'Unknown product'}</div>
                     <div style={{fontSize:11,color:'var(--tx3)',marginTop:2}}>{(tp.sales||0).toLocaleString()} unit{(tp.sales||0)===1?'':'s'} sold</div>
                   </div>
                   <div style={{textAlign:'right',flexShrink:0}}>
                     <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(tp.gmv||0)}</div>
-                    <div style={{fontSize:10.5,color:'var(--go)',marginTop:4,fontWeight:500,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(tp.commission||0)} comm</div>
+                    <div style={{fontSize:10.5,color:'var(--go)',marginTop:4,fontWeight:600,fontVariantNumeric:'tabular-nums'}}>{fmtGBP(tp.commission||0)} comm</div>
                   </div>
                 </div>
               );})}</div>);
             })()}
           </div>
 
-          {/* REFERRAL EARNINGS — subtle inline row */}
-          {(()=>{const ltNet=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));const earn=parseFloat((ltNet*0.01).toFixed(2));return earn>0&&(
-            <div onClick={()=>navTo('referrals')} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 16px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',marginBottom:26}}>
-              <div>
-                <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500,marginBottom:4}}>Referral earnings</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:20,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',fontVariantNumeric:'tabular-nums'}}>{fmtGBP(earn)}</div>
-              </div>
-              <span style={{fontSize:14,color:'var(--tx3)'}}>→</span>
-            </div>
-          );})()}
-
-          {/* NEXT REWARD — editorial preview at bottom, not the hero */}
+          {/* BOTTOM ROW — referral + next reward paired */}
           {(()=>{
+            const ltNet=Math.max(0,referralStats.reduce((s,r)=>s+(r.total_gmv||0),0)-referralStats.reduce((s,r)=>s+(r.total_cancelled_gmv||0),0));
+            const earn=parseFloat((ltNet*0.01).toFixed(2));
             const nextRw=rewards.find(r=>!profile||profile.xp<r.xp_required);
             const prevRw=nextRw?rewards[rewards.indexOf(nextRw)-1]:rewards[rewards.length-1];
             const startXP=prevRw?prevRw.xp_required:0;
             const endXP=nextRw?nextRw.xp_required:lv.max;
             const prog=nextRw?Math.min(100,Math.round(((profile.xp-startXP)/(endXP-startXP))*100)):100;
             const r=nextRw||rewards[rewards.length-1];
-            if(!r)return null;
+            const showRefer=earn>0;
+            const showReward=!!r;
+            if(!showRefer&&!showReward)return null;
             return(
-              <div onClick={()=>navTo('rewards')} style={{display:'flex',alignItems:'center',gap:16,padding:'16px 18px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,cursor:'pointer',marginBottom:20}}>
-                <div style={{width:56,height:56,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--bo)'}}>
-                  {r?.image_url?<img src={r.image_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:8,gap:8,flexWrap:'wrap'}}>
-                    <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:500}}>Next reward</div>
-                    <div style={{fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>{nextRw?`${(endXP-profile.xp).toLocaleString()} XP to go`:'All unlocked'}</div>
-                  </div>
-                  <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{r?.name&&r.name!==`Reward ${r?.level}`?r.name:`Level ${r?.level} Reward`}</div>
-                  <div style={{height:3,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
-                    <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${prog}%`,transition:'width 1s ease'}}/>
-                  </div>
-                </div>
+              <div style={{display:'grid',gridTemplateColumns:isDesktop&&showRefer&&showReward?'1fr 1fr':'1fr',gap:12,marginBottom:20}}>
+                {showRefer&&(
+                  <button onClick={()=>navTo('referrals')} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,padding:'18px 20px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)',textAlign:'left'}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:600,marginBottom:6}}>Referral earnings</div>
+                      <div style={{fontFamily:'var(--fh)',fontSize:22,fontWeight:700,letterSpacing:-0.4,color:'var(--tx)',fontVariantNumeric:'tabular-nums',lineHeight:1,marginBottom:4}}>{fmtGBP(earn)}</div>
+                      <div style={{fontSize:11,color:'var(--tx3)',marginTop:4}}>{referralStats.length} referred creator{referralStats.length===1?'':'s'}</div>
+                    </div>
+                    <span style={{fontSize:14,color:'var(--tx3)',flexShrink:0}}>→</span>
+                  </button>
+                )}
+                {showReward&&(
+                  <button onClick={()=>navTo('rewards')} style={{display:'flex',alignItems:'center',gap:14,padding:'18px 20px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:14,cursor:'pointer',color:'var(--tx)',fontFamily:'var(--fb)',textAlign:'left'}}>
+                    <div style={{width:52,height:52,borderRadius:10,background:'var(--card2)',overflow:'hidden',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid var(--bo)'}}>
+                      {r?.image_url?<img src={r.image_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:<span style={{fontSize:22,opacity:.4}}>🎁</span>}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',gap:8,marginBottom:6,flexWrap:'wrap'}}>
+                        <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:1.2,textTransform:'uppercase',fontWeight:600}}>Next reward</div>
+                        <div style={{fontSize:11,color:'var(--tx3)',fontVariantNumeric:'tabular-nums'}}>{nextRw?`${(endXP-profile.xp).toLocaleString()} XP`:'All unlocked'}</div>
+                      </div>
+                      <div style={{fontSize:14,fontWeight:600,color:'var(--tx)',marginBottom:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',letterSpacing:.1}}>{r?.name&&r.name!==`Reward ${r?.level}`?r.name:`Level ${r?.level} Reward`}</div>
+                      <div style={{height:3,background:'var(--bo)',borderRadius:99,overflow:'hidden'}}>
+                        <div style={{height:'100%',borderRadius:99,background:'var(--pu)',width:`${prog}%`,transition:'width 1s ease'}}/>
+                      </div>
+                    </div>
+                  </button>
+                )}
               </div>
             );
           })()}
