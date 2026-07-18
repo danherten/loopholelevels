@@ -2043,6 +2043,77 @@ export default function App(){
   const pct=profile?xpPct(profile.xp,LEVELS):0;
   const nextMilestone=profile?milestones.find(m=>m.days>(profile.streak||0)):null;
   const refLink=profile?`${window.location.origin}?ref=${profile.referral_code||''}`:'';
+  // Debounced version of adminSearch so typing doesn't re-filter/re-sort on
+  // every keystroke — waits 180ms after typing stops to update.
+  const [adminSearchDeb,setAdminSearchDeb]=useState(adminSearch);
+  useEffect(()=>{const t=setTimeout(()=>setAdminSearchDeb(adminSearch),180);return()=>clearTimeout(t);},[adminSearch]);
+  // Memo the affiliates filter+sort — was rebuilding a fresh sorted array on
+  // every keystroke, every state change, every render. Now only recomputes
+  // when its actual inputs change.
+  const affiliatesSorted=React.useMemo(()=>{
+    const q=adminSearchDeb.toLowerCase();
+    const filtered=allProfiles.filter(p=>{
+      const matchSearch=!q||p.username.toLowerCase().includes(q)||(p.tiktok_handles||[]).some(h=>h.toLowerCase().includes(q));
+      const matchLevel=adminLevelFilter===''||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
+      return matchSearch&&matchLevel;
+    });
+    return [...filtered].sort((a,b)=>{
+      if(adminSort==='gmv'){const aN=Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0));const bN=Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0));return bN-aN;}
+      if(adminSort==='xp')return(b.xp||0)-(a.xp||0);
+      if(adminSort==='referrals')return(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0);
+      if(adminSort==='newest')return new Date(b.created_at||0)-new Date(a.created_at||0);
+      if(adminSort==='name')return a.username.localeCompare(b.username);
+      return 0;
+    });
+  },[allProfiles,adminSearchDeb,adminLevelFilter,adminSort,LEVELS,referralsByReferrer]);
+  // Memo the Rewards Owed enrichment — the map+enrich+sort was running on
+  // every parent re-render (which happens on any state change anywhere).
+  const rewardsOwedEnriched=React.useMemo(()=>{
+    if(!rewards||!rewards.length)return{enriched:[],pending:[],delivered:[],rewardByLevel:{},totalOwedValue:0,totalDeliveredValue:0,totalDelivered:0,missingValues:0};
+    const rewardByLevel={};
+    rewards.forEach(r=>{rewardByLevel[r.level]={name:r.name,value:Number(r.value||0),image:r.image_url};});
+    const enriched=allProfiles.map(p=>{
+      const cur=achievedLevel(p.xp,rewards);
+      const redeemed=redeemedLevelsFor(p);
+      const redeemedCash=redeemedCashLevelsFor(p);
+      const amounts=redemptionAmountsFor(p);
+      const owedLevels=[];
+      for(let l=1;l<=cur;l++){
+        if(rewardByLevel[l]&&!redeemed.has(l)){
+          const crossedAt=affiliateUnlockDates[p.id]?.[l]||null;
+          owedLevels.push({level:l,...rewardByLevel[l],crossedAt,dueDate:payoutDueDate(crossedAt)});
+        }
+      }
+      const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
+      const redeemedValue=Array.from(redeemed).reduce((s,l)=>{
+        const stored=amounts[String(l)];
+        if(typeof stored==='number'&&!isNaN(stored))return s+stored;
+        const v=(rewardByLevel[l]?.value)||0;
+        return s+(redeemedCash.has(l)?v*0.8:v);
+      },0);
+      const allCrosses=Object.values(affiliateUnlockDates[p.id]||{}).map(x=>x?new Date(x).getTime():null).filter(x=>x);
+      const oldestCross=allCrosses.length?Math.min(...allCrosses):null;
+      return{...p,_curLevel:cur,_redeemed:redeemed,_redeemedCash:redeemedCash,_redeemedAmounts:amounts,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_oldestCross:oldestCross};
+    });
+    const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>{
+      if(a._oldestCross==null&&b._oldestCross==null)return b._owedValue-a._owedValue;
+      if(a._oldestCross==null)return 1;
+      if(b._oldestCross==null)return -1;
+      return a._oldestCross-b._oldestCross||(a.id<b.id?-1:1);
+    });
+    const delivered=enriched.filter(p=>p._owedLevels.length===0);
+    const totalOwedValue=pending.reduce((s,p)=>s+p._owedValue,0);
+    const totalDeliveredValue=enriched.reduce((s,p)=>s+p._redeemedValue,0);
+    const totalDelivered=enriched.reduce((s,p)=>s+Array.from(p._redeemed).filter(l=>l>=1&&l<=p._curLevel&&rewardByLevel[l]).length,0);
+    const missingValues=rewards.filter(r=>!r.value||Number(r.value)===0).length;
+    return{enriched,pending,delivered,rewardByLevel,totalOwedValue,totalDeliveredValue,totalDelivered,missingValues};
+  },[allProfiles,rewards,affiliateUnlockDates]);
+  // Memo the Payouts groupBy — was rebuilding on every render.
+  const payoutsByProfile=React.useMemo(()=>{
+    const m={};
+    adminPayouts.forEach(po=>{if(!m[po.profile_id])m[po.profile_id]=[];m[po.profile_id].push(po);});
+    return m;
+  },[adminPayouts]);
 
   const RcCard=({r})=>{
     const un=profile&&profile.xp>=r.xp_required;
@@ -3219,19 +3290,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           </div>
           {/* AFFILIATE CARDS - sorted, with search/level filters applied */}
           {(()=>{
-            const filtered=allProfiles.filter(p=>{
-              const matchSearch=!adminSearch||p.username.toLowerCase().includes(adminSearch.toLowerCase())||(p.tiktok_handles||[]).some(h=>h.toLowerCase().includes(adminSearch.toLowerCase()));
-              const matchLevel=adminLevelFilter===''||getLv(p.xp,LEVELS).level===Number(adminLevelFilter);
-              return matchSearch&&matchLevel;
-            });
-            const sorted=[...filtered].sort((a,b)=>{
-              if(adminSort==='gmv'){const aN=Math.max(0,(a.total_gmv||0)-(a.total_cancelled_gmv||0));const bN=Math.max(0,(b.total_gmv||0)-(b.total_cancelled_gmv||0));return bN-aN;}
-              if(adminSort==='xp')return(b.xp||0)-(a.xp||0);
-              if(adminSort==='referrals')return(referralsByReferrer[b.id]?.length||0)-(referralsByReferrer[a.id]?.length||0);
-              if(adminSort==='newest')return new Date(b.created_at||0)-new Date(a.created_at||0);
-              if(adminSort==='name')return a.username.localeCompare(b.username);
-              return 0;
-            });
+            const sorted=affiliatesSorted;
             const hasSearch=adminSearch.trim()||adminLevelFilter!=='';
             const cols=isDesktop?'34px minmax(150px, 1fr) 40px 80px 96px 96px 60px 60px 56px 124px 264px':null;
             const headers=[
@@ -3705,59 +3764,13 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
             track who's been paid out vs. who's still owed. */}
         {adminTab==='rewardsowed'&&(()=>{
           const fmtGBPc=(n)=>{const v=n||0;return Math.abs(v)>=1000?'£'+Math.round(v).toLocaleString('en-GB'):'£'+v.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});};
-          // Build per-level lookup of name + value from the rewards collection.
-          const rewardByLevel={};
-          rewards.forEach(r=>{rewardByLevel[r.level]={name:r.name,value:Number(r.value||0),image:r.image_url};});
-          // Compute owed tiers per affiliate. Owed = any reward tier the
-          // affiliate has achieved (xp >= xp_required) but is NOT in their
-          // redeemed-levels set. Order is preserved by level so the rows
-          // read L1, L2, L3 etc.
-          const enriched=allProfiles.map(p=>{
-            const cur=achievedLevel(p.xp,rewards);
-            const redeemed=redeemedLevelsFor(p);
-            const redeemedCash=redeemedCashLevelsFor(p);
-            const amounts=redemptionAmountsFor(p);
-            const owedLevels=[];
-            for(let l=1;l<=cur;l++){
-              if(rewardByLevel[l]&&!redeemed.has(l)){
-                const crossedAt=affiliateUnlockDates[p.id]?.[l]||null;
-                owedLevels.push({level:l,...rewardByLevel[l],crossedAt,dueDate:payoutDueDate(crossedAt)});
-              }
-            }
-            const owedValue=owedLevels.reduce((s,r)=>s+(r.value||0),0);
-            // Delivered value prefers the stored override (admin-typed actual £)
-            // when present; else falls back to product 100% or cash 80% of catalog.
-            const redeemedValue=Array.from(redeemed).reduce((s,l)=>{
-              const stored=amounts[String(l)];
-              if(typeof stored==='number'&&!isNaN(stored))return s+stored;
-              const v=(rewardByLevel[l]?.value)||0;
-              return s+(redeemedCash.has(l)?v*0.8:v);
-            },0);
-            // Stable sort key — the earliest cross date across ANY achieved tier
-            // for this affiliate. Doesn't change as individual tiers get redeemed,
-            // so the row stays put while the admin works through it.
-            const allCrosses=Object.values(affiliateUnlockDates[p.id]||{}).map(x=>x?new Date(x).getTime():null).filter(x=>x);
-            const oldestCross=allCrosses.length?Math.min(...allCrosses):null;
-            return{...p,_curLevel:cur,_redeemed:redeemed,_redeemedCash:redeemedCash,_redeemedAmounts:amounts,_owedLevels:owedLevels,_owedValue:owedValue,_redeemedValue:redeemedValue,_oldestCross:oldestCross};
-          });
-          const pending=enriched.filter(p=>p._owedLevels.length>0).sort((a,b)=>{
-            if(a._oldestCross==null&&b._oldestCross==null)return b._owedValue-a._owedValue;
-            if(a._oldestCross==null)return 1;
-            if(b._oldestCross==null)return -1;
-            // Earliest crosser first (longest waiting). Tie-break on id for full
-            // determinism so two affiliates with identical cross times don't swap.
-            return a._oldestCross-b._oldestCross||(a.id<b.id?-1:1);
-          });
-          const delivered=enriched.filter(p=>p._owedLevels.length===0);
-          // Hero totals.
-          const totalOwedValue=pending.reduce((s,p)=>s+p._owedValue,0);
-          const totalDeliveredValue=enriched.reduce((s,p)=>{
-            return s+p._redeemedValue;
-          },0);
-          // Total number of individual tier deliveries — powers the Delivered
-          // tab badge. Filters out levels that no longer map to a live reward.
-          const totalDelivered=enriched.reduce((s,p)=>s+Array.from(p._redeemed).filter(l=>l>=1&&l<=p._curLevel&&rewardByLevel[l]).length,0);
-          const missingValues=rewards.filter(r=>!r.value||Number(r.value)===0).length;
+          // Pull the pre-computed data from the memo higher up. Before this move,
+          // switching to Rewards Owed re-executed 100+ profile enrichments plus
+          // per-profile crossings/redeem/cash lookups on every single parent
+          // re-render (which happened on every keystroke, every state change
+          // anywhere in the huge admin component). Now the enrichment only
+          // recomputes when its actual inputs move.
+          const {enriched,pending,delivered,rewardByLevel,totalOwedValue,totalDeliveredValue,totalDelivered,missingValues}=rewardsOwedEnriched;
           return(<>
             {/* HERO STRIP */}
             <div style={{background:'linear-gradient(135deg,rgba(201,162,75,.14) 0%,rgba(201,162,75,.06) 60%,rgba(107,155,125,.05) 100%)',border:'1px solid var(--bo2)',borderRadius:16,padding:isDesktop?'20px 22px':'16px',marginBottom:11,position:'relative',overflow:'hidden'}}>
@@ -4040,7 +4053,7 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
           {/* Existing exclusions */}
           {xpExclusions.length===0?<div style={{fontSize:12,color:'var(--tx3)'}}>No exclusions set.</div>:(
             xpExclusions.map(ex=>{
-              const prof=allProfiles.find(p=>p.id===ex.profile_id);
+              const prof=profileById[ex.profile_id];
               const hasDate=ex.start_date||ex.end_date;
               const dateStr=hasDate?`${ex.start_date||'start'} → ${ex.end_date||'forever'}`:null;
               return(
@@ -4109,11 +4122,10 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
               </div>
             );
           })():(()=>{
-            // Group by profile
-            const byProfile={};
-            adminPayouts.forEach(po=>{if(!byProfile[po.profile_id])byProfile[po.profile_id]=[];byProfile[po.profile_id].push(po);});
-            return Object.entries(byProfile).map(([pid,pos])=>{
-              const prof=allProfiles.find(p=>p.id===pid);
+            // groupBy pre-computed in useMemo. profileById is also memoized so
+            // the O(1) lookup replaces the previous O(N) .find() per row.
+            return Object.entries(payoutsByProfile).map(([pid,pos])=>{
+              const prof=profileById[pid];
               const totalOwed=pos.filter(p=>!p.paid).reduce((s,p)=>s+p.amount,0);
               const totalPaid=pos.filter(p=>p.paid).reduce((s,p)=>s+p.amount,0);
               return(
