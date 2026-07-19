@@ -29,6 +29,21 @@ const TCOLS = {
 
 function MiniChart({xpEvents}){
   const [mode,setMode]=React.useState('both');
+  // Measure the SVG's actual pixel width so we can size the viewBox 1:1 with
+  // it. Without this the SVG uses a fixed 340-wide viewBox stretched via
+  // preserveAspectRatio="none" — on a 1000px-wide container that horizontally
+  // scales strokes/text/dots ~3× while the vertical stays 1:1, which looks
+  // squashed. viewBox = measured px means no non-uniform scale ever.
+  const wrapRef=React.useRef(null);
+  const [wrapW,setWrapW]=React.useState(340);
+  React.useLayoutEffect(()=>{
+    const el=wrapRef.current;if(!el)return;
+    const measure=()=>setWrapW(Math.max(200,Math.round(el.clientWidth)));
+    measure();
+    if(typeof ResizeObserver==='undefined')return;
+    const ro=new ResizeObserver(measure);ro.observe(el);
+    return()=>ro.disconnect();
+  },[]);
   const byDay={};
   (xpEvents||[]).filter(e=>e.reason==='import'&&(e.gmv>0||e.commission>0)).forEach(e=>{
     const d=(e.created_at||'').slice(0,10);if(!d)return;
@@ -51,7 +66,7 @@ function MiniChart({xpEvents}){
   const showC=mode==='comm'||mode==='both';
   const vals=[];if(showG)days.forEach(d=>vals.push(d.gmv));if(showC)days.forEach(d=>vals.push(d.comm));
   const maxVal=Math.max(...vals,1);
-  const W=340,H=160,PAD_L=4,PAD_R=42,PAD_T=8,PAD_B=20;
+  const W=wrapW,H=180,PAD_L=6,PAD_R=48,PAD_T=10,PAD_B=22;
   const innerW=W-PAD_L-PAD_R,innerH=H-PAD_T-PAD_B;
   const xScale=(i)=>days.length===1?PAD_L+innerW/2:PAD_L+(i/(days.length-1))*innerW;
   const yScale=(v)=>PAD_T+innerH-(v/maxVal)*innerH;
@@ -107,29 +122,31 @@ function MiniChart({xpEvents}){
             <button key={val} onClick={()=>setMode(val)} style={{padding:'5px 13px',border:'none',borderRadius:99,background:mode===val?'var(--pu)':'transparent',color:mode===val?'#fff':'var(--tx3)',fontSize:11,fontWeight:600,cursor:'pointer',transition:'all .15s',fontFamily:'var(--fb)'}}>{label}</button>
           ))}
         </div>
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{width:'100%',height:160,overflow:'visible'}}>
-          <defs>
-            <linearGradient id="mc-gmv" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6b9b7d" stopOpacity="0.28"/>
-              <stop offset="100%" stopColor="#6b9b7d" stopOpacity="0"/>
-            </linearGradient>
-            <linearGradient id="mc-comm" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c9a24b" stopOpacity="0.18"/>
-              <stop offset="100%" stopColor="#c9a24b" stopOpacity="0"/>
-            </linearGradient>
-          </defs>
-          {yTicks.map((t,i)=>(<g key={i}>
-            <line x1={PAD_L} y1={t.y} x2={W-PAD_R} y2={t.y} stroke="rgba(255,255,255,.06)" strokeDasharray="2 3"/>
-            <text x={W-PAD_R+3} y={t.y+3} fill="rgba(238,238,248,.35)" fontSize="8" fontFamily="var(--fb)" textAnchor="start">{fmtK(t.val)}</text>
-          </g>))}
-          {showG&&<path d={gmvArea} fill="url(#mc-gmv)"/>}
-          {showC&&mode==='comm'&&<path d={commArea} fill="url(#mc-comm)"/>}
-          {showG&&<path d={gmvPath} fill="none" stroke="#6b9b7d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
-          {showC&&<path d={commPath} fill="none" stroke="#c9a24b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={mode==='comm'?'0':'4 3'}/>}
-          {showG&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].gmv)} r="2.8" fill="#6b9b7d"/>}
-          {showC&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].comm)} r="2.8" fill="#c9a24b"/>}
-          {xLabels.map((l,i)=>(<text key={i} x={l.x} y={H-5} fill="rgba(238,238,248,.35)" fontSize="8" fontFamily="var(--fb)" textAnchor="middle">{l.text}</text>))}
-        </svg>
+        <div ref={wrapRef}>
+          <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{display:'block',width:'100%',height:H,overflow:'visible'}}>
+            <defs>
+              <linearGradient id="mc-gmv" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6b9b7d" stopOpacity="0.28"/>
+                <stop offset="100%" stopColor="#6b9b7d" stopOpacity="0"/>
+              </linearGradient>
+              <linearGradient id="mc-comm" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#c9a24b" stopOpacity="0.18"/>
+                <stop offset="100%" stopColor="#c9a24b" stopOpacity="0"/>
+              </linearGradient>
+            </defs>
+            {yTicks.map((t,i)=>(<g key={i}>
+              <line x1={PAD_L} y1={t.y} x2={W-PAD_R} y2={t.y} stroke="rgba(255,255,255,.06)" strokeDasharray="2 3"/>
+              <text x={W-PAD_R+4} y={t.y+3.5} fill="rgba(238,238,248,.35)" fontSize="10" fontFamily="var(--fb)" textAnchor="start">{fmtK(t.val)}</text>
+            </g>))}
+            {showG&&<path d={gmvArea} fill="url(#mc-gmv)"/>}
+            {showC&&mode==='comm'&&<path d={commArea} fill="url(#mc-comm)"/>}
+            {showG&&<path d={gmvPath} fill="none" stroke="#6b9b7d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
+            {showC&&<path d={commPath} fill="none" stroke="#c9a24b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={mode==='comm'?'0':'4 3'}/>}
+            {showG&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].gmv)} r="3" fill="#6b9b7d"/>}
+            {showC&&<circle cx={xScale(days.length-1)} cy={yScale(days[days.length-1].comm)} r="3" fill="#c9a24b"/>}
+            {xLabels.map((l,i)=>(<text key={i} x={l.x} y={H-6} fill="rgba(238,238,248,.35)" fontSize="10" fontFamily="var(--fb)" textAnchor="middle">{l.text}</text>))}
+          </svg>
+        </div>
       </div>
     </div>
   );
