@@ -4513,42 +4513,42 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
             <button onClick={()=>{setShowMonthPicker(true);setPickerYear(monthlyRecap.year);}} disabled={monthlyRecapLoading} style={{pointerEvents:'auto',padding:'7px 14px',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',borderRadius:99,fontFamily:'var(--fb)',display:'flex',alignItems:'center',gap:6,backdropFilter:'blur(8px)'}}>📅 {monthShort[monthlyRecap.month]} {monthlyRecap.year} <span style={{opacity:.6,fontSize:10}}>▾</span></button>
             <button onClick={()=>setMonthlyRecap(null)} style={{pointerEvents:'auto',width:34,height:34,borderRadius:'50%',background:'rgba(255,255,255,.1)',border:'1px solid rgba(255,255,255,.18)',color:'#fff',fontSize:14,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,backdropFilter:'blur(8px)'}}>✕</button>
           </div>
-          {/* THE CARD — same visual vibe as the Rewards page: deep purple
-              base with a wireframe grid overlay, atmospheric purple mist
-              glow from the centre. Big logo top. ~340 wide.
+          {/* THE CARD — matches the rest of the Hollen aesthetic: near-black
+              base, gold hairline at the top, Manrope throughout with normal
+              letter-spacing (no Bebas-Neue leftovers), single soft gold
+              radial glow, no magenta leftover from the Loophole era.
               id='ll-recap-card' for share. */}
-          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:340,background:'#0a0218',backgroundImage:'radial-gradient(ellipse at 50% 25%, rgba(201,162,75,.55) 0%, rgba(201,162,75,.18) 30%, transparent 65%),linear-gradient(rgba(201,162,75,.12) 1px, transparent 1px),linear-gradient(90deg, rgba(201,162,75,.12) 1px, transparent 1px)',backgroundSize:'auto, 32px 32px, 32px 32px',backgroundPosition:'center center, center center, center center',borderRadius:24,overflow:'hidden',border:'1px solid rgba(201,162,75,.35)',boxShadow:'0 24px 60px rgba(0,0,0,.7),0 0 100px rgba(201,162,75,.4)',flexShrink:0}}>
-            {/* Atmospheric mist puffs — soft purple radials with blur */}
-            <div style={{position:'absolute',top:'18%',left:'18%',width:180,height:180,background:'radial-gradient(circle, rgba(192,38,211,.45) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(24px)'}}/>
-            <div style={{position:'absolute',bottom:'12%',right:'12%',width:160,height:160,background:'radial-gradient(circle, rgba(201,162,75,.35) 0%, transparent 70%)',pointerEvents:'none',filter:'blur(20px)'}}/>
-            {/* LARGE LOGO at top, centered — the hero brand element */}
-            <div style={{position:'relative',padding:'30px 18px 8px',display:'flex',justifyContent:'center'}}>
-              <img src="/hollen-rewards-logo.png" alt="Hollen" style={{width:220,filter:'invert(1) drop-shadow(0 4px 20px rgba(245,241,235,.35))'}} onError={e=>{e.target.style.display='none';}}/>
+          <div id="ll-recap-card" style={{position:'relative',width:'100%',maxWidth:340,background:'#0d0d0e',borderRadius:20,overflow:'hidden',border:'1px solid rgba(201,162,75,.24)',borderTop:'1.5px solid #c9a24b',boxShadow:'0 24px 60px rgba(0,0,0,.7),0 0 80px rgba(201,162,75,.16)',flexShrink:0}}>
+            {/* Single warm gold halo at the top — subtler than the old grid+mist stack */}
+            <div style={{position:'absolute',top:-80,left:'50%',transform:'translateX(-50%)',width:360,height:220,background:'radial-gradient(ellipse at 50% 50%, rgba(201,162,75,.28) 0%, transparent 65%)',pointerEvents:'none',filter:'blur(12px)'}}/>
+            {/* LOGO — brand-first hero */}
+            <div style={{position:'relative',padding:'28px 22px 4px',display:'flex',justifyContent:'center'}}>
+              <img src="/hollen-rewards-logo.png" alt="Hollen" style={{width:200,filter:'invert(1) drop-shadow(0 4px 22px rgba(245,241,235,.22))'}} onError={e=>{e.target.style.display='none';}}/>
             </div>
-            {/* Month label below logo */}
-            <div style={{position:'relative',textAlign:'center',marginTop:6}}>
-              <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3.5,fontWeight:600}}>{monthlyRecap.isEmpty?'No data':monthlyRecap.isCurrent?'In Progress':'Monthly Recap'}</div>
-              <div style={{fontFamily:'var(--fh)',fontSize:22,letterSpacing:2.5,color:'#fff',marginTop:4}}>{monthNames[monthlyRecap.month].toUpperCase()} {monthlyRecap.year}</div>
+            {/* Month header — clean, no ultra-wide tracking */}
+            <div style={{position:'relative',textAlign:'center',marginTop:10,paddingBottom:2}}>
+              <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.6,fontWeight:600}}>{monthlyRecap.isEmpty?'No data':monthlyRecap.isCurrent?'In progress':'Monthly recap'}</div>
+              <div style={{fontFamily:'var(--fh)',fontSize:22,fontWeight:700,letterSpacing:-.4,color:'var(--tx)',marginTop:6}}>{monthNames[monthlyRecap.month]} {monthlyRecap.year}</div>
             </div>
             {/* BODY */}
             {monthlyRecap.isEmpty?(
-              <div style={{position:'relative',padding:'40px 22px 32px',textAlign:'center'}}>
-                <div style={{fontSize:36,marginBottom:8,opacity:.55}}>📭</div>
-                <div style={{fontSize:13,color:'rgba(255,255,255,.85)',marginBottom:4}}>No imports this month</div>
-                <div style={{fontSize:11,color:'rgba(255,255,255,.55)'}}>Tap 📅 above to pick another month</div>
+              <div style={{position:'relative',padding:'34px 22px 30px',textAlign:'center'}}>
+                <div style={{fontSize:34,marginBottom:8,opacity:.5}}>📭</div>
+                <div style={{fontSize:13,color:'var(--tx2)',marginBottom:4}}>No imports this month</div>
+                <div style={{fontSize:11,color:'var(--tx3)'}}>Tap 📅 above to pick another month</div>
               </div>
             ):(<>
-              {/* HERO NUMBER — green money, glow on the dark backdrop */}
-              <div style={{position:'relative',padding:'22px 18px 0',textAlign:'center'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:3,fontWeight:700,marginBottom:6}}>Net GMV</div>
-                <div style={{fontFamily:'var(--fh)',fontSize:54,lineHeight:1,color:'#6b9b7d',letterSpacing:1,textShadow:'0 0 30px rgba(107,155,125,.55),0 2px 12px rgba(0,0,0,.4)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
+              {/* HERO NET GMV */}
+              <div style={{position:'relative',padding:'22px 20px 0',textAlign:'center'}}>
+                <div style={{fontSize:10,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.4,fontWeight:600,marginBottom:8}}>Net GMV</div>
+                <div style={{fontFamily:'var(--fh)',fontSize:52,fontWeight:700,letterSpacing:-1.6,lineHeight:1,color:'var(--gr)',textShadow:'0 0 30px rgba(107,155,125,.32)'}}>{fmtGBPc(monthlyRecap.netGMV)}</div>
               </div>
-              {/* SPARKLINE — daily GMV. Green line with glow to match the GMV. */}
+              {/* SPARKLINE */}
               {(()=>{
                 const dailyGMV=monthlyRecap.dailyGMV||[];
                 if(dailyGMV.length===0)return null;
                 const max=Math.max(...dailyGMV,1);
-                const W=304,H=58,PAD=4;
+                const W=304,H=54,PAD=4;
                 const innerW=W-PAD*2,innerH=H-PAD*2;
                 const xAt=(i)=>PAD+(i/(dailyGMV.length-1))*innerW;
                 const yAt=(v)=>PAD+innerH-(v/max)*innerH;
@@ -4556,73 +4556,73 @@ body,html{margin:0;padding:0;background:#0d0d0e;}
                 const areaPts=`${PAD},${H-PAD} ${pts} ${W-PAD},${H-PAD}`;
                 const peakIdx=dailyGMV.indexOf(max);
                 return(
-                  <div style={{position:'relative',padding:'18px 18px 0'}}>
-                    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:'block',filter:'drop-shadow(0 0 8px rgba(107,155,125,.5))'}}>
+                  <div style={{position:'relative',padding:'16px 20px 0'}}>
+                    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{display:'block'}}>
                       <defs>
-                        <linearGradient id="rcSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6b9b7d" stopOpacity=".45"/><stop offset="100%" stopColor="#6b9b7d" stopOpacity="0"/></linearGradient>
+                        <linearGradient id="rcSpark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6b9b7d" stopOpacity=".35"/><stop offset="100%" stopColor="#6b9b7d" stopOpacity="0"/></linearGradient>
                       </defs>
                       <polygon points={areaPts} fill="url(#rcSpark)"/>
-                      <polyline points={pts} fill="none" stroke="#6b9b7d" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-                      {dailyGMV[peakIdx]>0&&(<circle cx={xAt(peakIdx)} cy={yAt(max)} r="3.5" fill="#fff" stroke="#6b9b7d" strokeWidth="1.5"/>)}
+                      <polyline points={pts} fill="none" stroke="#6b9b7d" strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round"/>
+                      {dailyGMV[peakIdx]>0&&(<circle cx={xAt(peakIdx)} cy={yAt(max)} r="3" fill="#0d0d0e" stroke="#6b9b7d" strokeWidth="1.5"/>)}
                     </svg>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'rgba(255,255,255,.45)',marginTop:2,fontFamily:'var(--fb)',fontWeight:600}}>
-                      <span>1</span>
-                      <span style={{color:'rgba(255,255,255,.8)'}}>PEAK · {peakIdx+1} {monthShort[monthlyRecap.month].toUpperCase()}</span>
-                      <span>{dailyGMV.length}</span>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:9.5,color:'var(--tx3)',marginTop:4,fontFamily:'var(--fb)',fontWeight:500,letterSpacing:.2}}>
+                      <span>Day 1</span>
+                      <span style={{color:'var(--tx2)'}}>Peak · {peakIdx+1} {monthShort[monthlyRecap.month]}</span>
+                      <span>Day {dailyGMV.length}</span>
                     </div>
                   </div>
                 );
               })()}
-              {/* STATS — purple-tinted panel for the dark backdrop */}
-              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',margin:'18px 18px 0',background:'rgba(201,162,75,.12)',border:'1px solid rgba(201,162,75,.28)',borderRadius:12,padding:'10px 0',backdropFilter:'blur(8px)'}}>
-                <div style={{textAlign:'center',borderRight:'1px solid rgba(201,162,75,.25)'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#fff',letterSpacing:.5,lineHeight:1}}>{fmtGBPc(monthlyRecap.commission)}</div>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Commission</div>
+              {/* STATS — clean panel, matches home page KPI grid vibe */}
+              <div style={{position:'relative',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',margin:'18px 20px 0',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12,padding:'12px 0'}}>
+                <div style={{textAlign:'center',borderRight:'1px solid var(--bo)'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,color:'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{fmtGBPc(monthlyRecap.commission)}</div>
+                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.15,fontWeight:600,marginTop:5}}>Commission</div>
                 </div>
-                <div style={{textAlign:'center',borderRight:'1px solid rgba(201,162,75,.25)'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:monthlyRecap.rank===1?'#fde047':'#fff',letterSpacing:.5,lineHeight:1}}>{monthlyRecap.rank?'#'+monthlyRecap.rank:'—'}</div>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>Rank{monthlyRecap.totalRanked?'/'+monthlyRecap.totalRanked:''}</div>
+                <div style={{textAlign:'center',borderRight:'1px solid var(--bo)'}}>
+                  <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,color:monthlyRecap.rank===1?'var(--go)':'var(--tx)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>{monthlyRecap.rank?'#'+monthlyRecap.rank:'—'}</div>
+                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.15,fontWeight:600,marginTop:5}}>Rank{monthlyRecap.totalRanked?'/'+monthlyRecap.totalRanked:''}</div>
                 </div>
                 <div style={{textAlign:'center'}}>
-                  <div style={{fontFamily:'var(--fh)',fontSize:16,color:'#d4b465',letterSpacing:.5,lineHeight:1}}>+{monthlyRecap.xpGained>=1000?(monthlyRecap.xpGained/1000).toFixed(1)+'k':monthlyRecap.xpGained.toLocaleString()}</div>
-                  <div style={{fontSize:8,color:'rgba(255,255,255,.55)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700,marginTop:4}}>XP</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:15,fontWeight:700,color:'var(--go)',lineHeight:1,fontVariantNumeric:'tabular-nums'}}>+{monthlyRecap.xpGained>=1000?(monthlyRecap.xpGained/1000).toFixed(1)+'k':monthlyRecap.xpGained.toLocaleString()}</div>
+                  <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.15,fontWeight:600,marginTop:5}}>XP gained</div>
                 </div>
               </div>
-              {/* TOP PRODUCT */}
+              {/* TOP PRODUCT — matches home page Top Products row */}
               {monthlyRecap.topName&&(
-                <div style={{position:'relative',margin:'10px 18px 0',display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(201,162,75,.1)',border:'1px solid rgba(201,162,75,.22)',borderRadius:10,backdropFilter:'blur(8px)'}}>
-                  <div style={{width:32,height:32,borderRadius:6,background:monthlyRecap.topImage?'transparent':'rgba(255,255,255,.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,overflow:'hidden',flexShrink:0}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
+                <div style={{position:'relative',margin:'10px 20px 0',display:'flex',alignItems:'center',gap:11,padding:'10px 12px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12}}>
+                  <div style={{width:36,height:36,borderRadius:8,background:monthlyRecap.topImage?'transparent':'var(--card2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,overflow:'hidden',flexShrink:0,border:'1px solid var(--bo)'}}>{monthlyRecap.topImage?<img src={monthlyRecap.topImage} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:'📦'}</div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:8,color:'rgba(255,255,255,.5)',textTransform:'uppercase',letterSpacing:1.2,fontWeight:700}}>🏆 Top Product</div>
-                    <div style={{fontSize:12,fontWeight:600,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{monthlyRecap.topName}</div>
+                    <div style={{fontSize:9,color:'var(--tx3)',textTransform:'uppercase',letterSpacing:1.15,fontWeight:600}}>Top product</div>
+                    <div style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:2}}>{monthlyRecap.topName}</div>
                   </div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:13,color:'#6b9b7d',flexShrink:0}}>{fmtGBPc(monthlyRecap.topGMV)}</div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:13,fontWeight:700,color:'var(--gr)',flexShrink:0,fontVariantNumeric:'tabular-nums'}}>{fmtGBPc(monthlyRecap.topGMV)}</div>
                 </div>
               )}
             </>)}
-            {/* USER + REFERRAL FOOTER — purple-tinted glass card */}
-            <div style={{position:'relative',margin:'14px 18px 0',padding:'12px 12px',background:'rgba(201,162,75,.14)',border:'1px solid rgba(201,162,75,.3)',borderRadius:12,backdropFilter:'blur(10px)'}}>
-              <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:refCode?9:0}}>
-                <div style={{width:30,height:30,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,color:'#fff',flexShrink:0,overflow:'hidden',border:'1.5px solid rgba(201,162,75,.6)'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
+            {/* FOOTER — creator identity + referral code */}
+            <div style={{position:'relative',margin:'12px 20px 0',padding:'12px 14px',background:'var(--card)',border:'1px solid var(--bo)',borderRadius:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:refCode?10:0}}>
+                <div style={{width:30,height:30,borderRadius:'50%',background:profile?.avatar_url?'transparent':avc(profile?.username),display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--fh)',fontSize:11,fontWeight:700,color:'#fff',flexShrink:0,overflow:'hidden'}}>{profile?.avatar_url?<img src={profile.avatar_url} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}}/>:ini(profile?.username)}</div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{handle}</div>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,.65)'}}>LVL {lv.level} · {(profile?.xp||0).toLocaleString()} XP</div>
+                  <div style={{fontSize:12.5,fontWeight:600,color:'var(--tx)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{handle}</div>
+                  <div style={{fontSize:10.5,color:'var(--tx3)',marginTop:2,letterSpacing:.15}}>Level {lv.level} · {(profile?.xp||0).toLocaleString()} XP</div>
                 </div>
               </div>
               {refCode&&(
-                <div style={{paddingTop:9,borderTop:'1px solid rgba(201,162,75,.25)',textAlign:'center'}}>
-                  <div style={{fontSize:10,color:'rgba(255,255,255,.7)',lineHeight:1.4,marginBottom:5}}><strong style={{color:'#6b9b7d',fontWeight:700}}>+100 XP</strong> sign-up bonus when you join with code:</div>
-                  <div style={{fontFamily:'var(--fh)',fontSize:18,letterSpacing:4,color:'#fff',lineHeight:1,marginBottom:4,textShadow:'0 0 14px rgba(201,162,75,.6)'}}>{refCode}</div>
-                  <div style={{fontSize:9.5,color:'rgba(255,255,255,.55)'}}>hollen.app</div>
+                <div style={{paddingTop:10,borderTop:'1px solid var(--bo)',textAlign:'center'}}>
+                  <div style={{fontSize:10.5,color:'var(--tx2)',lineHeight:1.5,marginBottom:6}}>Join with my code for <strong style={{color:'var(--gr)',fontWeight:700}}>+100 XP</strong></div>
+                  <div style={{fontFamily:'var(--fh)',fontSize:19,fontWeight:700,letterSpacing:3,color:'var(--go)',lineHeight:1,marginBottom:5}}>{refCode}</div>
+                  <div style={{fontSize:10,color:'var(--tx3)',letterSpacing:.4}}>hollen.app</div>
                 </div>
               )}
             </div>
-            <div style={{height:16}}/>
+            <div style={{height:18}}/>
           </div>
           {/* SHARE BUTTON — lives outside the card so it doesn't appear in the rasterised image. */}
           <div style={{position:'relative',display:'flex',gap:10,justifyContent:'center',marginTop:18,width:'100%',maxWidth:380,flexShrink:0}}>
-            <button onClick={shareRecap} disabled={shareLoading||monthlyRecap.isEmpty} style={{flex:1,padding:'13px 18px',background:shareLoading?'rgba(201,162,75,.4)':'linear-gradient(135deg,#c9a24b 0%,#8ba4a8 100%)',border:'none',color:'#fff',fontSize:14,fontWeight:700,letterSpacing:.5,cursor:(shareLoading||monthlyRecap.isEmpty)?'not-allowed':'pointer',borderRadius:14,fontFamily:'var(--fb)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 8px 24px rgba(201,162,75,.4)',opacity:monthlyRecap.isEmpty?.5:1}}>
-              {shareLoading?'⏳ Generating...':'📤 Share Recap'}
+            <button onClick={shareRecap} disabled={shareLoading||monthlyRecap.isEmpty} style={{flex:1,padding:'13px 18px',background:shareLoading?'rgba(201,162,75,.4)':'var(--go)',border:'none',color:'#0d0d0e',fontSize:14,fontWeight:700,letterSpacing:.3,cursor:(shareLoading||monthlyRecap.isEmpty)?'not-allowed':'pointer',borderRadius:12,fontFamily:'var(--fb)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'0 8px 24px rgba(201,162,75,.28)',opacity:monthlyRecap.isEmpty?.5:1}}>
+              {shareLoading?'⏳ Generating...':'📤 Share recap'}
             </button>
           </div>
           {/* CALENDAR MONTH PICKER — opens on top of the recap when user taps the date chip. */}
